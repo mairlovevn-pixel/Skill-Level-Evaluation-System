@@ -1,10 +1,18 @@
 -- 프로세스 데이터 삽입
 INSERT OR IGNORE INTO processes (id, name, description) VALUES 
-  (1, 'Assembly', '조립 프로세스'),
-  (2, 'Testing', '테스트 프로세스'),
-  (3, 'Packaging', '포장 프로세스'),
-  (4, 'Quality Control', '품질 관리 프로세스'),
-  (5, 'CNC Plasma', 'CNC 플라즈마 절단 프로세스');
+  (1, 'Cutting', 'Cutting 프로세스'),
+  (2, 'Beveling', 'Beveling 프로세스'),
+  (3, 'Bending', 'Bending 프로세스'),
+  (4, 'LS Welding', 'LS Welding 프로세스'),
+  (5, 'Fit Up', 'Fit Up 프로세스'),
+  (6, 'CS Welding', 'CS Welding 프로세스'),
+  (7, 'VTMT', 'VTMT 프로세스'),
+  (8, 'Bracket FU', 'Bracket FU 프로세스'),
+  (9, 'Bracket Weld', 'Bracket Weld 프로세스'),
+  (10, 'UT repair', 'UT repair 프로세스'),
+  (11, 'DF FU', 'DF FU 프로세스'),
+  (12, 'DF Weld', 'DF Weld 프로세스'),
+  (13, 'Flatness', 'Flatness 프로세스');
 
 -- 법인 및 작업자 샘플 데이터
 INSERT OR IGNORE INTO workers (employee_id, name, entity, team, position, start_to_work_date) VALUES 
