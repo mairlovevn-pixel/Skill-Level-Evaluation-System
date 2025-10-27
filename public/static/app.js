@@ -563,9 +563,13 @@ function getWorkerUploadHTML() {
             
             <div class="mb-6">
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                    <p class="text-sm text-blue-700 mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>지원 형식 1:</strong> No, Entity, Name, Employee ID, Team, Position, Start to work date
+                    </p>
                     <p class="text-sm text-blue-700">
                         <i class="fas fa-info-circle mr-2"></i>
-                        <strong>필수 항목:</strong> No, Entity, Name, Employee ID, Team, Position, Start to work date
+                        <strong>지원 형식 2:</strong> Name, Employee ID, Company, Department, Position, start to work (자동 변환됨)
                     </p>
                 </div>
                 
@@ -627,20 +631,73 @@ async function uploadWorkers() {
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(firstSheet);
             
-            const workers = rows.map(row => ({
-                employee_id: row['Employee ID'],
-                name: row['Name'],
-                entity: row['Entity'],
-                team: row['Team'],
-                position: row['Position'],
-                start_to_work_date: row['Start to work date']
-            }));
+            if (rows.length === 0) {
+                alert('엑셀 파일에 데이터가 없습니다.');
+                return;
+            }
+            
+            // 첫 번째 행의 컬럼 확인하여 형식 감지
+            const firstRow = rows[0];
+            let workers = [];
+            
+            // 형식 1: No, Entity, Name, Employee ID, Team, Position, Start to work date
+            if (firstRow.hasOwnProperty('Entity') && firstRow.hasOwnProperty('Team')) {
+                workers = rows.map(row => {
+                    // 날짜 처리
+                    let startDate = row['Start to work date'];
+                    if (startDate instanceof Date) {
+                        startDate = startDate.toISOString().split('T')[0];
+                    } else if (typeof startDate === 'number') {
+                        // Excel 날짜 시리얼 번호를 JavaScript Date로 변환
+                        const excelEpoch = new Date(1899, 11, 30);
+                        const jsDate = new Date(excelEpoch.getTime() + startDate * 86400000);
+                        startDate = jsDate.toISOString().split('T')[0];
+                    }
+                    
+                    return {
+                        employee_id: String(row['Employee ID'] || ''),
+                        name: String(row['Name'] || ''),
+                        entity: String(row['Entity'] || ''),
+                        team: String(row['Team'] || ''),
+                        position: String(row['Position'] || ''),
+                        start_to_work_date: String(startDate || '')
+                    };
+                });
+            }
+            // 형식 2: Name, Employee ID, Company, Department, Position, start to work
+            else if (firstRow.hasOwnProperty('Company') && firstRow.hasOwnProperty('Department')) {
+                workers = rows.map(row => {
+                    // 날짜 처리
+                    let startDate = row['start to work'];
+                    if (startDate instanceof Date) {
+                        startDate = startDate.toISOString().split('T')[0];
+                    } else if (typeof startDate === 'number') {
+                        // Excel 날짜 시리얼 번호를 JavaScript Date로 변환
+                        const excelEpoch = new Date(1899, 11, 30);
+                        const jsDate = new Date(excelEpoch.getTime() + startDate * 86400000);
+                        startDate = jsDate.toISOString().split('T')[0];
+                    }
+                    
+                    return {
+                        employee_id: String(row['Employee ID'] || ''),
+                        name: String(row['Name'] || ''),
+                        entity: String(row['Company'] || ''),  // Company -> Entity
+                        team: String(row['Department'] || ''),  // Department -> Team
+                        position: String(row['Position'] || ''),
+                        start_to_work_date: String(startDate || '')
+                    };
+                });
+            } else {
+                alert('지원하지 않는 엑셀 파일 형식입니다.\n\n지원 형식:\n1. No, Entity, Name, Employee ID, Team, Position, Start to work date\n2. Name, Employee ID, Company, Department, Position, start to work');
+                return;
+            }
             
             // 필수 항목 검증
-            for (const worker of workers) {
+            for (let i = 0; i < workers.length; i++) {
+                const worker = workers[i];
                 if (!worker.employee_id || !worker.name || !worker.entity || 
                     !worker.team || !worker.position || !worker.start_to_work_date) {
-                    alert('필수 항목이 누락된 데이터가 있습니다.');
+                    alert(`${i + 2}번째 행에 필수 항목이 누락되었습니다.\n누락된 항목을 확인해주세요.`);
                     return;
                 }
             }
@@ -651,7 +708,7 @@ async function uploadWorkers() {
             loadWorkers(); // 작업자 목록 새로고침
         } catch (error) {
             console.error('작업자 업로드 실패:', error);
-            alert('작업자 업로드에 실패했습니다.');
+            alert('작업자 업로드에 실패했습니다.\n\n오류: ' + (error.response?.data?.error || error.message));
         }
     };
     
