@@ -39,7 +39,10 @@
 ### 4. 작업자 현황 등록 페이지 (네 번째 페이지)
 - ✅ 엑셀 파일 업로드 기능
 - ✅ 템플릿 다운로드 기능
-- ✅ 필수 컬럼: No, Entity, Name, Employee ID, Team, Position, Start to work date
+- ✅ 다중 형식 지원:
+  - **형식 1**: No, Entity, Name, Employee ID, Team, Position, Start to work date
+  - **형식 2**: Name, Employee ID, Company, Department, Position, start to work (자동 변환)
+- ✅ 날짜 자동 변환 (Excel 날짜 형식 지원)
 - ✅ 필수 항목 검증
 - ✅ 일괄 등록 기능
 
