@@ -23,8 +23,12 @@
 ### 2. Written Test Quiz 등록 페이지 (두 번째 페이지)
 - ✅ 엑셀 파일 업로드 기능
 - ✅ 템플릿 다운로드 기능
-- ✅ 필수 컬럼: Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer
+- ✅ 다중 형식 지원:
+  - **형식 1**: Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer
+  - **형식 2**: 번호, 질문, 1), 2), 3), 4), 정답 (한국어 형식, 자동 변환)
+- ✅ 프로세스 선택 기능 (형식 2 사용 시)
 - ✅ 일괄 등록 기능
+- ✅ 데이터 검증 및 오류 메시지
 
 ### 3. Supervisor Assessment 항목 등록 페이지 (세 번째 페이지)
 - ✅ 엑셀 파일 업로드 기능
@@ -96,8 +100,10 @@
 
 ### 초기 설정
 1. 작업자 등록: 네 번째 페이지에서 엑셀 파일로 작업자 정보 업로드
-2. 프로세스: 기본 4개 프로세스 제공 (Assembly, Testing, Packaging, Quality Control)
+2. 프로세스: 기본 5개 프로세스 제공 (Assembly, Testing, Packaging, Quality Control, CNC Plasma)
 3. Quiz 등록: 두 번째 페이지에서 프로세스별 시험 문제 업로드
+   - **형식 1**: 영문 컬럼명 사용 (Process ID 포함)
+   - **형식 2**: 한국어 컬럼명 사용 (번호, 질문, 1), 2), 3), 4), 정답) - 프로세스 선택 필요
 4. Assessment 항목 등록: 세 번째 페이지에서 평가 항목 업로드
 
 ### 시험 진행
