@@ -79,7 +79,9 @@
 
 ### 데이터 모델
 1. **workers**: 작업자 정보
-2. **processes**: 프로세스 목록
+2. **processes**: 프로세스 목록 (13개 제조/용접 프로세스)
+   - Cutting, Beveling, Bending, LS Welding, Fit Up, CS Welding, VTMT
+   - Bracket FU, Bracket Weld, UT repair, DF FU, DF Weld, Flatness
 3. **written_test_quizzes**: 시험 문제
 4. **written_test_results**: 시험 결과
 5. **written_test_answers**: 답안 상세
@@ -100,7 +102,9 @@
 
 ### 초기 설정
 1. 작업자 등록: 네 번째 페이지에서 엑셀 파일로 작업자 정보 업로드
-2. 프로세스: 기본 5개 프로세스 제공 (Assembly, Testing, Packaging, Quality Control, CNC Plasma)
+2. 프로세스: 기본 13개 제조/용접 프로세스 제공
+   - Cutting, Beveling, Bending, LS Welding, Fit Up, CS Welding, VTMT
+   - Bracket FU, Bracket Weld, UT repair, DF FU, DF Weld, Flatness
 3. Quiz 등록: 두 번째 페이지에서 프로세스별 시험 문제 업로드
    - **형식 1**: 영문 컬럼명 사용 (Process ID 포함)
    - **형식 2**: 한국어 컬럼명 사용 (번호, 질문, 1), 2), 3), 4), 정답) - 프로세스 선택 필요
