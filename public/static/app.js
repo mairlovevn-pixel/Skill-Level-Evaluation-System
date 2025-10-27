@@ -23,6 +23,7 @@ function showPage(pageName) {
             break;
         case 'quiz-upload':
             app.innerHTML = getQuizUploadHTML();
+            loadQuizUploadPage();
             break;
         case 'assessment-upload':
             app.innerHTML = getAssessmentUploadHTML();
@@ -269,6 +270,20 @@ function renderAssessmentChart() {
 
 // ==================== Quiz 등록 페이지 ====================
 
+function loadQuizUploadPage() {
+    // 프로세스 목록 로드
+    const processSelect = document.getElementById('quiz-process-select');
+    if (processSelect) {
+        processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
+        processes.forEach(process => {
+            const option = document.createElement('option');
+            option.value = process.id;
+            option.textContent = process.name;
+            processSelect.appendChild(option);
+        });
+    }
+}
+
 function getQuizUploadHTML() {
     return `
         <div class="bg-white rounded-lg shadow-md p-8">
@@ -279,10 +294,23 @@ function getQuizUploadHTML() {
             
             <div class="mb-6">
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                    <p class="text-sm text-blue-700 mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>지원 형식 1:</strong> Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer
+                    </p>
                     <p class="text-sm text-blue-700">
                         <i class="fas fa-info-circle mr-2"></i>
-                        엑셀 파일 형식: Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer
+                        <strong>지원 형식 2:</strong> 번호, 질문, 1), 2), 3), 4), 정답 (자동 변환됨)
                     </p>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2">
+                        프로세스 선택 (형식 2 사용 시 필수)
+                    </label>
+                    <select id="quiz-process-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">프로세스를 선택하세요</option>
+                    </select>
                 </div>
                 
                 <label class="block text-gray-700 font-semibold mb-2">
@@ -343,22 +371,86 @@ async function uploadQuizzes() {
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(firstSheet);
             
-            const quizzes = rows.map(row => ({
-                process_id: row['Process ID'],
-                question: row['Question'],
-                option_a: row['Option A'],
-                option_b: row['Option B'],
-                option_c: row['Option C'] || '',
-                option_d: row['Option D'] || '',
-                correct_answer: row['Correct Answer']
-            }));
+            if (rows.length === 0) {
+                alert('엑셀 파일에 데이터가 없습니다.');
+                return;
+            }
+            
+            // 첫 번째 행의 컬럼 확인하여 형식 감지
+            const firstRow = rows[0];
+            let quizzes = [];
+            
+            // 형식 1: Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer
+            if (firstRow.hasOwnProperty('Process ID') && firstRow.hasOwnProperty('Question')) {
+                quizzes = rows.map(row => ({
+                    process_id: row['Process ID'],
+                    question: row['Question'],
+                    option_a: row['Option A'],
+                    option_b: row['Option B'],
+                    option_c: row['Option C'] || '',
+                    option_d: row['Option D'] || '',
+                    correct_answer: row['Correct Answer']
+                }));
+            }
+            // 형식 2: 번호, 질문, 1), 2), 3), 4), 정답
+            else if (firstRow.hasOwnProperty('번호') && firstRow.hasOwnProperty('질문')) {
+                const processSelect = document.getElementById('quiz-process-select');
+                const processId = processSelect.value;
+                
+                if (!processId) {
+                    alert('프로세스를 선택해주세요. (형식 2 사용 시 필수)');
+                    return;
+                }
+                
+                quizzes = rows.map(row => {
+                    // 정답 매핑: A/B/C/D 형식으로 변환
+                    let correctAnswer = row['정답'];
+                    if (correctAnswer && typeof correctAnswer === 'string') {
+                        correctAnswer = correctAnswer.trim().toUpperCase();
+                        // 만약 정답이 숫자면 변환 (1->A, 2->B, 3->C, 4->D)
+                        if (['1', '2', '3', '4'].includes(correctAnswer)) {
+                            const mapping = {'1': 'A', '2': 'B', '3': 'C', '4': 'D'};
+                            correctAnswer = mapping[correctAnswer];
+                        }
+                    }
+                    
+                    return {
+                        process_id: parseInt(processId),
+                        question: row['질문'],
+                        option_a: row['1)'] || '',
+                        option_b: row['2)'] || '',
+                        option_c: row['3)'] || '',
+                        option_d: row['4)'] || '',
+                        correct_answer: correctAnswer
+                    };
+                });
+            } else {
+                alert('지원하지 않는 엑셀 파일 형식입니다.\n\n지원 형식:\n1. Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer\n2. 번호, 질문, 1), 2), 3), 4), 정답');
+                return;
+            }
+            
+            // 데이터 검증
+            for (let i = 0; i < quizzes.length; i++) {
+                const quiz = quizzes[i];
+                if (!quiz.process_id || !quiz.question || !quiz.option_a || !quiz.option_b || !quiz.correct_answer) {
+                    alert(`${i + 1}번째 행에 필수 항목이 누락되었습니다.`);
+                    return;
+                }
+                if (!['A', 'B', 'C', 'D'].includes(quiz.correct_answer)) {
+                    alert(`${i + 1}번째 행의 정답이 올바르지 않습니다. (A, B, C, D 중 하나여야 합니다)`);
+                    return;
+                }
+            }
             
             const response = await axios.post('/api/quizzes/bulk', quizzes);
             alert(`${response.data.count}개의 퀴즈가 성공적으로 등록되었습니다.`);
             fileInput.value = '';
+            if (document.getElementById('quiz-process-select')) {
+                document.getElementById('quiz-process-select').value = '';
+            }
         } catch (error) {
             console.error('퀴즈 업로드 실패:', error);
-            alert('퀴즈 업로드에 실패했습니다.');
+            alert('퀴즈 업로드에 실패했습니다.\n\n오류: ' + (error.response?.data?.error || error.message));
         }
     };
     

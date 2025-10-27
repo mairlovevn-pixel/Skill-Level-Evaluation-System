@@ -3,7 +3,8 @@ INSERT OR IGNORE INTO processes (id, name, description) VALUES
   (1, 'Assembly', '조립 프로세스'),
   (2, 'Testing', '테스트 프로세스'),
   (3, 'Packaging', '포장 프로세스'),
-  (4, 'Quality Control', '품질 관리 프로세스');
+  (4, 'Quality Control', '품질 관리 프로세스'),
+  (5, 'CNC Plasma', 'CNC 플라즈마 절단 프로세스');
 
 -- 법인 및 작업자 샘플 데이터
 INSERT OR IGNORE INTO workers (employee_id, name, entity, team, position, start_to_work_date) VALUES 
