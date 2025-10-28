@@ -1307,7 +1307,7 @@ async function submitTest() {
     });
     
     const score = (correctCount / currentQuizzes.length) * 100;
-    const passed = score >= 70; // 70점 이상 합격
+    const passed = score >= 60; // 60점 이상 합격
     
     try {
         await axios.post('/api/test-results', {
