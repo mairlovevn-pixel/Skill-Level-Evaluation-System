@@ -2036,6 +2036,11 @@ function getResultManagementHTML() {
                                     <option value="">전체 프로세스</option>
                                 </select>
                                 
+                                <select id="test-download-type" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="summary">요약 (카테고리/평가항목/만족여부)</option>
+                                    <option value="detailed">상세 (개별 문제별 답변)</option>
+                                </select>
+                                
                                 <button onclick="downloadWrittenTestResults()" 
                                         class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
                                     <i class="fas fa-file-download mr-2"></i>엑셀 다운로드
@@ -2088,6 +2093,11 @@ function getResultManagementHTML() {
                                 
                                 <select id="assessment-process-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                                     <option value="">전체 프로세스</option>
+                                </select>
+                                
+                                <select id="assessment-download-type" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="summary">요약 (카테고리별 평균)</option>
+                                    <option value="detailed">상세 (개별 평가 항목별)</option>
                                 </select>
                                 
                                 <button onclick="downloadAssessmentResults()" 
@@ -2160,8 +2170,12 @@ async function downloadWrittenTestResults() {
     try {
         const entity = document.getElementById('test-entity-filter').value;
         const processId = document.getElementById('test-process-filter').value;
+        const downloadType = document.getElementById('test-download-type').value;
         
-        let url = '/api/results/written-test?';
+        let url = downloadType === 'detailed' 
+            ? '/api/results/written-test/detailed?' 
+            : '/api/results/written-test?';
+        
         if (entity) url += `entity=${entity}&`;
         if (processId) url += `processId=${processId}`;
         
@@ -2173,22 +2187,62 @@ async function downloadWrittenTestResults() {
             return;
         }
         
-        // 엑셀 데이터 생성 (이미지 양식에 맞게 수정)
-        const excelData = results.map((r, index) => ({
-            '카테고리': r.process_name,
-            '평가 항목': 'Written Test',
-            '만족 여부': r.passed ? '합격' : '불합격'
-        }));
+        let excelData;
+        let fileName;
+        
+        if (downloadType === 'detailed') {
+            // 상세 양식 (개별 문제별)
+            excelData = results.map((r, index) => ({
+                'No.': index + 1,
+                '사번': r.employee_id,
+                '이름': r.name,
+                '법인': r.entity,
+                '팀': r.team,
+                '직급': r.position,
+                '프로세스': r.process_name,
+                '문제': r.question,
+                '선택답안': r.selected_answer,
+                '정답': r.correct_answer,
+                '정답여부': r.is_correct ? 'O' : 'X',
+                '시험일자': new Date(r.test_date).toLocaleDateString('ko-KR')
+            }));
+            fileName = `Written_Test_Detailed_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        } else {
+            // 요약 양식 (간단)
+            excelData = results.map((r, index) => ({
+                '카테고리': r.process_name,
+                '평가 항목': 'Written Test',
+                '만족 여부': r.passed ? '합격' : '불합격'
+            }));
+            fileName = `Written_Test_Summary_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        }
         
         // 워크시트 생성
         const ws = XLSX.utils.json_to_sheet(excelData);
         
         // 열 너비 설정
-        ws['!cols'] = [
-            { wch: 25 },  // 카테고리
-            { wch: 25 },  // 평가 항목
-            { wch: 15 }   // 만족 여부
-        ];
+        if (downloadType === 'detailed') {
+            ws['!cols'] = [
+                { wch: 6 },   // No.
+                { wch: 12 },  // 사번
+                { wch: 15 },  // 이름
+                { wch: 10 },  // 법인
+                { wch: 20 },  // 팀
+                { wch: 15 },  // 직급
+                { wch: 15 },  // 프로세스
+                { wch: 50 },  // 문제
+                { wch: 10 },  // 선택답안
+                { wch: 10 },  // 정답
+                { wch: 10 },  // 정답여부
+                { wch: 15 }   // 시험일자
+            ];
+        } else {
+            ws['!cols'] = [
+                { wch: 25 },  // 카테고리
+                { wch: 25 },  // 평가 항목
+                { wch: 15 }   // 만족 여부
+            ];
+        }
         
         // 헤더 스타일 적용 (노란색 배경)
         const range = XLSX.utils.decode_range(ws['!ref']);
@@ -2225,15 +2279,30 @@ async function downloadWrittenTestResults() {
                     }
                 };
                 
-                // 합격/불합격 색상 적용 (만족 여부 컬럼 - col 2)
-                if (col === 2) { // 만족 여부 컬럼
-                    const value = ws[cellAddress].v;
-                    if (value === '합격') {
-                        ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
-                        ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
-                    } else if (value === '불합격') {
-                        ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
-                        ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
+                // 조건부 색상 적용
+                if (downloadType === 'detailed') {
+                    // 정답여부 컬럼 (col 10)
+                    if (col === 10) {
+                        const value = ws[cellAddress].v;
+                        if (value === 'O') {
+                            ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
+                            ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
+                        } else if (value === 'X') {
+                            ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
+                            ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
+                        }
+                    }
+                } else {
+                    // 만족 여부 컬럼 (col 2)
+                    if (col === 2) {
+                        const value = ws[cellAddress].v;
+                        if (value === '합격') {
+                            ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
+                            ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
+                        } else if (value === '불합격') {
+                            ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
+                            ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
+                        }
                     }
                 }
             }
@@ -2242,9 +2311,6 @@ async function downloadWrittenTestResults() {
         // 워크북 생성 및 시트 추가
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Written Test Results');
-        
-        // 파일명 생성
-        const fileName = `Written_Test_Results_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
         
         // 다운로드
         XLSX.writeFile(wb, fileName);
@@ -2261,6 +2327,7 @@ async function downloadAssessmentResults() {
     try {
         const entity = document.getElementById('assessment-entity-filter').value;
         const processId = document.getElementById('assessment-process-filter').value;
+        const downloadType = document.getElementById('assessment-download-type').value;
         
         let url = '/api/results/assessment?';
         if (entity) url += `entity=${entity}&`;
@@ -2274,36 +2341,91 @@ async function downloadAssessmentResults() {
             return;
         }
         
-        // 엑셀 데이터 생성 (순번 추가)
-        const excelData = results.map((r, index) => ({
-            'No.': index + 1,
-            '사번': r.employee_id,
-            '이름': r.name,
-            '법인': r.entity,
-            '팀': r.team,
-            '직급': r.position,
-            '카테고리': r.category,
-            '평가항목': r.item_name,
-            '레벨': r.level,
-            '평가일자': new Date(r.assessment_date).toLocaleDateString('ko-KR')
-        }));
+        let excelData;
+        let fileName;
+        
+        if (downloadType === 'summary') {
+            // 요약 양식 (카테고리별 평균)
+            const categoryMap = new Map();
+            
+            results.forEach(r => {
+                const key = `${r.employee_id}_${r.category}`;
+                if (!categoryMap.has(key)) {
+                    categoryMap.set(key, {
+                        employee_id: r.employee_id,
+                        name: r.name,
+                        entity: r.entity,
+                        team: r.team,
+                        position: r.position,
+                        category: r.category,
+                        levels: [],
+                        assessment_date: r.assessment_date
+                    });
+                }
+                categoryMap.get(key).levels.push(r.level);
+            });
+            
+            excelData = Array.from(categoryMap.values()).map((item, index) => ({
+                'No.': index + 1,
+                '사번': item.employee_id,
+                '이름': item.name,
+                '법인': item.entity,
+                '팀': item.team,
+                '직급': item.position,
+                '카테고리': item.category,
+                '평균 레벨': (item.levels.reduce((a, b) => a + b, 0) / item.levels.length).toFixed(1),
+                '평가일자': new Date(item.assessment_date).toLocaleDateString('ko-KR')
+            }));
+            
+            fileName = `Assessment_Summary_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        } else {
+            // 상세 양식 (개별 항목별)
+            excelData = results.map((r, index) => ({
+                'No.': index + 1,
+                '사번': r.employee_id,
+                '이름': r.name,
+                '법인': r.entity,
+                '팀': r.team,
+                '직급': r.position,
+                '카테고리': r.category,
+                '평가항목': r.item_name,
+                '레벨': r.level,
+                '평가일자': new Date(r.assessment_date).toLocaleDateString('ko-KR')
+            }));
+            
+            fileName = `Assessment_Detailed_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        }
         
         // 워크시트 생성
         const ws = XLSX.utils.json_to_sheet(excelData);
         
         // 열 너비 설정
-        ws['!cols'] = [
-            { wch: 6 },   // No.
-            { wch: 12 },  // 사번
-            { wch: 15 },  // 이름
-            { wch: 10 },  // 법인
-            { wch: 20 },  // 팀
-            { wch: 15 },  // 직급
-            { wch: 20 },  // 카테고리
-            { wch: 25 },  // 평가항목
-            { wch: 10 },  // 레벨
-            { wch: 15 }   // 평가일자
-        ];
+        if (downloadType === 'summary') {
+            ws['!cols'] = [
+                { wch: 6 },   // No.
+                { wch: 12 },  // 사번
+                { wch: 15 },  // 이름
+                { wch: 10 },  // 법인
+                { wch: 20 },  // 팀
+                { wch: 15 },  // 직급
+                { wch: 20 },  // 카테고리
+                { wch: 12 },  // 평균 레벨
+                { wch: 15 }   // 평가일자
+            ];
+        } else {
+            ws['!cols'] = [
+                { wch: 6 },   // No.
+                { wch: 12 },  // 사번
+                { wch: 15 },  // 이름
+                { wch: 10 },  // 법인
+                { wch: 20 },  // 팀
+                { wch: 15 },  // 직급
+                { wch: 20 },  // 카테고리
+                { wch: 25 },  // 평가항목
+                { wch: 10 },  // 레벨
+                { wch: 15 }   // 평가일자
+            ];
+        }
         
         // 헤더 스타일 적용 (첫 번째 행)
         const range = XLSX.utils.decode_range(ws['!ref']);
@@ -2341,18 +2463,22 @@ async function downloadAssessmentResults() {
                 };
                 
                 // 레벨별 색상 적용
-                if (col === 8) { // 레벨 컬럼
-                    const value = ws[cellAddress].v;
-                    if (value === 5) {
+                const levelCol = downloadType === 'summary' ? 7 : 8; // 평균 레벨 or 레벨 컬럼
+                if (col === levelCol) {
+                    const value = downloadType === 'summary' 
+                        ? parseFloat(ws[cellAddress].v) 
+                        : ws[cellAddress].v;
+                    
+                    if (value >= 4.5) {
                         ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
                         ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
-                    } else if (value === 4) {
+                    } else if (value >= 3.5) {
                         ws[cellAddress].s.fill = { fgColor: { rgb: "C6E0B4" } };
-                    } else if (value === 3) {
+                    } else if (value >= 2.5) {
                         ws[cellAddress].s.fill = { fgColor: { rgb: "FFE699" } };
-                    } else if (value === 2) {
+                    } else if (value >= 1.5) {
                         ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
-                    } else if (value === 1) {
+                    } else {
                         ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
                         ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
                     }
@@ -2363,9 +2489,6 @@ async function downloadAssessmentResults() {
         // 워크북 생성 및 시트 추가
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Assessment Results');
-        
-        // 파일명 생성
-        const fileName = `Assessment_Results_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
         
         // 다운로드
         XLSX.writeFile(wb, fileName);

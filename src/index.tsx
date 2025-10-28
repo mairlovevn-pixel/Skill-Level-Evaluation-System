@@ -657,7 +657,7 @@ app.get('/api/analysis/training-recommendations', errorHandler(async (c) => {
 
 // ==================== Result Management APIs ====================
 
-// Written Test 결과 조회 (법인, 프로세스 필터)
+// Written Test 결과 조회 (법인, 프로세스 필터) - 요약
 app.get('/api/results/written-test', errorHandler(async (c) => {
   const db = c.env.DB
   const entity = c.req.query('entity')
@@ -693,6 +693,51 @@ app.get('/api/results/written-test', errorHandler(async (c) => {
   }
   
   query += ' ORDER BY w.entity, w.employee_id'
+  
+  const result = await db.prepare(query).bind(...params).all()
+  return c.json(result.results)
+}))
+
+// Written Test 결과 조회 (개별 문제별) - 상세
+app.get('/api/results/written-test/detailed', errorHandler(async (c) => {
+  const db = c.env.DB
+  const entity = c.req.query('entity')
+  const processId = c.req.query('processId')
+  
+  let query = `
+    SELECT 
+      w.employee_id,
+      w.name,
+      w.entity,
+      w.team,
+      w.position,
+      p.name as process_name,
+      q.question,
+      wta.selected_answer,
+      q.correct_answer,
+      wta.is_correct,
+      wtr.test_date
+    FROM written_test_answers wta
+    JOIN written_test_results wtr ON wta.result_id = wtr.id
+    JOIN written_test_quizzes q ON wta.quiz_id = q.id
+    JOIN workers w ON wtr.worker_id = w.id
+    JOIN processes p ON wtr.process_id = p.id
+    WHERE 1=1
+  `
+  
+  const params: any[] = []
+  
+  if (entity) {
+    query += ' AND w.entity = ?'
+    params.push(entity)
+  }
+  
+  if (processId) {
+    query += ' AND wtr.process_id = ?'
+    params.push(processId)
+  }
+  
+  query += ' ORDER BY w.entity, w.employee_id, q.id'
   
   const result = await db.prepare(query).bind(...params).all()
   return c.json(result.results)
