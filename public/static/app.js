@@ -77,6 +77,10 @@ function showPage(pageName) {
         case 'analysis-page':
             showAnalysisPage();
             break;
+        case 'result-management':
+            app.innerHTML = getResultManagementHTML();
+            loadResultManagementPage();
+            break;
     }
 }
 
@@ -1993,6 +1997,338 @@ function showAssessmentComplete(levelResults, finalLevel) {
     summaryHTML += `</div>`;
     
     summaryDiv.innerHTML = summaryHTML;
+}
+
+// ==================== 결과 관리 페이지 ====================
+
+function getResultManagementHTML() {
+    return `
+        <div class="bg-white rounded-lg shadow-md p-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                <i class="fas fa-file-excel mr-2"></i>
+                평가 결과 관리
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Written Test 결과 관리 -->
+                <div class="border border-gray-200 rounded-lg p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-pencil-alt mr-2"></i>
+                        Written Test 결과
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <!-- 다운로드 섹션 -->
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-3">
+                                <i class="fas fa-download mr-2"></i>결과 다운로드
+                            </h4>
+                            
+                            <div class="space-y-2">
+                                <select id="test-entity-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="">전체 법인</option>
+                                    <option value="CSVN">CSVN</option>
+                                    <option value="CSCN">CSCN</option>
+                                    <option value="CSTW">CSTW</option>
+                                </select>
+                                
+                                <select id="test-process-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="">전체 프로세스</option>
+                                </select>
+                                
+                                <button onclick="downloadWrittenTestResults()" 
+                                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
+                                    <i class="fas fa-file-download mr-2"></i>엑셀 다운로드
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 업로드 섹션 -->
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-3">
+                                <i class="fas fa-upload mr-2"></i>결과 업로드
+                            </h4>
+                            
+                            <div class="space-y-2">
+                                <input type="file" 
+                                       id="test-result-file" 
+                                       accept=".xlsx, .xls"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                
+                                <button onclick="uploadWrittenTestResults()" 
+                                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition">
+                                    <i class="fas fa-file-upload mr-2"></i>엑셀 업로드
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Assessment 결과 관리 -->
+                <div class="border border-gray-200 rounded-lg p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-clipboard-check mr-2"></i>
+                        Supervisor Assessment 결과
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <!-- 다운로드 섹션 -->
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-3">
+                                <i class="fas fa-download mr-2"></i>결과 다운로드
+                            </h4>
+                            
+                            <div class="space-y-2">
+                                <select id="assessment-entity-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="">전체 법인</option>
+                                    <option value="CSVN">CSVN</option>
+                                    <option value="CSCN">CSCN</option>
+                                    <option value="CSTW">CSTW</option>
+                                </select>
+                                
+                                <select id="assessment-process-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="">전체 프로세스</option>
+                                </select>
+                                
+                                <button onclick="downloadAssessmentResults()" 
+                                        class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition">
+                                    <i class="fas fa-file-download mr-2"></i>엑셀 다운로드
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 업로드 섹션 -->
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-3">
+                                <i class="fas fa-upload mr-2"></i>결과 업로드
+                            </h4>
+                            
+                            <div class="space-y-2">
+                                <input type="file" 
+                                       id="assessment-result-file" 
+                                       accept=".xlsx, .xls"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                
+                                <button onclick="uploadAssessmentResults()" 
+                                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition">
+                                    <i class="fas fa-file-upload mr-2"></i>엑셀 업로드
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 안내 메시지 -->
+            <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h4 class="font-semibold text-yellow-800 mb-2">
+                    <i class="fas fa-info-circle mr-2"></i>사용 안내
+                </h4>
+                <ul class="text-sm text-yellow-700 space-y-1">
+                    <li>• 다운로드: 법인과 프로세스를 선택하여 필터링된 결과를 엑셀로 다운로드할 수 있습니다.</li>
+                    <li>• 업로드: 다운로드한 엑셀 파일과 동일한 양식으로 작성하여 업로드하면 결과가 일괄 등록됩니다.</li>
+                    <li>• Written Test: 사번, 이름, 법인, 팀, 직급, 프로세스명, 점수, 합격여부, 시험일자</li>
+                    <li>• Assessment: 사번, 이름, 법인, 팀, 직급, 카테고리, 평가항목, 레벨, 평가일자</li>
+                </ul>
+            </div>
+        </div>
+    `;
+}
+
+async function loadResultManagementPage() {
+    // 프로세스 목록 로드
+    const testProcessFilter = document.getElementById('test-process-filter');
+    const assessmentProcessFilter = document.getElementById('assessment-process-filter');
+    
+    if (testProcessFilter && assessmentProcessFilter) {
+        processes.forEach(process => {
+            const option1 = document.createElement('option');
+            option1.value = process.id;
+            option1.textContent = process.name;
+            testProcessFilter.appendChild(option1);
+            
+            const option2 = document.createElement('option');
+            option2.value = process.id;
+            option2.textContent = process.name;
+            assessmentProcessFilter.appendChild(option2);
+        });
+    }
+}
+
+// Written Test 결과 다운로드
+async function downloadWrittenTestResults() {
+    try {
+        const entity = document.getElementById('test-entity-filter').value;
+        const processId = document.getElementById('test-process-filter').value;
+        
+        let url = '/api/results/written-test?';
+        if (entity) url += `entity=${entity}&`;
+        if (processId) url += `processId=${processId}`;
+        
+        const response = await axios.get(url);
+        const results = response.data;
+        
+        if (results.length === 0) {
+            alert('다운로드할 결과가 없습니다.');
+            return;
+        }
+        
+        // 엑셀 데이터 생성
+        const excelData = results.map(r => ({
+            '사번': r.employee_id,
+            '이름': r.name,
+            '법인': r.entity,
+            '팀': r.team,
+            '직급': r.position,
+            '프로세스명': r.process_name,
+            '점수': r.score,
+            '합격여부': r.passed ? '합격' : '불합격',
+            '시험일자': new Date(r.test_date).toLocaleDateString('ko-KR')
+        }));
+        
+        // 엑셀 파일 생성 및 다운로드
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Written Test Results');
+        
+        const fileName = `Written_Test_Results_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+        
+        alert(`${results.length}건의 결과를 다운로드했습니다.`);
+    } catch (error) {
+        console.error('다운로드 실패:', error);
+        alert('결과 다운로드에 실패했습니다.');
+    }
+}
+
+// Assessment 결과 다운로드
+async function downloadAssessmentResults() {
+    try {
+        const entity = document.getElementById('assessment-entity-filter').value;
+        const processId = document.getElementById('assessment-process-filter').value;
+        
+        let url = '/api/results/assessment?';
+        if (entity) url += `entity=${entity}&`;
+        if (processId) url += `processId=${processId}`;
+        
+        const response = await axios.get(url);
+        const results = response.data;
+        
+        if (results.length === 0) {
+            alert('다운로드할 결과가 없습니다.');
+            return;
+        }
+        
+        // 엑셀 데이터 생성
+        const excelData = results.map(r => ({
+            '사번': r.employee_id,
+            '이름': r.name,
+            '법인': r.entity,
+            '팀': r.team,
+            '직급': r.position,
+            '카테고리': r.category,
+            '평가항목': r.item_name,
+            '레벨': r.level,
+            '평가일자': new Date(r.assessment_date).toLocaleDateString('ko-KR')
+        }));
+        
+        // 엑셀 파일 생성 및 다운로드
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Assessment Results');
+        
+        const fileName = `Assessment_Results_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+        
+        alert(`${results.length}건의 결과를 다운로드했습니다.`);
+    } catch (error) {
+        console.error('다운로드 실패:', error);
+        alert('결과 다운로드에 실패했습니다.');
+    }
+}
+
+// Written Test 결과 업로드
+async function uploadWrittenTestResults() {
+    const fileInput = document.getElementById('test-result-file');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('파일을 선택해주세요.');
+        return;
+    }
+    
+    const reader = new FileReader();
+    
+    reader.onload = async function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            
+            // 데이터 변환
+            const results = jsonData.map(row => ({
+                employee_id: row['사번'],
+                process_name: row['프로세스명'],
+                score: parseFloat(row['점수']),
+                passed: row['합격여부'] === '합격',
+                test_date: row['시험일자'] ? new Date(row['시험일자']).toISOString() : new Date().toISOString()
+            }));
+            
+            // 서버에 업로드
+            const response = await axios.post('/api/results/written-test/bulk', results);
+            
+            alert(`${response.data.count}건의 결과를 업로드했습니다.`);
+            fileInput.value = '';
+        } catch (error) {
+            console.error('업로드 실패:', error);
+            alert('결과 업로드에 실패했습니다.\n\n파일 형식을 확인해주세요.');
+        }
+    };
+    
+    reader.readAsArrayBuffer(file);
+}
+
+// Assessment 결과 업로드
+async function uploadAssessmentResults() {
+    const fileInput = document.getElementById('assessment-result-file');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert('파일을 선택해주세요.');
+        return;
+    }
+    
+    const reader = new FileReader();
+    
+    reader.onload = async function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            
+            // 데이터 변환
+            const results = jsonData.map(row => ({
+                employee_id: row['사번'],
+                category: row['카테고리'],
+                item_name: row['평가항목'],
+                level: parseInt(row['레벨']),
+                assessment_date: row['평가일자'] ? new Date(row['평가일자']).toISOString() : new Date().toISOString()
+            }));
+            
+            // 서버에 업로드
+            const response = await axios.post('/api/results/assessment/bulk', results);
+            
+            alert(`${response.data.count}건의 결과를 업로드했습니다.`);
+            fileInput.value = '';
+        } catch (error) {
+            console.error('업로드 실패:', error);
+            alert('결과 업로드에 실패했습니다.\n\n파일 형식을 확인해주세요.');
+        }
+    };
+    
+    reader.readAsArrayBuffer(file);
 }
 
 // ==================== 시험 응시 페이지 ====================

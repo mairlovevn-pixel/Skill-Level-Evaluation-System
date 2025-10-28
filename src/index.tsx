@@ -655,6 +655,169 @@ app.get('/api/analysis/training-recommendations', errorHandler(async (c) => {
   return c.json(result.results)
 }))
 
+// ==================== Result Management APIs ====================
+
+// Written Test 결과 조회 (법인, 프로세스 필터)
+app.get('/api/results/written-test', errorHandler(async (c) => {
+  const db = c.env.DB
+  const entity = c.req.query('entity')
+  const processId = c.req.query('processId')
+  
+  let query = `
+    SELECT 
+      w.employee_id,
+      w.name,
+      w.entity,
+      w.team,
+      w.position,
+      p.name as process_name,
+      wtr.score,
+      wtr.passed,
+      wtr.created_at as test_date
+    FROM written_test_results wtr
+    JOIN workers w ON wtr.worker_id = w.id
+    JOIN processes p ON wtr.process_id = p.id
+    WHERE 1=1
+  `
+  
+  const params: any[] = []
+  
+  if (entity) {
+    query += ' AND w.entity = ?'
+    params.push(entity)
+  }
+  
+  if (processId) {
+    query += ' AND wtr.process_id = ?'
+    params.push(processId)
+  }
+  
+  query += ' ORDER BY w.entity, w.employee_id'
+  
+  const result = await db.prepare(query).bind(...params).all()
+  return c.json(result.results)
+}))
+
+// Assessment 결과 조회 (법인, 프로세스 필터)
+app.get('/api/results/assessment', errorHandler(async (c) => {
+  const db = c.env.DB
+  const entity = c.req.query('entity')
+  const processId = c.req.query('processId')
+  
+  let query = `
+    SELECT 
+      w.employee_id,
+      w.name,
+      w.entity,
+      w.team,
+      w.position,
+      sai.category,
+      sai.item_name,
+      sa.level,
+      sa.assessment_date
+    FROM supervisor_assessments sa
+    JOIN workers w ON sa.worker_id = w.id
+    JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
+    WHERE 1=1
+  `
+  
+  const params: any[] = []
+  
+  if (entity) {
+    query += ' AND w.entity = ?'
+    params.push(entity)
+  }
+  
+  if (processId) {
+    query += ' AND sai.process_id = ?'
+    params.push(processId)
+  }
+  
+  query += ' ORDER BY w.entity, w.employee_id, sai.category'
+  
+  const result = await db.prepare(query).bind(...params).all()
+  return c.json(result.results)
+}))
+
+// Written Test 결과 일괄 업로드
+app.post('/api/results/written-test/bulk', errorHandler(async (c) => {
+  const db = c.env.DB
+  const results: any[] = await c.req.json()
+  
+  for (const result of results) {
+    // 작업자 찾기
+    const worker = await db.prepare('SELECT id FROM workers WHERE employee_id = ?')
+      .bind(result.employee_id).first()
+    
+    if (!worker) {
+      console.log(`Worker not found: ${result.employee_id}`)
+      continue
+    }
+    
+    // 프로세스 찾기
+    const process = await db.prepare('SELECT id FROM processes WHERE name = ?')
+      .bind(result.process_name).first()
+    
+    if (!process) {
+      console.log(`Process not found: ${result.process_name}`)
+      continue
+    }
+    
+    // 결과 저장
+    await db.prepare(`
+      INSERT INTO written_test_results (worker_id, process_id, score, passed, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(
+      worker.id,
+      process.id,
+      result.score,
+      result.passed ? 1 : 0,
+      result.test_date || new Date().toISOString()
+    ).run()
+  }
+  
+  return c.json({ success: true, count: results.length })
+}))
+
+// Assessment 결과 일괄 업로드
+app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
+  const db = c.env.DB
+  const results: any[] = await c.req.json()
+  
+  for (const result of results) {
+    // 작업자 찾기
+    const worker = await db.prepare('SELECT id FROM workers WHERE employee_id = ?')
+      .bind(result.employee_id).first()
+    
+    if (!worker) {
+      console.log(`Worker not found: ${result.employee_id}`)
+      continue
+    }
+    
+    // 평가 항목 찾기
+    const item = await db.prepare('SELECT id FROM supervisor_assessment_items WHERE category = ? AND item_name = ?')
+      .bind(result.category, result.item_name).first()
+    
+    if (!item) {
+      console.log(`Assessment item not found: ${result.category} - ${result.item_name}`)
+      continue
+    }
+    
+    // 결과 저장
+    await db.prepare(`
+      INSERT INTO supervisor_assessments (worker_id, item_id, level, assessment_date)
+      VALUES (?, ?, ?, ?)
+    `).bind(
+      worker.id,
+      item.id,
+      result.level,
+      result.assessment_date || new Date().toISOString()
+    ).run()
+  }
+  
+  return c.json({ success: true, count: results.length })
+}))
+
 // ==================== Main Page ====================
 
 app.get('/', (c) => {
@@ -708,6 +871,9 @@ app.get('/', (c) => {
                     </button>
                     <button onclick="showPage('analysis-page')" class="hover:underline">
                         <i class="fas fa-chart-line mr-1"></i>평가 결과 분석
+                    </button>
+                    <button onclick="showPage('result-management')" class="hover:underline">
+                        <i class="fas fa-file-excel mr-1"></i>결과 관리
                     </button>
                 </div>
             </div>
