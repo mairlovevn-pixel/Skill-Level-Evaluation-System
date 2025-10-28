@@ -1785,13 +1785,12 @@ async function showAnalysisPage() {
                             disabled
                             autocomplete="off"
                         />
-                        <select 
-                            id="analysis-worker-select" 
-                            size="8"
-                            class="hidden absolute z-10 w-full border-2 border-blue-400 rounded-lg mt-1 bg-white shadow-xl max-h-80 overflow-y-auto cursor-pointer"
-                            style="font-size: 0.95rem; padding: 0.5rem;"
+                        <div 
+                            id="analysis-worker-dropdown" 
+                            class="hidden absolute z-10 w-full border-2 border-blue-400 rounded-lg mt-1 bg-white shadow-xl max-h-80 overflow-y-auto"
+                            style="top: 100%;"
                         >
-                        </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1799,57 +1798,107 @@ async function showAnalysisPage() {
             <!-- 분석 결과 영역 -->
             <div id="analysis-results" class="hidden">
                 <!-- 작업자 정보 -->
-                <div id="worker-info" class="mb-6 p-4 bg-blue-50 rounded-lg"></div>
+                <div id="worker-info" class="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500"></div>
                 
-                <!-- Written Test 결과 탭 -->
-                <div class="mb-6">
-                    <h3 class="text-xl font-bold mb-4">Written Test 결과</h3>
-                    <div id="test-results-list" class="space-y-2 mb-4"></div>
+                <!-- 평가 유형 선택 탭 -->
+                <div class="mb-6 border-b border-gray-200">
+                    <nav class="flex space-x-8" aria-label="Tabs">
+                        <button id="tab-written-test" onclick="switchAnalysisTab('written-test')" 
+                                class="analysis-tab border-b-2 border-blue-500 text-blue-600 py-4 px-1 font-medium">
+                            <i class="fas fa-file-alt mr-2"></i>Written Test 결과
+                        </button>
+                        <button id="tab-assessment" onclick="switchAnalysisTab('assessment')" 
+                                class="analysis-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-1 font-medium">
+                            <i class="fas fa-clipboard-check mr-2"></i>Supervisor Assessment
+                        </button>
+                    </nav>
                 </div>
                 
-                <!-- Written Test 상세 분석 (선택된 테스트) -->
-                <div id="test-analysis" class="hidden mb-6">
-                    <h3 class="text-xl font-bold mb-4">Written Test 상세 분석</h3>
-                    
-                    <!-- 평균 비교 차트 -->
+                <!-- Written Test 탭 내용 -->
+                <div id="content-written-test" class="analysis-tab-content">
                     <div class="mb-6">
-                        <h4 class="text-lg font-semibold mb-3">법인 평균 대비 점수</h4>
-                        <div class="max-w-2xl">
-                            <canvas id="comparison-chart"></canvas>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold">Written Test 결과 목록</h3>
                         </div>
+                        <div id="test-results-list" class="space-y-2"></div>
                     </div>
                     
-                    <!-- 카테고리별 오각형 차트 -->
-                    <div class="mb-6">
-                        <h4 class="text-lg font-semibold mb-3">영역별 성취도 (카테고리 분석)</h4>
-                        <div class="max-w-md mx-auto">
-                            <canvas id="category-chart"></canvas>
+                    <!-- Written Test 상세 분석 -->
+                    <div id="test-analysis" class="hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold">Written Test 상세 분석</h3>
+                            <button onclick="closeTestAnalysis()" class="text-gray-600 hover:text-gray-800">
+                                <i class="fas fa-times mr-1"></i>닫기
+                            </button>
                         </div>
-                    </div>
-                    
-                    <!-- 추천 교육 프로그램 -->
-                    <div id="training-recommendations" class="mb-6">
-                        <h4 class="text-lg font-semibold mb-3">추천 교육 프로그램</h4>
-                        <div id="training-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                        
+                        <div class="bg-gray-50 rounded-lg p-6 space-y-6">
+                            <!-- 평균 비교 차트 -->
+                            <div>
+                                <h4 class="text-lg font-semibold mb-3">법인 평균 대비 점수</h4>
+                                <div class="max-w-2xl">
+                                    <canvas id="comparison-chart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <!-- 카테고리별 오각형 차트 -->
+                            <div>
+                                <h4 class="text-lg font-semibold mb-3">영역별 성취도 (카테고리 분석)</h4>
+                                <div class="max-w-md mx-auto">
+                                    <canvas id="category-chart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <!-- 추천 교육 프로그램 -->
+                            <div id="training-recommendations">
+                                <h4 class="text-lg font-semibold mb-3">추천 교육 프로그램</h4>
+                                <div id="training-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Supervisor Assessment 결과 -->
-                <div id="assessment-analysis" class="hidden mb-6">
-                    <h3 class="text-xl font-bold mb-4">Supervisor Assessment 분석</h3>
-                    
-                    <!-- Assessment 차트 -->
+                <!-- Supervisor Assessment 탭 내용 -->
+                <div id="content-assessment" class="analysis-tab-content hidden">
                     <div class="mb-6">
-                        <h4 class="text-lg font-semibold mb-3">평가 항목별 점수</h4>
-                        <div class="max-w-md mx-auto">
-                            <canvas id="assessment-chart"></canvas>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold">Supervisor Assessment 결과 목록</h3>
                         </div>
+                        <div id="assessment-results-list" class="space-y-2"></div>
                     </div>
                     
-                    <!-- Assessment 추천 교육 -->
-                    <div id="assessment-training" class="mb-6">
-                        <h4 class="text-lg font-semibold mb-3">추천 교육 프로그램</h4>
-                        <div id="assessment-training-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    <!-- Supervisor Assessment 상세 분석 -->
+                    <div id="assessment-analysis" class="hidden">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold">Supervisor Assessment 상세 분석</h3>
+                            <button onclick="closeAssessmentAnalysis()" class="text-gray-600 hover:text-gray-800">
+                                <i class="fas fa-times mr-1"></i>닫기
+                            </button>
+                        </div>
+                        
+                        <div class="bg-gray-50 rounded-lg p-6 space-y-6">
+                            <!-- Assessment 차트 -->
+                            <div>
+                                <h4 class="text-lg font-semibold mb-3">카테고리별 평가 점수</h4>
+                                <div class="max-w-md mx-auto">
+                                    <canvas id="assessment-chart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <!-- 다음 레벨 달성을 위한 분석 -->
+                            <div id="assessment-next-level" class="bg-white rounded-lg p-6 border-l-4 border-yellow-500">
+                                <h4 class="text-lg font-semibold mb-3">
+                                    <i class="fas fa-arrow-up mr-2 text-yellow-600"></i>다음 레벨 달성을 위한 개선점
+                                </h4>
+                                <div id="assessment-improvement" class="space-y-3"></div>
+                            </div>
+                            
+                            <!-- 추천 교육 프로그램 -->
+                            <div id="assessment-training">
+                                <h4 class="text-lg font-semibold mb-3">추천 교육 프로그램</h4>
+                                <div id="assessment-training-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1861,65 +1910,124 @@ async function showAnalysisPage() {
     // 이벤트 리스너 등록
     document.getElementById('analysis-entity-select').addEventListener('change', loadAnalysisWorkers);
     
-    // 작업자 검색 기능
+    // 작업자 검색 기능 (아래로 열리는 드롭다운)
     const searchInput = document.getElementById('analysis-worker-search');
-    const workerSelect = document.getElementById('analysis-worker-select');
+    const dropdown = document.getElementById('analysis-worker-dropdown');
+    
+    let allWorkers = [];
     
     searchInput.addEventListener('focus', () => {
-        if (!searchInput.disabled && workerSelect.options.length > 0) {
-            workerSelect.classList.remove('hidden');
+        if (!searchInput.disabled && allWorkers.length > 0) {
+            renderWorkerDropdown(allWorkers);
         }
     });
     
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
-        const options = workerSelect.options;
-        
-        let hasVisibleOptions = false;
-        for (let i = 0; i < options.length; i++) {
-            const option = options[i];
-            const text = option.textContent.toLowerCase();
-            
-            if (searchTerm === '' || text.includes(searchTerm)) {
-                option.style.display = '';
-                hasVisibleOptions = true;
-            } else {
-                option.style.display = 'none';
-            }
-        }
-        
-        if (hasVisibleOptions && !searchInput.disabled) {
-            workerSelect.classList.remove('hidden');
+        if (searchTerm === '') {
+            renderWorkerDropdown(allWorkers);
         } else {
-            workerSelect.classList.add('hidden');
-        }
-    });
-    
-    workerSelect.addEventListener('change', () => {
-        const selectedOption = workerSelect.options[workerSelect.selectedIndex];
-        if (selectedOption) {
-            searchInput.value = selectedOption.textContent;
-            workerSelect.classList.add('hidden');
-            loadWorkerAnalysis();
+            const filtered = allWorkers.filter(w => 
+                w.employee_id.toLowerCase().includes(searchTerm) || 
+                w.name.toLowerCase().includes(searchTerm)
+            );
+            renderWorkerDropdown(filtered);
         }
     });
     
     // 외부 클릭 시 드롭다운 닫기
     document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !workerSelect.contains(e.target)) {
-            workerSelect.classList.add('hidden');
+        if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
         }
     });
 }
 
+function renderWorkerDropdown(workers) {
+    const dropdown = document.getElementById('analysis-worker-dropdown');
+    
+    if (workers.length === 0) {
+        dropdown.innerHTML = '<div class="px-4 py-2 text-gray-500">검색 결과가 없습니다.</div>';
+        dropdown.classList.remove('hidden');
+        return;
+    }
+    
+    const html = workers.map(worker => `
+        <div class="px-4 py-2 hover:bg-blue-50 cursor-pointer worker-option" 
+             data-worker-id="${worker.id}"
+             data-worker-name="[${worker.employee_id}] ${worker.name}">
+            <div class="font-medium">[${worker.employee_id}] ${worker.name}</div>
+            <div class="text-xs text-gray-500">${worker.team} | ${worker.position}</div>
+        </div>
+    `).join('');
+    
+    dropdown.innerHTML = html;
+    dropdown.classList.remove('hidden');
+    
+    // 각 옵션에 클릭 이벤트 추가
+    dropdown.querySelectorAll('.worker-option').forEach(option => {
+        option.addEventListener('click', () => {
+            const workerId = option.dataset.workerId;
+            const workerName = option.dataset.workerName;
+            document.getElementById('analysis-worker-search').value = workerName;
+            dropdown.classList.add('hidden');
+            loadWorkerAnalysis(workerId);
+        });
+    });
+}
+
+// 탭 전환 함수
+function switchAnalysisTab(tabName) {
+    // 모든 탭 비활성화
+    document.querySelectorAll('.analysis-tab').forEach(tab => {
+        tab.classList.remove('border-blue-500', 'text-blue-600');
+        tab.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    // 모든 컨텐츠 숨기기
+    document.querySelectorAll('.analysis-tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // 선택된 탭 활성화
+    const selectedTab = document.getElementById(`tab-${tabName}`);
+    selectedTab.classList.remove('border-transparent', 'text-gray-500');
+    selectedTab.classList.add('border-blue-500', 'text-blue-600');
+    
+    // 선택된 컨텐츠 표시
+    document.getElementById(`content-${tabName}`).classList.remove('hidden');
+}
+
+// 분석 닫기 함수들
+function closeTestAnalysis() {
+    document.getElementById('test-analysis').classList.add('hidden');
+    
+    // 차트 파괴
+    if (categoryChart) {
+        categoryChart.destroy();
+        categoryChart = null;
+    }
+}
+
+function closeAssessmentAnalysis() {
+    document.getElementById('assessment-analysis').classList.add('hidden');
+    
+    // 차트 파괴
+    if (assessmentChart) {
+        assessmentChart.destroy();
+        assessmentChart = null;
+    }
+}
+
 async function loadAnalysisWorkers() {
     const entity = document.getElementById('analysis-entity-select').value;
-    const workerSelect = document.getElementById('analysis-worker-select');
+    const dropdown = document.getElementById('analysis-worker-dropdown');
     const searchInput = document.getElementById('analysis-worker-search');
     
     if (!entity) {
-        workerSelect.innerHTML = '';
-        workerSelect.classList.add('hidden');
+        allWorkers = [];
+        dropdown.innerHTML = '';
+        dropdown.classList.add('hidden');
         searchInput.value = '';
         searchInput.placeholder = '법인을 먼저 선택하세요';
         searchInput.disabled = true;
@@ -1929,28 +2037,17 @@ async function loadAnalysisWorkers() {
     
     try {
         const response = await axios.get(`/api/analysis/workers?entity=${entity}`);
-        const workers = response.data;
+        allWorkers = response.data;
         
-        console.log('Loaded workers:', workers.length, 'workers');
-        
-        workerSelect.innerHTML = '';
-        workers.forEach(worker => {
-            const option = document.createElement('option');
-            option.value = worker.id;
-            // 사번과 이름을 명확하게 표시
-            option.textContent = `[${worker.employee_id}] ${worker.name}`;
-            option.style.padding = '0.5rem';
-            option.style.cursor = 'pointer';
-            workerSelect.appendChild(option);
-        });
+        console.log('Loaded workers:', allWorkers.length, 'workers');
         
         searchInput.disabled = false;
         searchInput.value = '';
         searchInput.placeholder = '사번 또는 이름으로 검색하세요 (예: 4136 또는 Dương)';
-        workerSelect.classList.add('hidden');
+        dropdown.classList.add('hidden');
         document.getElementById('analysis-results').classList.add('hidden');
         
-        console.log('Worker search enabled with', workers.length, 'workers');
+        console.log('Worker search enabled with', allWorkers.length, 'workers');
     } catch (error) {
         console.error('작업자 목록 로드 실패:', error);
         alert('작업자 목록을 불러오는데 실패했습니다.');
@@ -1960,16 +2057,12 @@ async function loadAnalysisWorkers() {
 // 현재 선택된 작업자 정보 저장
 let currentWorkerData = null;
 
-async function loadWorkerAnalysis() {
-    const workerSelect = document.getElementById('analysis-worker-select');
-    const selectedOption = workerSelect.options[workerSelect.selectedIndex];
-    
-    if (!selectedOption || !selectedOption.value) {
+async function loadWorkerAnalysis(workerId) {
+    if (!workerId) {
         document.getElementById('analysis-results').classList.add('hidden');
         return;
     }
     
-    const workerId = selectedOption.value;
     console.log('Loading analysis for worker ID:', workerId);
     
     try {
@@ -1985,14 +2078,14 @@ async function loadWorkerAnalysis() {
         // Written Test 결과 목록 표시
         displayTestResults(data.test_results);
         
-        // Assessment 결과 표시
-        if (data.assessments && data.assessments.length > 0) {
-            displayAssessmentResults(data.assessments, data.process_info);
-        } else {
-            document.getElementById('assessment-analysis').classList.add('hidden');
-        }
+        // Assessment 결과 목록 표시
+        displayAssessmentResultsList(data.assessments, data.process_info);
         
+        // 분석 결과 표시
         document.getElementById('analysis-results').classList.remove('hidden');
+        
+        // 기본적으로 Written Test 탭 선택
+        switchAnalysisTab('written-test');
     } catch (error) {
         console.error('작업자 분석 데이터 로드 실패:', error);
         alert('작업자 분석 데이터를 불러오는데 실패했습니다.');
@@ -2037,6 +2130,297 @@ function displayTestResults(testResults) {
     `).join('');
     
     container.innerHTML = html;
+}
+
+function displayAssessmentResultsList(assessments, processInfo) {
+    const container = document.getElementById('assessment-results-list');
+    
+    if (!assessments || assessments.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">Supervisor Assessment 결과가 없습니다.</p>';
+        return;
+    }
+    
+    // 프로세스별로 그룹화
+    const groupedByProcess = {};
+    assessments.forEach(assessment => {
+        const processId = assessment.process_id;
+        if (!groupedByProcess[processId]) {
+            groupedByProcess[processId] = [];
+        }
+        groupedByProcess[processId].push(assessment);
+    });
+    
+    const html = Object.entries(groupedByProcess).map(([processId, items]) => {
+        const processName = items[0].process_name || '일반 평가';
+        const latestDate = new Date(Math.max(...items.map(i => new Date(i.latest_date))));
+        const year = latestDate.getFullYear();
+        const avgLevel = (items.reduce((sum, i) => sum + i.avg_level, 0) / items.length).toFixed(1);
+        
+        return `
+            <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" 
+                 onclick="showAssessmentAnalysis(${processId}, '${processName}')">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="font-semibold">${processName}</span>
+                        <span class="ml-4 text-gray-600">${year}년 평가</span>
+                        <span class="ml-4 text-gray-600">평균 레벨: ${avgLevel}</span>
+                        <span class="ml-2 px-2 py-1 rounded text-sm bg-purple-100 text-purple-800">
+                            ${items.length}개 카테고리
+                        </span>
+                    </div>
+                    <button class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-chart-bar mr-1"></i>상세 분석
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = html;
+}
+
+async function showAssessmentAnalysis(processId, processName) {
+    const workerId = currentWorkerData.worker.id;
+    
+    // 해당 프로세스의 assessment 데이터 필터링
+    const assessmentData = currentWorkerData.assessments.filter(a => a.process_id === processId);
+    
+    if (assessmentData.length === 0) {
+        alert('평가 데이터를 찾을 수 없습니다.');
+        return;
+    }
+    
+    // 상세 분석 영역 표시
+    document.getElementById('assessment-analysis').classList.remove('hidden');
+    
+    // 차트 그리기
+    drawAssessmentRadarChart(assessmentData, processName);
+    
+    // 다음 레벨 달성을 위한 분석
+    displayNextLevelAnalysis(assessmentData, processId, processName);
+    
+    // 추천 교육 프로그램
+    await displayAssessmentTraining(assessmentData, processId);
+}
+
+function drawAssessmentRadarChart(assessmentData, processName) {
+    const ctx = document.getElementById('assessment-chart');
+    
+    // 기존 차트 파괴
+    if (assessmentChart) {
+        assessmentChart.destroy();
+    }
+    
+    const labels = assessmentData.map(a => a.category);
+    const data = assessmentData.map(a => a.avg_level);
+    
+    assessmentChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: processName,
+                data: data,
+                backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                borderColor: 'rgba(139, 92, 246, 1)',
+                borderWidth: 2,
+                pointBackgroundColor: 'rgba(139, 92, 246, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(139, 92, 246, 1)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 1.2,
+            scales: {
+                r: {
+                    beginAtZero: true,
+                    max: 5,
+                    min: 0,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.r.toFixed(1) + ' / 5.0';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function displayNextLevelAnalysis(assessmentData, processId, processName) {
+    const container = document.getElementById('assessment-improvement');
+    
+    // 평균 레벨 계산
+    const avgLevel = assessmentData.reduce((sum, a) => sum + a.avg_level, 0) / assessmentData.length;
+    const currentLevel = Math.floor(avgLevel);
+    const nextLevel = currentLevel + 1;
+    
+    if (nextLevel > 5) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-trophy text-yellow-500 text-4xl mb-2"></i>
+                <p class="text-lg font-semibold text-gray-800">최고 레벨에 도달했습니다!</p>
+                <p class="text-gray-600 mt-2">현재 평균 레벨: ${avgLevel.toFixed(1)} / 5.0</p>
+                <p class="text-gray-600">모든 영역에서 우수한 성과를 보이고 있습니다.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // 약한 카테고리 찾기 (평균보다 낮은 항목)
+    const weakCategories = assessmentData
+        .filter(a => a.avg_level < avgLevel)
+        .sort((a, b) => a.avg_level - b.avg_level)
+        .slice(0, 3);
+    
+    // 개선이 필요한 카테고리
+    const needImprovement = assessmentData
+        .filter(a => a.avg_level < nextLevel)
+        .sort((a, b) => a.avg_level - b.avg_level);
+    
+    let html = `
+        <div class="mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-700 font-medium">현재 평균 레벨:</span>
+                <span class="text-2xl font-bold text-blue-600">${avgLevel.toFixed(1)} / 5.0</span>
+            </div>
+            <div class="flex items-center justify-between">
+                <span class="text-gray-700 font-medium">목표 레벨:</span>
+                <span class="text-2xl font-bold text-green-600">Level ${nextLevel}</span>
+            </div>
+        </div>
+        
+        <div class="border-t pt-4">
+            <h5 class="font-semibold text-gray-800 mb-3">
+                <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+                개선이 필요한 영역 (${needImprovement.length}개)
+            </h5>
+            <div class="space-y-2">
+    `;
+    
+    needImprovement.forEach(cat => {
+        const gap = nextLevel - cat.avg_level;
+        const percentage = (cat.avg_level / nextLevel) * 100;
+        
+        html += `
+            <div class="bg-white p-3 rounded border">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-medium text-gray-800">${cat.category}</span>
+                    <span class="text-sm text-gray-600">현재: ${cat.avg_level.toFixed(1)} / 목표: ${nextLevel}.0</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-yellow-500 h-2 rounded-full" style="width: ${percentage}%"></div>
+                </div>
+                <p class="text-xs text-gray-600 mt-1">
+                    <i class="fas fa-arrow-up text-green-500 mr-1"></i>
+                    ${gap.toFixed(1)}점 향상 필요
+                </p>
+            </div>
+        `;
+    });
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    if (weakCategories.length > 0) {
+        html += `
+            <div class="border-t pt-4 mt-4">
+                <h5 class="font-semibold text-gray-800 mb-3">
+                    <i class="fas fa-chart-line text-red-500 mr-2"></i>
+                    상대적으로 약한 영역
+                </h5>
+                <ul class="space-y-2">
+        `;
+        
+        weakCategories.forEach((cat, index) => {
+            html += `
+                <li class="flex items-center text-gray-700">
+                    <span class="w-6 h-6 rounded-full bg-red-100 text-red-800 text-xs flex items-center justify-center mr-2">${index + 1}</span>
+                    <span class="font-medium">${cat.category}</span>
+                    <span class="ml-auto text-sm text-gray-600">${cat.avg_level.toFixed(1)} / 5.0</span>
+                </li>
+            `;
+        });
+        
+        html += `
+                </ul>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+async function displayAssessmentTraining(assessmentData, processId) {
+    const container = document.getElementById('assessment-training-list');
+    
+    // 약한 카테고리들 찾기
+    const avgLevel = assessmentData.reduce((sum, a) => sum + a.avg_level, 0) / assessmentData.length;
+    const weakCategories = assessmentData
+        .filter(a => a.avg_level < avgLevel)
+        .map(a => a.category);
+    
+    if (weakCategories.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 col-span-2">모든 영역에서 우수한 성과를 보이고 있습니다.</p>';
+        return;
+    }
+    
+    try {
+        // 약한 카테고리들에 대한 교육 프로그램 조회
+        const promises = weakCategories.map(category => 
+            axios.get(`/api/analysis/training-recommendations?processId=${processId}&weakCategory=${encodeURIComponent(category)}`)
+        );
+        
+        const responses = await Promise.all(promises);
+        const allTrainings = responses.flatMap(r => r.data);
+        
+        // 중복 제거
+        const uniqueTrainings = Array.from(new Map(allTrainings.map(t => [t.id, t])).values());
+        
+        if (uniqueTrainings.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 col-span-2">추천 교육 프로그램이 없습니다.</p>';
+            return;
+        }
+        
+        const html = uniqueTrainings.map(training => `
+            <div class="border rounded-lg p-4 bg-white hover:shadow-md transition">
+                <div class="flex items-start justify-between mb-2">
+                    <h5 class="font-semibold text-gray-800">${training.title}</h5>
+                    <span class="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">${training.duration_hours}시간</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-2">${training.description || '설명 없음'}</p>
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-gray-500">
+                        <i class="fas fa-bullseye mr-1"></i>${training.category}
+                    </span>
+                    <span class="text-blue-600">
+                        <i class="fas fa-arrow-up mr-1"></i>${training.target_weakness}
+                    </span>
+                </div>
+            </div>
+        `).join('');
+        
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('교육 프로그램 조회 실패:', error);
+        container.innerHTML = '<p class="text-red-500 col-span-2">교육 프로그램을 불러오는데 실패했습니다.</p>';
+    }
 }
 
 async function showTestAnalysis(resultId, processName, processId, score, workerId) {
