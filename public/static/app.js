@@ -2173,25 +2173,80 @@ async function downloadWrittenTestResults() {
             return;
         }
         
-        // 엑셀 데이터 생성
-        const excelData = results.map(r => ({
-            '사번': r.employee_id,
-            '이름': r.name,
-            '법인': r.entity,
-            '팀': r.team,
-            '직급': r.position,
-            '프로세스명': r.process_name,
-            '점수': r.score,
-            '합격여부': r.passed ? '합격' : '불합격',
-            '시험일자': new Date(r.test_date).toLocaleDateString('ko-KR')
+        // 엑셀 데이터 생성 (이미지 양식에 맞게 수정)
+        const excelData = results.map((r, index) => ({
+            '카테고리': r.process_name,
+            '평가 항목': 'Written Test',
+            '만족 여부': r.passed ? '합격' : '불합격'
         }));
         
-        // 엑셀 파일 생성 및 다운로드
+        // 워크시트 생성
         const ws = XLSX.utils.json_to_sheet(excelData);
+        
+        // 열 너비 설정
+        ws['!cols'] = [
+            { wch: 25 },  // 카테고리
+            { wch: 25 },  // 평가 항목
+            { wch: 15 }   // 만족 여부
+        ];
+        
+        // 헤더 스타일 적용 (노란색 배경)
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let col = range.s.c; col <= range.e.c; col++) {
+            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+            if (!ws[cellAddress]) continue;
+            
+            ws[cellAddress].s = {
+                font: { bold: true, sz: 12 },
+                fill: { fgColor: { rgb: "FFFF00" } },  // 노란색 배경
+                alignment: { horizontal: "center", vertical: "center" },
+                border: {
+                    top: { style: "thin", color: { rgb: "000000" } },
+                    bottom: { style: "thin", color: { rgb: "000000" } },
+                    left: { style: "thin", color: { rgb: "000000" } },
+                    right: { style: "thin", color: { rgb: "000000" } }
+                }
+            };
+        }
+        
+        // 데이터 셀 스타일 적용
+        for (let row = range.s.r + 1; row <= range.e.r; row++) {
+            for (let col = range.s.c; col <= range.e.c; col++) {
+                const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+                if (!ws[cellAddress]) continue;
+                
+                ws[cellAddress].s = {
+                    alignment: { horizontal: "center", vertical: "center" },
+                    border: {
+                        top: { style: "thin", color: { rgb: "D3D3D3" } },
+                        bottom: { style: "thin", color: { rgb: "D3D3D3" } },
+                        left: { style: "thin", color: { rgb: "D3D3D3" } },
+                        right: { style: "thin", color: { rgb: "D3D3D3" } }
+                    }
+                };
+                
+                // 합격/불합격 색상 적용 (만족 여부 컬럼 - col 2)
+                if (col === 2) { // 만족 여부 컬럼
+                    const value = ws[cellAddress].v;
+                    if (value === '합격') {
+                        ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
+                        ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
+                    } else if (value === '불합격') {
+                        ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
+                        ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
+                    }
+                }
+            }
+        }
+        
+        // 워크북 생성 및 시트 추가
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Written Test Results');
         
+        // 파일명 생성
         const fileName = `Written_Test_Results_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        // 다운로드
         XLSX.writeFile(wb, fileName);
         
         alert(`${results.length}건의 결과를 다운로드했습니다.`);
@@ -2219,8 +2274,9 @@ async function downloadAssessmentResults() {
             return;
         }
         
-        // 엑셀 데이터 생성
-        const excelData = results.map(r => ({
+        // 엑셀 데이터 생성 (순번 추가)
+        const excelData = results.map((r, index) => ({
+            'No.': index + 1,
             '사번': r.employee_id,
             '이름': r.name,
             '법인': r.entity,
@@ -2232,12 +2288,86 @@ async function downloadAssessmentResults() {
             '평가일자': new Date(r.assessment_date).toLocaleDateString('ko-KR')
         }));
         
-        // 엑셀 파일 생성 및 다운로드
+        // 워크시트 생성
         const ws = XLSX.utils.json_to_sheet(excelData);
+        
+        // 열 너비 설정
+        ws['!cols'] = [
+            { wch: 6 },   // No.
+            { wch: 12 },  // 사번
+            { wch: 15 },  // 이름
+            { wch: 10 },  // 법인
+            { wch: 20 },  // 팀
+            { wch: 15 },  // 직급
+            { wch: 20 },  // 카테고리
+            { wch: 25 },  // 평가항목
+            { wch: 10 },  // 레벨
+            { wch: 15 }   // 평가일자
+        ];
+        
+        // 헤더 스타일 적용 (첫 번째 행)
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let col = range.s.c; col <= range.e.c; col++) {
+            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+            if (!ws[cellAddress]) continue;
+            
+            ws[cellAddress].s = {
+                font: { bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "70AD47" } },
+                alignment: { horizontal: "center", vertical: "center" },
+                border: {
+                    top: { style: "thin", color: { rgb: "000000" } },
+                    bottom: { style: "thin", color: { rgb: "000000" } },
+                    left: { style: "thin", color: { rgb: "000000" } },
+                    right: { style: "thin", color: { rgb: "000000" } }
+                }
+            };
+        }
+        
+        // 데이터 셀 스타일 적용
+        for (let row = range.s.r + 1; row <= range.e.r; row++) {
+            for (let col = range.s.c; col <= range.e.c; col++) {
+                const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+                if (!ws[cellAddress]) continue;
+                
+                ws[cellAddress].s = {
+                    alignment: { horizontal: "center", vertical: "center" },
+                    border: {
+                        top: { style: "thin", color: { rgb: "D3D3D3" } },
+                        bottom: { style: "thin", color: { rgb: "D3D3D3" } },
+                        left: { style: "thin", color: { rgb: "D3D3D3" } },
+                        right: { style: "thin", color: { rgb: "D3D3D3" } }
+                    }
+                };
+                
+                // 레벨별 색상 적용
+                if (col === 8) { // 레벨 컬럼
+                    const value = ws[cellAddress].v;
+                    if (value === 5) {
+                        ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
+                        ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
+                    } else if (value === 4) {
+                        ws[cellAddress].s.fill = { fgColor: { rgb: "C6E0B4" } };
+                    } else if (value === 3) {
+                        ws[cellAddress].s.fill = { fgColor: { rgb: "FFE699" } };
+                    } else if (value === 2) {
+                        ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
+                    } else if (value === 1) {
+                        ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
+                        ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
+                    }
+                }
+            }
+        }
+        
+        // 워크북 생성 및 시트 추가
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Assessment Results');
         
+        // 파일명 생성
         const fileName = `Assessment_Results_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        // 다운로드
         XLSX.writeFile(wb, fileName);
         
         alert(`${results.length}건의 결과를 다운로드했습니다.`);
