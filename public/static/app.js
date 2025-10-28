@@ -4,6 +4,39 @@ let dashboardData = null;
 let processes = [];
 let workers = [];
 
+// 유틸리티 함수: Excel 날짜를 ISO 형식으로 변환
+function convertExcelDate(dateValue) {
+    if (!dateValue) return '';
+    
+    if (dateValue instanceof Date) {
+        return dateValue.toISOString().split('T')[0];
+    }
+    
+    if (typeof dateValue === 'number') {
+        // Excel 날짜 시리얼 번호를 JavaScript Date로 변환
+        const excelEpoch = new Date(1899, 11, 30);
+        const jsDate = new Date(excelEpoch.getTime() + dateValue * 86400000);
+        return jsDate.toISOString().split('T')[0];
+    }
+    
+    return String(dateValue);
+}
+
+// 차트 공통 설정
+const CHART_DEFAULTS = {
+    responsive: true,
+    maintainAspectRatio: true
+};
+
+const CHART_SCALE_DEFAULTS = {
+    y: {
+        beginAtZero: true,
+        ticks: {
+            stepSize: 1
+        }
+    }
+};
+
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', () => {
     loadProcesses();
@@ -179,15 +212,8 @@ function renderTestStatusChart() {
             ]
         },
         options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            }
+            ...CHART_DEFAULTS,
+            scales: CHART_SCALE_DEFAULTS
         }
     });
 }
@@ -209,7 +235,7 @@ function renderAvgScoreChart() {
             }]
         },
         options: {
-            responsive: true,
+            ...CHART_DEFAULTS,
             scales: {
                 y: {
                     beginAtZero: true,
@@ -256,15 +282,8 @@ function renderAssessmentChart() {
             datasets: datasets
         },
         options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            }
+            ...CHART_DEFAULTS,
+            scales: CHART_SCALE_DEFAULTS
         }
     });
 }
@@ -936,51 +955,25 @@ async function uploadWorkers() {
             
             // 형식 1: No, Entity, Name, Employee ID, Team, Position, Start to work date
             if (firstRow.hasOwnProperty('Entity') && firstRow.hasOwnProperty('Team')) {
-                workers = rows.map(row => {
-                    // 날짜 처리
-                    let startDate = row['Start to work date'];
-                    if (startDate instanceof Date) {
-                        startDate = startDate.toISOString().split('T')[0];
-                    } else if (typeof startDate === 'number') {
-                        // Excel 날짜 시리얼 번호를 JavaScript Date로 변환
-                        const excelEpoch = new Date(1899, 11, 30);
-                        const jsDate = new Date(excelEpoch.getTime() + startDate * 86400000);
-                        startDate = jsDate.toISOString().split('T')[0];
-                    }
-                    
-                    return {
-                        employee_id: String(row['Employee ID'] || ''),
-                        name: String(row['Name'] || ''),
-                        entity: String(row['Entity'] || ''),
-                        team: String(row['Team'] || ''),
-                        position: String(row['Position'] || ''),
-                        start_to_work_date: String(startDate || '')
-                    };
-                });
+                workers = rows.map(row => ({
+                    employee_id: String(row['Employee ID'] || ''),
+                    name: String(row['Name'] || ''),
+                    entity: String(row['Entity'] || ''),
+                    team: String(row['Team'] || ''),
+                    position: String(row['Position'] || ''),
+                    start_to_work_date: convertExcelDate(row['Start to work date'])
+                }));
             }
             // 형식 2: Name, Employee ID, Company, Department, Position, start to work
             else if (firstRow.hasOwnProperty('Company') && firstRow.hasOwnProperty('Department')) {
-                workers = rows.map(row => {
-                    // 날짜 처리
-                    let startDate = row['start to work'];
-                    if (startDate instanceof Date) {
-                        startDate = startDate.toISOString().split('T')[0];
-                    } else if (typeof startDate === 'number') {
-                        // Excel 날짜 시리얼 번호를 JavaScript Date로 변환
-                        const excelEpoch = new Date(1899, 11, 30);
-                        const jsDate = new Date(excelEpoch.getTime() + startDate * 86400000);
-                        startDate = jsDate.toISOString().split('T')[0];
-                    }
-                    
-                    return {
-                        employee_id: String(row['Employee ID'] || ''),
-                        name: String(row['Name'] || ''),
-                        entity: String(row['Company'] || ''),  // Company -> Entity
-                        team: String(row['Department'] || ''),  // Department -> Team
-                        position: String(row['Position'] || ''),
-                        start_to_work_date: String(startDate || '')
-                    };
-                });
+                workers = rows.map(row => ({
+                    employee_id: String(row['Employee ID'] || ''),
+                    name: String(row['Name'] || ''),
+                    entity: String(row['Company'] || ''),  // Company -> Entity
+                    team: String(row['Department'] || ''),  // Department -> Team
+                    position: String(row['Position'] || ''),
+                    start_to_work_date: convertExcelDate(row['start to work'])
+                }));
             } else {
                 alert('지원하지 않는 엑셀 파일 형식입니다.\n\n지원 형식:\n1. No, Entity, Name, Employee ID, Team, Position, Start to work date\n2. Name, Employee ID, Company, Department, Position, start to work');
                 return;

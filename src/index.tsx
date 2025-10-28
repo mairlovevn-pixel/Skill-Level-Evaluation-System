@@ -5,6 +5,16 @@ import type { Bindings, DashboardStats, Worker, WrittenTestQuiz, SupervisorAsses
 
 const app = new Hono<{ Bindings: Bindings }>()
 
+// 에러 핸들러 미들웨어
+const errorHandler = (fn: Function) => async (c: any) => {
+  try {
+    return await fn(c)
+  } catch (error: any) {
+    console.error('API Error:', error)
+    return c.json({ error: error.message }, 500)
+  }
+}
+
 // CORS 설정
 app.use('/api/*', cors())
 
@@ -14,10 +24,8 @@ app.use('/static/*', serveStatic({ root: './' }))
 // ==================== API Routes ====================
 
 // 대시보드 통계 API
-app.get('/api/dashboard/stats', async (c) => {
+app.get('/api/dashboard/stats', errorHandler(async (c) => {
   const db = c.env.DB
-
-  try {
     // 전체 작업자 수
     const totalWorkersResult = await db.prepare('SELECT COUNT(*) as count FROM workers').first()
     const total_workers = (totalWorkersResult?.count as number) || 0
@@ -82,31 +90,44 @@ app.get('/api/dashboard/stats', async (c) => {
     }
 
     return c.json(stats)
-  } catch (error: any) {
-    return c.json({ error: error.message }, 500)
-  }
-})
+}))
 
 // ==================== Workers CRUD ====================
 
 // 모든 작업자 조회
-app.get('/api/workers', async (c) => {
+app.get('/api/workers', errorHandler(async (c) => {
   const db = c.env.DB
-  try {
-    const result = await db.prepare('SELECT * FROM workers ORDER BY id DESC').all()
-    return c.json(result.results)
-  } catch (error: any) {
-    return c.json({ error: error.message }, 500)
-  }
-})
+  const result = await db.prepare('SELECT * FROM workers ORDER BY id DESC').all()
+  return c.json(result.results)
+}))
 
 // 작업자 등록 (단일)
-app.post('/api/workers', async (c) => {
+app.post('/api/workers', errorHandler(async (c) => {
   const db = c.env.DB
-  try {
-    const worker: Worker = await c.req.json()
-    const result = await db.prepare(`
-      INSERT INTO workers (employee_id, name, entity, team, position, start_to_work_date)
+  const worker: Worker = await c.req.json()
+  const result = await db.prepare(`
+    INSERT INTO workers (employee_id, name, entity, team, position, start_to_work_date)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(
+    worker.employee_id,
+    worker.name,
+    worker.entity,
+    worker.team,
+    worker.position,
+    worker.start_to_work_date
+  ).run()
+
+  return c.json({ success: true, id: result.meta.last_row_id }, 201)
+}))
+
+// 작업자 일괄 등록 (엑셀 업로드용)
+app.post('/api/workers/bulk', errorHandler(async (c) => {
+  const db = c.env.DB
+  const workers: Worker[] = await c.req.json()
+  
+  for (const worker of workers) {
+    await db.prepare(`
+      INSERT OR REPLACE INTO workers (employee_id, name, entity, team, position, start_to_work_date)
       VALUES (?, ?, ?, ?, ?, ?)
     `).bind(
       worker.employee_id,
@@ -116,154 +137,102 @@ app.post('/api/workers', async (c) => {
       worker.position,
       worker.start_to_work_date
     ).run()
-
-    return c.json({ success: true, id: result.meta.last_row_id }, 201)
-  } catch (error: any) {
-    return c.json({ error: error.message }, 500)
   }
-})
 
-// 작업자 일괄 등록 (엑셀 업로드용)
-app.post('/api/workers/bulk', async (c) => {
-  const db = c.env.DB
-  try {
-    const workers: Worker[] = await c.req.json()
-    
-    for (const worker of workers) {
-      await db.prepare(`
-        INSERT OR REPLACE INTO workers (employee_id, name, entity, team, position, start_to_work_date)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).bind(
-        worker.employee_id,
-        worker.name,
-        worker.entity,
-        worker.team,
-        worker.position,
-        worker.start_to_work_date
-      ).run()
-    }
-
-    return c.json({ success: true, count: workers.length }, 201)
-  } catch (error: any) {
-    return c.json({ error: error.message }, 500)
-  }
-})
+  return c.json({ success: true, count: workers.length }, 201)
+}))
 
 // ==================== Processes CRUD ====================
 
 // 모든 프로세스 조회
-app.get('/api/processes', async (c) => {
+app.get('/api/processes', errorHandler(async (c) => {
   const db = c.env.DB
-  try {
-    const result = await db.prepare('SELECT * FROM processes ORDER BY id').all()
-    return c.json(result.results)
-  } catch (error: any) {
-    return c.json({ error: error.message }, 500)
-  }
-})
+  const result = await db.prepare('SELECT * FROM processes ORDER BY id').all()
+  return c.json(result.results)
+}))
 
 // ==================== Written Test Quizzes CRUD ====================
 
 // 프로세스별 퀴즈 조회
-app.get('/api/quizzes/:processId', async (c) => {
+app.get('/api/quizzes/:processId', errorHandler(async (c) => {
   const db = c.env.DB
   const processId = c.req.param('processId')
-  try {
-    const result = await db.prepare('SELECT * FROM written_test_quizzes WHERE process_id = ?')
-      .bind(processId)
-      .all()
-    return c.json(result.results)
-  } catch (error: any) {
-    return c.json({ error: error.message }, 500)
-  }
-})
+  const result = await db.prepare('SELECT * FROM written_test_quizzes WHERE process_id = ?')
+    .bind(processId)
+    .all()
+  return c.json(result.results)
+}))
 
 // 퀴즈 일괄 등록 (엑셀 업로드용)
-app.post('/api/quizzes/bulk', async (c) => {
+app.post('/api/quizzes/bulk', errorHandler(async (c) => {
   const db = c.env.DB
-  try {
-    const quizzes: WrittenTestQuiz[] = await c.req.json()
-    
-    for (const quiz of quizzes) {
-      await db.prepare(`
-        INSERT INTO written_test_quizzes (process_id, question, option_a, option_b, option_c, option_d, correct_answer)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        quiz.process_id,
-        quiz.question,
-        quiz.option_a,
-        quiz.option_b,
-        quiz.option_c || null,
-        quiz.option_d || null,
-        quiz.correct_answer
-      ).run()
-    }
-
-    return c.json({ success: true, count: quizzes.length }, 201)
-  } catch (error: any) {
-    return c.json({ error: error.message }, 500)
+  const quizzes: WrittenTestQuiz[] = await c.req.json()
+  
+  for (const quiz of quizzes) {
+    await db.prepare(`
+      INSERT INTO written_test_quizzes (process_id, question, option_a, option_b, option_c, option_d, correct_answer)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      quiz.process_id,
+      quiz.question,
+      quiz.option_a,
+      quiz.option_b,
+      quiz.option_c || null,
+      quiz.option_d || null,
+      quiz.correct_answer
+    ).run()
   }
-})
+
+  return c.json({ success: true, count: quizzes.length }, 201)
+}))
 
 // ==================== Supervisor Assessment Items CRUD ====================
 
 // 모든 평가 항목 조회
-app.get('/api/assessment-items', async (c) => {
+app.get('/api/assessment-items', errorHandler(async (c) => {
   const db = c.env.DB
-  try {
-    const result = await db.prepare('SELECT * FROM supervisor_assessment_items ORDER BY id').all()
-    return c.json(result.results)
-  } catch (error: any) {
-    return c.json({ error: error.message }, 500)
-  }
-})
+  const result = await db.prepare('SELECT * FROM supervisor_assessment_items ORDER BY id').all()
+  return c.json(result.results)
+}))
 
 // 평가 항목 일괄 등록 (엑셀 업로드용)
-app.post('/api/assessment-items/bulk', async (c) => {
+app.post('/api/assessment-items/bulk', errorHandler(async (c) => {
   const db = c.env.DB
-  try {
-    const items: SupervisorAssessmentItem[] = await c.req.json()
-    
-    for (const item of items) {
-      await db.prepare(`
-        INSERT INTO supervisor_assessment_items (process_id, category, item_name, description)
-        VALUES (?, ?, ?, ?)
-      `).bind(
-        item.process_id || null,
-        item.category,
-        item.item_name,
-        item.description || null
-      ).run()
-    }
-
-    return c.json({ success: true, count: items.length }, 201)
-  } catch (error: any) {
-    return c.json({ error: error.message }, 500)
+  const items: SupervisorAssessmentItem[] = await c.req.json()
+  
+  for (const item of items) {
+    await db.prepare(`
+      INSERT INTO supervisor_assessment_items (process_id, category, item_name, description)
+      VALUES (?, ?, ?, ?)
+    `).bind(
+      item.process_id || null,
+      item.category,
+      item.item_name,
+      item.description || null
+    ).run()
   }
-})
+
+  return c.json({ success: true, count: items.length }, 201)
+}))
 
 // ==================== Written Test Results ====================
 
 // 시험 결과 제출
-app.post('/api/test-results', async (c) => {
+app.post('/api/test-results', errorHandler(async (c) => {
   const db = c.env.DB
-  try {
-    const result: WrittenTestResult = await c.req.json()
-    const insertResult = await db.prepare(`
-      INSERT INTO written_test_results (worker_id, process_id, score, passed)
-      VALUES (?, ?, ?, ?)
-    `).bind(
-      result.worker_id,
-      result.process_id,
-      result.score,
-      result.passed ? 1 : 0
-    ).run()
+  const result: WrittenTestResult = await c.req.json()
+  const insertResult = await db.prepare(`
+    INSERT INTO written_test_results (worker_id, process_id, score, passed)
+    VALUES (?, ?, ?, ?)
+  `).bind(
+    result.worker_id,
+    result.process_id,
+    result.score,
+    result.passed ? 1 : 0
+  ).run()
 
-    return c.json({ success: true, id: insertResult.meta.last_row_id }, 201)
-  } catch (error: any) {
-    return c.json({ error: error.message }, 500)
-  }
-})
+  return c.json({ success: true, id: insertResult.meta.last_row_id }, 201)
+}))
 
 // ==================== Main Page ====================
 
