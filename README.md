@@ -66,7 +66,19 @@
 - ✅ 일괄 등록 기능
 - ✅ 업로드 후 현황 자동 새로고침
 
-### 5. Written Test 응시 페이지 (다섯 번째 페이지)
+### 5. Supervisor Assessment 시행 페이지 (다섯 번째 페이지) - **NEW!**
+- ✅ **법인/팀/프로세스/작업자 선택**: 계층적 필터링으로 평가 대상 선택
+- ✅ **랜덤 평가 방식**: 모든 assessment 항목을 랜덤 순서로 표시
+- ✅ **만족/불만족 평가**: 체크박스 방식으로 간편하게 평가
+- ✅ **진행률 표시**: 실시간 평가 진행 상황 시각화
+- ✅ **자동 Level 결정**:
+  - Level 2의 모든 항목 만족 → Level 2
+  - Level 2 중 하나라도 불만족 → Level 1
+  - Level 3, 4도 동일한 방식으로 순차 평가
+- ✅ **평가 결과 요약**: Level별 만족도 통계 및 최종 레벨 표시
+- ✅ **결과 저장**: 평가 완료 시 자동으로 DB에 저장
+
+### 6. Written Test 응시 페이지 (여섯 번째 페이지)
 - ✅ 법인 선택 기능 (CSVN, CSCN, CSTW)
 - ✅ 법인별 작업자 필터링
 - ✅ 작업자 선택 기능
@@ -76,7 +88,7 @@
 - ✅ 자동 채점 (**60점 이상 합격**)
 - ✅ 결과 저장
 
-### 6. 평가 결과 분석 페이지 (여섯 번째 페이지) - **NEW!**
+### 7. 평가 결과 분석 페이지 (일곱 번째 페이지)
 - ✅ **작업자 검색**: 아래로 열리는 드롭다운 방식, 사번/이름 검색 지원
 - ✅ **탭 기반 분석**: Written Test와 Supervisor Assessment 분리
 - ✅ **Written Test 분석**:
@@ -222,12 +234,13 @@
 - **상태**: ✅ 활성
 - **마지막 업데이트**: 2025-10-28
 - **최근 변경사항**: 
+  - **Supervisor Assessment 시행 페이지 추가** (랜덤 평가, 자동 Level 결정, 결과 저장)
   - Quiz 및 Assessment 삭제 기능 추가
   - Quiz 프로세스별 일괄 삭제 기능 추가 (2중 확인)
-  - **Assessment 프로세스별 일괄 삭제 기능 추가** (일반 항목 포함, 2중 확인, 연관 평가 기록 함께 삭제)
+  - Assessment 프로세스별 일괄 삭제 기능 추가 (일반 항목 포함, 2중 확인, 연관 평가 기록 함께 삭제)
   - 평가 결과 분석 페이지 대폭 개선 (드롭다운, 탭 분리, 다음 레벨 분석)
   - Assessment 분석 레이더 차트 추가 (Written Test와 동일한 형태)
-  - **Chart.js Datalabels 플러그인 추가**: 모든 막대 그래프에 데이터 레이블 표시 (막대 바깥쪽)
+  - Chart.js Datalabels 플러그인 추가: 모든 막대 그래프에 데이터 레이블 표시 (막대 바깥쪽)
 
 ## 로컬 개발 명령어
 ```bash
@@ -275,6 +288,9 @@ npm run clean-port
 - `POST /api/assessment-items/bulk`: 평가 항목 일괄 등록
 - `DELETE /api/assessment-items/:id`: 평가 항목 개별 삭제 (연관된 평가 기록도 함께 삭제)
 - `DELETE /api/assessment-items/process/:processId`: 프로세스별 평가 항목 일괄 삭제 (processId가 'null'이면 일반 항목 삭제)
+
+### Supervisor Assessment 결과
+- `POST /api/supervisor-assessment-results`: Supervisor Assessment 결과 제출 및 저장
 
 ### 시험 결과
 - `POST /api/test-results`: 시험 결과 제출

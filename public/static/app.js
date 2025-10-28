@@ -66,6 +66,10 @@ function showPage(pageName) {
             app.innerHTML = getWorkerUploadHTML();
             loadWorkerUploadPage();
             break;
+        case 'supervisor-assessment':
+            app.innerHTML = getSupervisorAssessmentHTML();
+            loadSupervisorAssessmentPage();
+            break;
         case 'test-page':
             app.innerHTML = getTestPageHTML();
             loadTestPage();
@@ -1602,6 +1606,410 @@ async function uploadWorkers() {
     };
     
     reader.readAsArrayBuffer(file);
+}
+
+// ==================== Supervisor Assessment 시행 페이지 ====================
+
+let assessmentItems = [];
+let currentAssessmentIndex = 0;
+let assessmentResults = [];
+
+function getSupervisorAssessmentHTML() {
+    return `
+        <div class="bg-white rounded-lg shadow-md p-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                <i class="fas fa-user-check mr-2"></i>
+                Supervisor Assessment 시행
+            </h2>
+            
+            <div id="assessment-selection" class="space-y-6">
+                <!-- 법인 선택 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">법인 선택</label>
+                    <select id="sa-entity-select" onchange="filterWorkersByEntity()" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">법인을 선택하세요</option>
+                        <option value="CSVN">CSVN</option>
+                        <option value="CSCN">CSCN</option>
+                        <option value="CSTW">CSTW</option>
+                    </select>
+                </div>
+                
+                <!-- 팀 선택 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">팀 선택</label>
+                    <select id="sa-team-select" onchange="filterWorkersByTeam()" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">팀을 선택하세요</option>
+                    </select>
+                </div>
+                
+                <!-- 프로세스 선택 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">프로세스 선택</label>
+                    <select id="sa-process-select" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">프로세스를 선택하세요</option>
+                    </select>
+                </div>
+                
+                <!-- 작업자 선택 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">작업자 선택</label>
+                    <select id="sa-worker-select" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">작업자를 선택하세요</option>
+                    </select>
+                </div>
+                
+                <!-- 평가 시작 버튼 -->
+                <button onclick="startAssessment()" 
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">
+                    <i class="fas fa-play mr-2"></i>평가 시작
+                </button>
+            </div>
+            
+            <!-- 평가 진행 영역 -->
+            <div id="assessment-progress" class="hidden">
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-700">진행률</span>
+                        <span id="progress-text" class="text-sm font-medium text-blue-600">0 / 0</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div id="progress-bar" class="bg-blue-600 h-3 rounded-full transition-all" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div id="assessment-item-container" class="bg-gray-50 rounded-lg p-6 mb-6">
+                    <!-- 평가 항목이 여기에 표시됩니다 -->
+                </div>
+                
+                <div class="flex gap-4">
+                    <button onclick="markAsSatisfied()" 
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition">
+                        <i class="fas fa-check mr-2"></i>만족
+                    </button>
+                    <button onclick="markAsUnsatisfied()" 
+                            class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition">
+                        <i class="fas fa-times mr-2"></i>불만족
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 평가 완료 영역 -->
+            <div id="assessment-complete" class="hidden">
+                <div class="bg-green-50 border-2 border-green-500 rounded-lg p-6 mb-6">
+                    <h3 class="text-2xl font-bold text-green-800 mb-4">
+                        <i class="fas fa-check-circle mr-2"></i>평가 완료!
+                    </h3>
+                    <div id="assessment-summary" class="space-y-3">
+                        <!-- 평가 결과 요약이 여기에 표시됩니다 -->
+                    </div>
+                </div>
+                
+                <button onclick="showPage('supervisor-assessment')" 
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">
+                    <i class="fas fa-redo mr-2"></i>새로운 평가 시작
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+async function loadSupervisorAssessmentPage() {
+    // 프로세스 목록 로드
+    const processSelect = document.getElementById('sa-process-select');
+    if (processSelect) {
+        processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
+        processes.forEach(process => {
+            const option = document.createElement('option');
+            option.value = process.id;
+            option.textContent = process.name;
+            processSelect.appendChild(option);
+        });
+    }
+}
+
+function filterWorkersByEntity() {
+    const entity = document.getElementById('sa-entity-select').value;
+    const teamSelect = document.getElementById('sa-team-select');
+    const workerSelect = document.getElementById('sa-worker-select');
+    
+    if (!entity) {
+        teamSelect.innerHTML = '<option value="">팀을 선택하세요</option>';
+        workerSelect.innerHTML = '<option value="">작업자를 선택하세요</option>';
+        return;
+    }
+    
+    // 선택한 법인의 작업자들로 필터링
+    const filteredWorkers = workers.filter(w => w.entity === entity);
+    
+    // 팀 목록 생성 (중복 제거)
+    const teams = [...new Set(filteredWorkers.map(w => w.team))].sort();
+    teamSelect.innerHTML = '<option value="">팀을 선택하세요</option>';
+    teams.forEach(team => {
+        const option = document.createElement('option');
+        option.value = team;
+        option.textContent = team;
+        teamSelect.appendChild(option);
+    });
+    
+    // 작업자 선택 초기화
+    workerSelect.innerHTML = '<option value="">작업자를 선택하세요</option>';
+}
+
+function filterWorkersByTeam() {
+    const entity = document.getElementById('sa-entity-select').value;
+    const team = document.getElementById('sa-team-select').value;
+    const workerSelect = document.getElementById('sa-worker-select');
+    
+    if (!entity || !team) {
+        workerSelect.innerHTML = '<option value="">작업자를 선택하세요</option>';
+        return;
+    }
+    
+    // 선택한 법인과 팀의 작업자들로 필터링
+    const filteredWorkers = workers.filter(w => w.entity === entity && w.team === team);
+    
+    workerSelect.innerHTML = '<option value="">작업자를 선택하세요</option>';
+    filteredWorkers.forEach(worker => {
+        const option = document.createElement('option');
+        option.value = worker.id;
+        option.textContent = `${worker.name} (${worker.employee_id})`;
+        workerSelect.appendChild(option);
+    });
+}
+
+async function startAssessment() {
+    const workerId = document.getElementById('sa-worker-select').value;
+    const processId = document.getElementById('sa-process-select').value;
+    
+    if (!workerId || !processId) {
+        alert('작업자와 프로세스를 선택해주세요.');
+        return;
+    }
+    
+    try {
+        // 해당 프로세스의 모든 assessment 항목 로드
+        const response = await axios.get('/api/assessment-items');
+        const allItems = response.data;
+        
+        // 선택한 프로세스의 항목만 필터링 (일반 항목 포함)
+        assessmentItems = allItems.filter(item => 
+            item.process_id === parseInt(processId) || item.process_id === null
+        );
+        
+        if (assessmentItems.length === 0) {
+            alert('해당 프로세스에 등록된 평가 항목이 없습니다.');
+            return;
+        }
+        
+        // 항목을 랜덤하게 섞기
+        assessmentItems = shuffleArray(assessmentItems);
+        
+        // 평가 초기화
+        currentAssessmentIndex = 0;
+        assessmentResults = [];
+        
+        // UI 전환
+        document.getElementById('assessment-selection').classList.add('hidden');
+        document.getElementById('assessment-progress').classList.remove('hidden');
+        
+        // 첫 번째 항목 표시
+        showAssessmentItem();
+        
+    } catch (error) {
+        console.error('Assessment 시작 실패:', error);
+        alert('평가를 시작하는데 실패했습니다.');
+    }
+}
+
+function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+function showAssessmentItem() {
+    const item = assessmentItems[currentAssessmentIndex];
+    const container = document.getElementById('assessment-item-container');
+    
+    // 진행률 업데이트
+    const progressText = document.getElementById('progress-text');
+    const progressBar = document.getElementById('progress-bar');
+    const progress = ((currentAssessmentIndex) / assessmentItems.length) * 100;
+    
+    progressText.textContent = `${currentAssessmentIndex} / ${assessmentItems.length}`;
+    progressBar.style.width = `${progress}%`;
+    
+    // 평가 항목 표시
+    container.innerHTML = `
+        <div class="space-y-4">
+            <div class="flex items-start gap-3">
+                <span class="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                    ${currentAssessmentIndex + 1}/${assessmentItems.length}
+                </span>
+                ${item.category ? `
+                    <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                        ${item.category}
+                    </span>
+                ` : ''}
+            </div>
+            <h3 class="text-2xl font-bold text-gray-800">${item.item_name}</h3>
+            ${item.description ? `
+                <p class="text-gray-600 text-lg leading-relaxed">${item.description}</p>
+            ` : ''}
+        </div>
+    `;
+}
+
+function markAsSatisfied() {
+    recordAssessment(true);
+}
+
+function markAsUnsatisfied() {
+    recordAssessment(false);
+}
+
+function recordAssessment(satisfied) {
+    const item = assessmentItems[currentAssessmentIndex];
+    
+    assessmentResults.push({
+        item_id: item.id,
+        item_name: item.item_name,
+        category: item.category,
+        satisfied: satisfied
+    });
+    
+    currentAssessmentIndex++;
+    
+    if (currentAssessmentIndex < assessmentItems.length) {
+        showAssessmentItem();
+    } else {
+        completeAssessment();
+    }
+}
+
+async function completeAssessment() {
+    const workerId = document.getElementById('sa-worker-select').value;
+    const processId = document.getElementById('sa-process-select').value;
+    
+    // Level별로 결과 집계
+    const levelResults = {};
+    
+    assessmentResults.forEach(result => {
+        const category = result.category || '기타';
+        
+        // 카테고리에서 Level 추출 (예: "Level 2", "Level2", "L2" 등)
+        let level = 'general';
+        const levelMatch = category.match(/level\s*(\d+)/i) || category.match(/l(\d+)/i);
+        if (levelMatch) {
+            level = parseInt(levelMatch[1]);
+        }
+        
+        if (!levelResults[level]) {
+            levelResults[level] = {
+                total: 0,
+                satisfied: 0,
+                items: []
+            };
+        }
+        
+        levelResults[level].total++;
+        if (result.satisfied) {
+            levelResults[level].satisfied++;
+        }
+        levelResults[level].items.push(result);
+    });
+    
+    // 최종 레벨 결정
+    let finalLevel = 1;
+    
+    // Level 2의 모든 항목을 만족하면 Level 2
+    if (levelResults[2]) {
+        if (levelResults[2].satisfied === levelResults[2].total) {
+            finalLevel = 2;
+            
+            // Level 3 체크
+            if (levelResults[3] && levelResults[3].satisfied === levelResults[3].total) {
+                finalLevel = 3;
+                
+                // Level 4 체크
+                if (levelResults[4] && levelResults[4].satisfied === levelResults[4].total) {
+                    finalLevel = 4;
+                }
+            }
+        }
+    }
+    
+    // 서버에 결과 저장
+    try {
+        const assessmentData = assessmentResults.map(result => ({
+            item_id: result.item_id,
+            level: finalLevel
+        }));
+        
+        await axios.post('/api/supervisor-assessment-results', {
+            worker_id: workerId,
+            process_id: processId,
+            assessments: assessmentData,
+            final_level: finalLevel
+        });
+        
+        // 결과 표시
+        showAssessmentComplete(levelResults, finalLevel);
+        
+    } catch (error) {
+        console.error('Assessment 결과 저장 실패:', error);
+        alert('평가 결과 저장에 실패했습니다.');
+    }
+}
+
+function showAssessmentComplete(levelResults, finalLevel) {
+    document.getElementById('assessment-progress').classList.add('hidden');
+    document.getElementById('assessment-complete').classList.remove('hidden');
+    
+    const summaryDiv = document.getElementById('assessment-summary');
+    
+    let summaryHTML = `
+        <div class="text-center mb-6">
+            <div class="text-5xl font-bold text-green-600 mb-2">Level ${finalLevel}</div>
+            <p class="text-gray-600">최종 평가 레벨</p>
+        </div>
+        <div class="border-t-2 border-gray-200 pt-4">
+            <h4 class="font-bold text-gray-800 mb-3">Level별 평가 결과:</h4>
+    `;
+    
+    Object.keys(levelResults).sort().forEach(level => {
+        const result = levelResults[level];
+        const percentage = ((result.satisfied / result.total) * 100).toFixed(1);
+        const isAllSatisfied = result.satisfied === result.total;
+        
+        summaryHTML += `
+            <div class="bg-white rounded-lg p-4 mb-3 border ${isAllSatisfied ? 'border-green-300' : 'border-gray-200'}">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-semibold ${isAllSatisfied ? 'text-green-700' : 'text-gray-700'}">
+                        ${level === 'general' ? '일반 항목' : 'Level ' + level}
+                    </span>
+                    <span class="text-sm ${isAllSatisfied ? 'text-green-600' : 'text-gray-600'}">
+                        ${result.satisfied} / ${result.total} (${percentage}%)
+                    </span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-${isAllSatisfied ? 'green' : 'blue'}-600 h-2 rounded-full" 
+                         style="width: ${percentage}%"></div>
+                </div>
+            </div>
+        `;
+    });
+    
+    summaryHTML += `</div>`;
+    
+    summaryDiv.innerHTML = summaryHTML;
 }
 
 // ==================== 시험 응시 페이지 ====================

@@ -419,6 +419,39 @@ app.delete('/api/assessment-items/process/:processId', errorHandler(async (c) =>
   })
 }))
 
+// ==================== Supervisor Assessment Results ====================
+
+// Supervisor Assessment 결과 제출
+app.post('/api/supervisor-assessment-results', errorHandler(async (c) => {
+  const db = c.env.DB
+  const data: any = await c.req.json()
+  
+  // data: { worker_id, process_id, assessments: [{item_id, level, satisfied}] }
+  
+  if (!data.worker_id || !data.process_id || !data.assessments) {
+    return c.json({ error: 'Missing required fields' }, 400)
+  }
+  
+  // 각 평가 항목 저장
+  for (const assessment of data.assessments) {
+    await db.prepare(`
+      INSERT INTO supervisor_assessments (worker_id, item_id, level, assessment_date)
+      VALUES (?, ?, ?, datetime('now'))
+    `).bind(
+      data.worker_id,
+      assessment.item_id,
+      assessment.level
+    ).run()
+  }
+  
+  return c.json({ 
+    success: true,
+    worker_id: data.worker_id,
+    process_id: data.process_id,
+    final_level: data.final_level
+  })
+}))
+
 // ==================== Written Test Results ====================
 
 // 시험 결과 제출
@@ -666,6 +699,9 @@ app.get('/', (c) => {
                     </button>
                     <button onclick="showPage('worker-upload')" class="hover:underline">
                         <i class="fas fa-users mr-1"></i>작업자 등록
+                    </button>
+                    <button onclick="showPage('supervisor-assessment')" class="hover:underline">
+                        <i class="fas fa-user-check mr-1"></i>Supervisor Assessment 시행
                     </button>
                     <button onclick="showPage('test-page')" class="hover:underline">
                         <i class="fas fa-pencil-alt mr-1"></i>Written Test 응시
