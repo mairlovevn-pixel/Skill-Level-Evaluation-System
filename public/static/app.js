@@ -1876,7 +1876,9 @@ async function loadWorkerAnalysis() {
         
         // Assessment 결과 표시
         if (data.assessments && data.assessments.length > 0) {
-            displayAssessmentResults(data.assessments);
+            displayAssessmentResults(data.assessments, data.process_info);
+        } else {
+            document.getElementById('assessment-analysis').classList.add('hidden');
         }
         
         document.getElementById('analysis-results').classList.remove('hidden');
@@ -2108,22 +2110,22 @@ function displayTrainingRecommendations(trainings, weakCategory) {
     container.innerHTML = html;
 }
 
-function displayAssessmentResults(assessments) {
+function displayAssessmentResults(assessments, processInfo) {
     if (!assessments || assessments.length === 0) {
         document.getElementById('assessment-analysis').classList.add('hidden');
         return;
     }
     
-    // 가장 최근 Assessment 사용
-    const latestAssessment = assessments[0];
+    console.log('Assessment data:', assessments);
     
-    drawAssessmentChart(latestAssessment);
-    displayAssessmentTraining(latestAssessment);
+    // 카테고리별 평균 레벨을 차트 데이터로 변환
+    drawAssessmentChart(assessments);
+    displayAssessmentTraining(assessments, processInfo);
     
     document.getElementById('assessment-analysis').classList.remove('hidden');
 }
 
-function drawAssessmentChart(assessment) {
+function drawAssessmentChart(assessments) {
     const ctx = document.getElementById('assessment-chart');
     
     // 기존 차트 파괴
@@ -2131,20 +2133,18 @@ function drawAssessmentChart(assessment) {
         assessmentChart.destroy();
     }
     
-    // Assessment 항목 정보 가져오기
-    const items = [
-        { name: '기술 숙련도', score: assessment.skill_score || 0 },
-        { name: '안전 의식', score: assessment.safety_score || 0 },
-        { name: '업무 태도', score: assessment.attitude_score || 0 }
-    ];
+    // 카테고리별 평균 레벨 데이터로 차트 생성
+    // assessments는 [{category, avg_level, ...}, ...] 형식
+    const categories = assessments.map(item => item.category);
+    const scores = assessments.map(item => item.avg_level);
     
     assessmentChart = new Chart(ctx, {
         type: 'radar',
         data: {
-            labels: items.map(item => item.name),
+            labels: categories,
             datasets: [{
-                label: 'Assessment 점수',
-                data: items.map(item => item.score),
+                label: 'Assessment 레벨',
+                data: scores,
                 backgroundColor: 'rgba(34, 197, 94, 0.2)',
                 borderColor: 'rgba(34, 197, 94, 1)',
                 borderWidth: 2,
@@ -2181,27 +2181,42 @@ function drawAssessmentChart(assessment) {
     });
 }
 
-async function displayAssessmentTraining(assessment) {
+async function displayAssessmentTraining(assessments, processInfo) {
     const container = document.getElementById('assessment-training-list');
     
-    // 가장 낮은 점수의 항목 찾기
-    const scores = [
-        { name: '기술', value: assessment.skill_score || 0, category: '기술' },
-        { name: '안전', value: assessment.safety_score || 0, category: '안전' },
-        { name: '태도', value: assessment.attitude_score || 0, category: '절차' }
-    ];
+    if (!assessments || assessments.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">Assessment 데이터가 없습니다.</p>';
+        return;
+    }
     
-    const weakest = scores.reduce((min, item) => item.value < min.value ? item : min);
+    // 가장 낮은 평균 레벨의 카테고리 찾기
+    const weakest = assessments.reduce((min, item) => 
+        item.avg_level < min.avg_level ? item : min
+    );
     
     try {
-        const response = await axios.get(`/api/analysis/training-recommendations?processId=${assessment.process_id}&weakCategory=${weakest.category}`);
+        const processId = weakest.process_id || (processInfo ? processInfo.id : null);
+        
+        if (!processId) {
+            container.innerHTML = '<p class="text-gray-500">프로세스 정보를 찾을 수 없습니다.</p>';
+            return;
+        }
+        
+        // 카테고리를 교육 프로그램 카테고리로 매핑
+        let trainingCategory = weakest.category;
+        if (weakest.category.includes('Level')) {
+            // Level2, Level3, Level4 -> 기술로 매핑
+            trainingCategory = '기술';
+        }
+        
+        const response = await axios.get(`/api/analysis/training-recommendations?processId=${processId}&weakCategory=${trainingCategory}`);
         const trainings = response.data;
         
         const html = `
             <div class="col-span-full mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-500">
                 <p class="font-semibold text-yellow-800">
                     <i class="fas fa-exclamation-triangle mr-2"></i>
-                    "${weakest.name}" 영역이 가장 낮습니다 (${weakest.value.toFixed(1)}점). 다음 교육을 추천합니다:
+                    "${weakest.category}" 영역이 가장 낮습니다 (평균 레벨 ${weakest.avg_level.toFixed(1)}). 다음 교육을 추천합니다:
                 </p>
             </div>
             ${trainings.map(training => `

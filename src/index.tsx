@@ -432,24 +432,40 @@ app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
     FROM written_test_results wtr
     JOIN processes p ON wtr.process_id = p.id
     WHERE wtr.worker_id = ?
-    ORDER BY wtr.created_at DESC
+    ORDER BY wtr.test_date DESC
   `).bind(workerId).all()
   
-  // Supervisor Assessments
+  // Supervisor Assessments - 카테고리별로 그룹화하여 평균 계산
   const assessments = await db.prepare(`
     SELECT 
-      sa.*,
-      p.name as process_name
+      sai.category,
+      sai.process_id,
+      AVG(sa.level) as avg_level,
+      COUNT(*) as item_count,
+      MAX(sa.assessment_date) as latest_date
     FROM supervisor_assessments sa
-    JOIN processes p ON sa.process_id = p.id
+    JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
     WHERE sa.worker_id = ?
-    ORDER BY sa.created_at DESC
+    GROUP BY sai.category, sai.process_id
+    ORDER BY latest_date DESC
   `).bind(workerId).all()
+  
+  // 프로세스 정보 가져오기 (첫 번째 assessment에서)
+  let processInfo = null
+  if (assessments.results && assessments.results.length > 0) {
+    const firstAssessment = assessments.results[0] as any
+    if (firstAssessment.process_id) {
+      const process = await db.prepare('SELECT * FROM processes WHERE id = ?')
+        .bind(firstAssessment.process_id).first()
+      processInfo = process
+    }
+  }
   
   return c.json({
     worker: workerResult,
     test_results: testResults.results,
-    assessments: assessments.results
+    assessments: assessments.results,
+    process_info: processInfo
   })
 }))
 
