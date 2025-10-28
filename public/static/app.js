@@ -1630,9 +1630,7 @@ function getSupervisorAssessmentHTML() {
                     <select id="sa-entity-select" onchange="filterWorkersByEntity()" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="">법인을 선택하세요</option>
-                        <option value="CSVN">CSVN</option>
-                        <option value="CSCN">CSCN</option>
-                        <option value="CSTW">CSTW</option>
+                        <!-- 등록된 작업자의 법인이 동적으로 로드됩니다 -->
                     </select>
                 </div>
                 
@@ -1730,6 +1728,18 @@ function getSupervisorAssessmentHTML() {
 }
 
 async function loadSupervisorAssessmentPage() {
+    // 작업자 데이터가 없으면 로드
+    if (!workers || workers.length === 0) {
+        try {
+            const response = await axios.get('/api/workers');
+            workers = response.data;
+        } catch (error) {
+            console.error('작업자 데이터 로드 실패:', error);
+            alert('작업자 데이터를 불러오는데 실패했습니다.');
+            return;
+        }
+    }
+    
     // 프로세스 목록 로드
     const processSelect = document.getElementById('sa-process-select');
     if (processSelect) {
@@ -1741,6 +1751,21 @@ async function loadSupervisorAssessmentPage() {
             processSelect.appendChild(option);
         });
     }
+    
+    // 법인 목록 동적 생성 (등록된 작업자의 법인만 표시)
+    const entitySelect = document.getElementById('sa-entity-select');
+    if (entitySelect && workers.length > 0) {
+        const entities = [...new Set(workers.map(w => w.entity))].sort();
+        entitySelect.innerHTML = '<option value="">법인을 선택하세요</option>';
+        entities.forEach(entity => {
+            const option = document.createElement('option');
+            option.value = entity;
+            option.textContent = entity;
+            entitySelect.appendChild(option);
+        });
+    }
+    
+    console.log(`작업자 데이터 로드 완료: ${workers.length}명`);
 }
 
 function filterWorkersByEntity() {
