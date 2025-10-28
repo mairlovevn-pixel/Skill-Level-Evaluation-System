@@ -341,6 +341,24 @@ app.post('/api/assessment-items/bulk', errorHandler(async (c) => {
   return c.json({ success: true, count: items.length }, 201)
 }))
 
+// Assessment Item 삭제
+app.delete('/api/assessment-items/:id', errorHandler(async (c) => {
+  const db = c.env.DB
+  const itemId = c.req.param('id')
+  
+  // Foreign key constraint: supervisor_assessments 먼저 삭제
+  await db.prepare('DELETE FROM supervisor_assessments WHERE item_id = ?')
+    .bind(itemId)
+    .run()
+  
+  // Assessment item 삭제
+  await db.prepare('DELETE FROM supervisor_assessment_items WHERE id = ?')
+    .bind(itemId)
+    .run()
+
+  return c.json({ success: true })
+}))
+
 // ==================== Written Test Results ====================
 
 // 시험 결과 제출

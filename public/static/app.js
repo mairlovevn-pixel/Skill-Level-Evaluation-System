@@ -935,6 +935,7 @@ async function loadAssessmentStatus() {
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리 분포</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">최근 등록일</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -957,6 +958,11 @@ async function loadAssessmentStatus() {
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
                         <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">공통</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <button onclick="showAssessmentManagement(null, '일반 항목 (공통)')" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-cog mr-1"></i>관리
+                        </button>
                     </td>
                 </tr>
             `;
@@ -983,6 +989,13 @@ async function loadAssessmentStatus() {
                     <td class="px-6 py-4 text-sm text-gray-500">${categories}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        ${count > 0 ? `
+                            <button onclick="showAssessmentManagement(${process.id}, '${process.name}')" class="text-blue-600 hover:text-blue-800">
+                                <i class="fas fa-cog mr-1"></i>관리
+                            </button>
+                        ` : '-'}
+                    </td>
                 </tr>
             `;
         });
@@ -997,6 +1010,92 @@ async function loadAssessmentStatus() {
         console.error('Assessment 현황 로드 실패:', error);
         document.getElementById('assessment-status-table').innerHTML = 
             '<p class="text-red-500">현황을 불러오는데 실패했습니다.</p>';
+    }
+}
+
+// Assessment 관리 모달 표시
+async function showAssessmentManagement(processId, processName) {
+    try {
+        const response = await axios.get('/api/assessment-items');
+        const allItems = response.data;
+        
+        // processId가 null이면 일반 항목(공통), 아니면 해당 프로세스 항목만 필터링
+        const items = allItems.filter(item => {
+            if (processId === null) {
+                return item.process_id === null;
+            } else {
+                return item.process_id === processId;
+            }
+        });
+        
+        const modalHTML = `
+            <div id="assessment-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick="closeAssessmentModal(event)">
+                <div class="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                    <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+                        <h3 class="text-2xl font-bold text-gray-800">
+                            <i class="fas fa-clipboard-check mr-2"></i>
+                            ${processName} - Assessment 항목 관리 (${items.length}개)
+                        </h3>
+                        <button onclick="closeAssessmentModal()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        ${items.length === 0 ? '<p class="text-gray-500 text-center py-8">등록된 항목이 없습니다.</p>' : ''}
+                        ${items.map((item, index) => `
+                            <div class="border rounded-lg p-4 bg-gray-50" id="assessment-item-${item.id}">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div class="flex-1">
+                                        <h4 class="font-bold text-lg">${index + 1}. ${item.item_name}</h4>
+                                        <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 mt-1">
+                                            ${item.category}
+                                        </span>
+                                    </div>
+                                    <button onclick="deleteAssessmentItem(${item.id}, ${processId}, '${processName}')" 
+                                            class="bg-red-500 hover:bg-red-600 text-white text-sm py-1 px-3 rounded">
+                                        <i class="fas fa-trash mr-1"></i>삭제
+                                    </button>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="text-sm text-gray-700">
+                                        <span class="font-semibold">설명:</span> ${item.description || '설명 없음'}
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        등록일: ${new Date(item.created_at).toLocaleDateString('ko-KR')}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    } catch (error) {
+        console.error('Assessment 항목 로드 실패:', error);
+        alert('Assessment 항목을 불러오는데 실패했습니다.');
+    }
+}
+
+function closeAssessmentModal(event) {
+    if (!event || event.target.id === 'assessment-modal') {
+        const modal = document.getElementById('assessment-modal');
+        if (modal) modal.remove();
+    }
+}
+
+async function deleteAssessmentItem(itemId, processId, processName) {
+    if (!confirm('이 평가 항목을 삭제하시겠습니까?\n\n※ 이 항목과 연결된 모든 평가 기록도 함께 삭제됩니다.')) return;
+    
+    try {
+        await axios.delete(`/api/assessment-items/${itemId}`);
+        alert('평가 항목이 삭제되었습니다.');
+        closeAssessmentModal();
+        await loadAssessmentStatus();
+    } catch (error) {
+        console.error('Assessment 항목 삭제 실패:', error);
+        alert('평가 항목 삭제에 실패했습니다.');
     }
 }
 
