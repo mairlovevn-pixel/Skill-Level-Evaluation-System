@@ -850,13 +850,15 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
     
     // 결과 저장
     await db.prepare(`
-      INSERT INTO supervisor_assessments (worker_id, item_id, level, assessment_date)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO supervisor_assessments (worker_id, item_id, level, assessed_by, assessment_date, comments)
+      VALUES (?, ?, ?, ?, ?, ?)
     `).bind(
       worker.id,
       item.id,
       result.level,
-      result.assessment_date || new Date().toISOString()
+      result.assessed_by || 'Supervisor',
+      result.assessment_date || new Date().toISOString(),
+      result.comments || ''
     ).run()
   }
   
