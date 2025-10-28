@@ -26,58 +26,132 @@ app.use('/static/*', serveStatic({ root: './' }))
 // 대시보드 통계 API
 app.get('/api/dashboard/stats', errorHandler(async (c) => {
   const db = c.env.DB
+  const entity = c.req.query('entity') // 법인 필터 파라미터
+  
     // 전체 작업자 수
-    const totalWorkersResult = await db.prepare('SELECT COUNT(*) as count FROM workers').first()
+    let totalWorkersResult
+    if (entity) {
+      totalWorkersResult = await db.prepare('SELECT COUNT(*) as count FROM workers WHERE entity = ?')
+        .bind(entity).first()
+    } else {
+      totalWorkersResult = await db.prepare('SELECT COUNT(*) as count FROM workers').first()
+    }
     const total_workers = (totalWorkersResult?.count as number) || 0
 
     // Written Test 응시자 수 (중복 제거)
-    const testTakersResult = await db.prepare(
-      'SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results'
-    ).first()
+    let testTakersResult
+    if (entity) {
+      testTakersResult = await db.prepare(`
+        SELECT COUNT(DISTINCT wtr.worker_id) as count 
+        FROM written_test_results wtr
+        JOIN workers w ON wtr.worker_id = w.id
+        WHERE w.entity = ?
+      `).bind(entity).first()
+    } else {
+      testTakersResult = await db.prepare(
+        'SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results'
+      ).first()
+    }
     const written_test_takers = (testTakersResult?.count as number) || 0
 
     // Written Test 합격자 수 (중복 제거, passed=1)
-    const testPassedResult = await db.prepare(
-      'SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results WHERE passed = 1'
-    ).first()
+    let testPassedResult
+    if (entity) {
+      testPassedResult = await db.prepare(`
+        SELECT COUNT(DISTINCT wtr.worker_id) as count 
+        FROM written_test_results wtr
+        JOIN workers w ON wtr.worker_id = w.id
+        WHERE w.entity = ? AND wtr.passed = 1
+      `).bind(entity).first()
+    } else {
+      testPassedResult = await db.prepare(
+        'SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results WHERE passed = 1'
+      ).first()
+    }
     const written_test_passed = (testPassedResult?.count as number) || 0
 
     // 프로세스별 Written Test 현황
-    const testByProcessResult = await db.prepare(`
-      SELECT 
-        p.name as process_name,
-        COUNT(DISTINCT wtr.worker_id) as takers,
-        COUNT(DISTINCT CASE WHEN wtr.passed = 1 THEN wtr.worker_id END) as passed
-      FROM processes p
-      LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
-      GROUP BY p.id, p.name
-      ORDER BY p.id
-    `).all()
+    let testByProcessResult
+    if (entity) {
+      testByProcessResult = await db.prepare(`
+        SELECT 
+          p.name as process_name,
+          COUNT(DISTINCT wtr.worker_id) as takers,
+          COUNT(DISTINCT CASE WHEN wtr.passed = 1 THEN wtr.worker_id END) as passed
+        FROM processes p
+        LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
+        LEFT JOIN workers w ON wtr.worker_id = w.id
+        WHERE w.entity = ? OR w.entity IS NULL
+        GROUP BY p.id, p.name
+        ORDER BY p.id
+      `).bind(entity).all()
+    } else {
+      testByProcessResult = await db.prepare(`
+        SELECT 
+          p.name as process_name,
+          COUNT(DISTINCT wtr.worker_id) as takers,
+          COUNT(DISTINCT CASE WHEN wtr.passed = 1 THEN wtr.worker_id END) as passed
+        FROM processes p
+        LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
+        GROUP BY p.id, p.name
+        ORDER BY p.id
+      `).all()
+    }
     const written_test_by_process = testByProcessResult.results || []
 
     // 프로세스별 평균 점수
-    const avgScoreResult = await db.prepare(`
-      SELECT 
-        p.name as process_name,
-        COALESCE(AVG(wtr.score), 0) as avg_score
-      FROM processes p
-      LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
-      GROUP BY p.id, p.name
-      ORDER BY p.id
-    `).all()
+    let avgScoreResult
+    if (entity) {
+      avgScoreResult = await db.prepare(`
+        SELECT 
+          p.name as process_name,
+          COALESCE(AVG(wtr.score), 0) as avg_score
+        FROM processes p
+        LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
+        LEFT JOIN workers w ON wtr.worker_id = w.id
+        WHERE w.entity = ? OR w.entity IS NULL
+        GROUP BY p.id, p.name
+        ORDER BY p.id
+      `).bind(entity).all()
+    } else {
+      avgScoreResult = await db.prepare(`
+        SELECT 
+          p.name as process_name,
+          COALESCE(AVG(wtr.score), 0) as avg_score
+        FROM processes p
+        LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
+        GROUP BY p.id, p.name
+        ORDER BY p.id
+      `).all()
+    }
     const avg_score_by_process = avgScoreResult.results || []
 
     // Level별 법인 현황
-    const assessmentByLevelResult = await db.prepare(`
-      SELECT 
-        sa.level,
-        w.entity,
-        COUNT(*) as count
-      FROM supervisor_assessments sa
-      JOIN workers w ON sa.worker_id = w.id
-      GROUP BY sa.level, w.entity
-      ORDER BY sa.level, w.entity
-    `).all()
+    let assessmentByLevelResult
+    if (entity) {
+      assessmentByLevelResult = await db.prepare(`
+        SELECT 
+          sa.level,
+          w.entity,
+          COUNT(*) as count
+        FROM supervisor_assessments sa
+        JOIN workers w ON sa.worker_id = w.id
+        WHERE w.entity = ?
+        GROUP BY sa.level, w.entity
+        ORDER BY sa.level, w.entity
+      `).bind(entity).all()
+    } else {
+      assessmentByLevelResult = await db.prepare(`
+        SELECT 
+          sa.level,
+          w.entity,
+          COUNT(*) as count
+        FROM supervisor_assessments sa
+        JOIN workers w ON sa.worker_id = w.id
+        GROUP BY sa.level, w.entity
+        ORDER BY sa.level, w.entity
+      `).all()
+    }
     const supervisor_assessment_by_level = assessmentByLevelResult.results || []
 
     const stats: DashboardStats = {

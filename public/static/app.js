@@ -98,10 +98,22 @@ async function loadWorkers() {
 function getDashboardHTML() {
     return `
         <div class="space-y-6">
-            <h2 class="text-3xl font-bold text-gray-800 mb-6">
-                <i class="fas fa-chart-bar mr-2"></i>
-                Skill Level 평가 요약
-            </h2>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-gray-800">
+                    <i class="fas fa-chart-bar mr-2"></i>
+                    Skill Level 평가 요약
+                </h2>
+                
+                <div class="w-64">
+                    <label class="block text-gray-700 font-semibold mb-2">법인 선택</label>
+                    <select id="dashboard-entity-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterDashboardByEntity()">
+                        <option value="">전체 법인</option>
+                        <option value="CSVN">CSVN</option>
+                        <option value="CSCN">CSCN</option>
+                        <option value="CSTW">CSTW</option>
+                    </select>
+                </div>
+            </div>
             
             <!-- 요약 카드 -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -167,15 +179,19 @@ function getDashboardHTML() {
     `;
 }
 
+let allDashboardData = null;
+let currentTestStatusChart = null;
+let currentAvgScoreChart = null;
+let currentAssessmentChart = null;
+
 async function loadDashboard() {
     try {
         const response = await axios.get('/api/dashboard/stats');
+        allDashboardData = response.data;
         dashboardData = response.data;
         
         // 요약 카드 업데이트
-        document.getElementById('total-workers').textContent = dashboardData.total_workers;
-        document.getElementById('test-takers').textContent = dashboardData.written_test_takers;
-        document.getElementById('test-passed').textContent = dashboardData.written_test_passed;
+        updateDashboardStats();
         
         // 차트 렌더링
         renderTestStatusChart();
@@ -187,11 +203,55 @@ async function loadDashboard() {
     }
 }
 
+function updateDashboardStats() {
+    document.getElementById('total-workers').textContent = dashboardData.total_workers;
+    document.getElementById('test-takers').textContent = dashboardData.written_test_takers;
+    document.getElementById('test-passed').textContent = dashboardData.written_test_passed;
+}
+
+async function filterDashboardByEntity() {
+    const entitySelect = document.getElementById('dashboard-entity-select');
+    const selectedEntity = entitySelect.value;
+    
+    try {
+        // 법인 필터를 적용하여 서버에서 데이터 가져오기
+        let url = '/api/dashboard/stats';
+        if (selectedEntity) {
+            url += `?entity=${selectedEntity}`;
+        }
+        
+        const response = await axios.get(url);
+        dashboardData = response.data;
+        
+        // 차트가 이미 있으면 삭제
+        if (currentTestStatusChart) {
+            currentTestStatusChart.destroy();
+        }
+        if (currentAvgScoreChart) {
+            currentAvgScoreChart.destroy();
+        }
+        if (currentAssessmentChart) {
+            currentAssessmentChart.destroy();
+        }
+        
+        // 요약 카드 업데이트
+        updateDashboardStats();
+        
+        // 차트 다시 렌더링
+        renderTestStatusChart();
+        renderAvgScoreChart();
+        renderAssessmentChart();
+    } catch (error) {
+        console.error('법인별 필터링 실패:', error);
+        alert('법인별 데이터를 불러오는데 실패했습니다.');
+    }
+}
+
 function renderTestStatusChart() {
     const ctx = document.getElementById('test-status-chart');
     const data = dashboardData.written_test_by_process;
     
-    new Chart(ctx, {
+    currentTestStatusChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: data.map(d => d.process_name),
@@ -223,7 +283,7 @@ function renderAvgScoreChart() {
     const ctx = document.getElementById('avg-score-chart');
     const data = dashboardData.avg_score_by_process;
     
-    new Chart(ctx, {
+    currentAvgScoreChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: data.map(d => d.process_name),
@@ -276,7 +336,7 @@ function renderAssessmentChart() {
         };
     });
     
-    new Chart(ctx, {
+    currentAssessmentChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: levels.map(l => `Level ${l}`),
