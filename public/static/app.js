@@ -2380,18 +2380,26 @@ async function downloadAssessmentResults() {
             fileName = `Assessment_Summary_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
         } else {
             // 상세 양식 (개별 항목별) - 프로세스 정보 추가
-            excelData = results.map((r, index) => ({
-                'No.': index + 1,
-                '사번': r.employee_id,
-                '이름': r.name,
-                '법인': r.entity,
-                '팀': r.team,
-                '프로세스': r.position,  // 직급을 프로세스로 표시
-                'Lv 카테고리': r.category,
-                '평가항목': r.item_name,
-                '평가 결과': r.level >= 3 ? '만족' : '불만족',
-                '평가일자': new Date(r.assessment_date).toLocaleDateString('ko-KR')
-            }));
+            excelData = results.map((r, index) => {
+                // level 값의 안전한 처리
+                let evaluationResult = 'N/A';
+                if (r.level !== null && r.level !== undefined) {
+                    evaluationResult = r.level >= 3 ? '만족' : '불만족';
+                }
+                
+                return {
+                    'No.': index + 1,
+                    '사번': r.employee_id,
+                    '이름': r.name,
+                    '법인': r.entity,
+                    '팀': r.team,
+                    '프로세스': r.position,  // 직급을 프로세스로 표시
+                    'Lv 카테고리': r.category,
+                    '평가항목': r.item_name,
+                    '평가 결과': evaluationResult,
+                    '평가일자': new Date(r.assessment_date).toLocaleDateString('ko-KR')
+                };
+            });
             
             fileName = `Assessment_Detailed_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
         }
