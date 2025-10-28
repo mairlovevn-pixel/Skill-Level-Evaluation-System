@@ -2396,19 +2396,14 @@ async function uploadWrittenTestResults() {
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonData = XLSX.utils.sheet_to_json(worksheet);
             
-            // 데이터 변환
+            // 데이터 변환 (새 양식)
             const results = jsonData.map(row => ({
-                employee_id: row['사번'],
-                process_name: row['프로세스명'],
-                score: parseFloat(row['점수']),
-                passed: row['합격여부'] === '합격',
-                test_date: row['시험일자'] ? new Date(row['시험일자']).toISOString() : new Date().toISOString()
+                process_name: row['카테고리'],
+                passed: row['만족 여부'] === '합격'
             }));
             
-            // 서버에 업로드
-            const response = await axios.post('/api/results/written-test/bulk', results);
-            
-            alert(`${response.data.count}건의 결과를 업로드했습니다.`);
+            // 업로드 불가 안내
+            alert('간단 양식은 조회 전용입니다.\n\n업로드를 원하시면 다음 컬럼을 포함한 엑셀 파일을 준비해주세요:\n- 사번\n- 프로세스명\n- 점수\n- 합격여부\n- 시험일자');
             fileInput.value = '';
         } catch (error) {
             console.error('업로드 실패:', error);
