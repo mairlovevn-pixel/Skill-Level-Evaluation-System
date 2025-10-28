@@ -22,6 +22,60 @@ function convertExcelDate(dateValue) {
     return String(dateValue);
 }
 
+// Excel 유틸리티 함수
+function convertLevelToResult(level) {
+    if (level === null || level === undefined) {
+        return 'N/A';
+    }
+    return level >= ASSESSMENT_LEVEL.SATISFACTORY_THRESHOLD ? '만족' : '불만족';
+}
+
+function applyExcelHeaderStyle(worksheet, useYellowBg = false) {
+    const range = XLSX.utils.decode_range(worksheet['!ref']);
+    const bgColor = useYellowBg ? EXCEL_COLORS.HEADER_BG_YELLOW : EXCEL_COLORS.HEADER_BG;
+    const textColor = useYellowBg ? EXCEL_COLORS.HEADER_TEXT_BLACK : EXCEL_COLORS.HEADER_TEXT;
+    
+    for (let col = range.s.c; col <= range.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+        if (!worksheet[cellAddress]) continue;
+        
+        worksheet[cellAddress].s = {
+            font: { bold: true, color: { rgb: textColor }, sz: 12 },
+            fill: { fgColor: { rgb: bgColor } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+                top: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER } },
+                bottom: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER } },
+                left: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER } },
+                right: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER } }
+            }
+        };
+    }
+}
+
+function applyCellColorByValue(worksheet, rowIndex, colIndex, value, passKeyword, failKeyword) {
+    const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+    if (!worksheet[cellAddress] || !worksheet[cellAddress].s) return;
+    
+    if (value === passKeyword) {
+        worksheet[cellAddress].s.fill = { fgColor: { rgb: EXCEL_COLORS.PASS_BG } };
+        worksheet[cellAddress].s.font = { color: { rgb: EXCEL_COLORS.PASS_TEXT }, bold: true };
+    } else if (value === failKeyword) {
+        worksheet[cellAddress].s.fill = { fgColor: { rgb: EXCEL_COLORS.FAIL_BG } };
+        worksheet[cellAddress].s.font = { color: { rgb: EXCEL_COLORS.FAIL_TEXT }, bold: true };
+    }
+}
+
+function createExcelWorkbook(data, sheetName, columnWidths) {
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = columnWidths;
+    applyExcelHeaderStyle(ws);
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    return { workbook: wb, worksheet: ws };
+}
+
 // 차트 공통 설정
 const CHART_DEFAULTS = {
     responsive: true,
@@ -35,6 +89,41 @@ const CHART_SCALE_DEFAULTS = {
             stepSize: 1
         }
     }
+};
+
+// Excel 스타일 상수
+const EXCEL_COLORS = {
+    HEADER_BG: "70AD47",
+    HEADER_BG_YELLOW: "FFFF00",
+    HEADER_TEXT: "FFFFFF",
+    HEADER_TEXT_BLACK: "000000",
+    PASS_BG: "C6EFCE",
+    PASS_TEXT: "006100",
+    FAIL_BG: "FFC7CE",
+    FAIL_TEXT: "9C0006",
+    BORDER: "000000",
+    BORDER_LIGHT: "D3D3D3"
+};
+
+const EXCEL_COLUMN_WIDTHS = {
+    NO: 6,
+    EMPLOYEE_ID: 12,
+    NAME: 15,
+    ENTITY: 10,
+    TEAM: 20,
+    POSITION: 15,
+    CATEGORY: 20,
+    LEVEL_CATEGORY: 15,
+    ITEM_NAME: 50,
+    ITEM_NAME_SHORT: 25,
+    LEVEL: 12,
+    RESULT: 12,
+    DATE: 15
+};
+
+// 평가 레벨 임계값
+const ASSESSMENT_LEVEL = {
+    SATISFACTORY_THRESHOLD: 3  // level >= 3 이면 만족
 };
 
 // 페이지 로드 시 초기화
@@ -2245,23 +2334,8 @@ async function downloadWrittenTestResults() {
         }
         
         // 헤더 스타일 적용 (노란색 배경)
+        applyExcelHeaderStyle(ws, true);
         const range = XLSX.utils.decode_range(ws['!ref']);
-        for (let col = range.s.c; col <= range.e.c; col++) {
-            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-            if (!ws[cellAddress]) continue;
-            
-            ws[cellAddress].s = {
-                font: { bold: true, sz: 12 },
-                fill: { fgColor: { rgb: "FFFF00" } },  // 노란색 배경
-                alignment: { horizontal: "center", vertical: "center" },
-                border: {
-                    top: { style: "thin", color: { rgb: "000000" } },
-                    bottom: { style: "thin", color: { rgb: "000000" } },
-                    left: { style: "thin", color: { rgb: "000000" } },
-                    right: { style: "thin", color: { rgb: "000000" } }
-                }
-            };
-        }
         
         // 데이터 셀 스타일 적용
         for (let row = range.s.r + 1; row <= range.e.r; row++) {
@@ -2283,26 +2357,12 @@ async function downloadWrittenTestResults() {
                 if (downloadType === 'detailed') {
                     // 정답여부 컬럼 (col 10)
                     if (col === 10) {
-                        const value = ws[cellAddress].v;
-                        if (value === 'O') {
-                            ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
-                            ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
-                        } else if (value === 'X') {
-                            ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
-                            ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
-                        }
+                        applyCellColorByValue(ws, row, col, ws[cellAddress].v, 'O', 'X');
                     }
                 } else {
                     // 만족 여부 컬럼 (col 2)
                     if (col === 2) {
-                        const value = ws[cellAddress].v;
-                        if (value === '합격') {
-                            ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
-                            ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
-                        } else if (value === '불합격') {
-                            ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
-                            ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
-                        }
+                        applyCellColorByValue(ws, row, col, ws[cellAddress].v, '합격', '불합격');
                     }
                 }
             }
@@ -2380,26 +2440,18 @@ async function downloadAssessmentResults() {
             fileName = `Assessment_Summary_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
         } else {
             // 상세 양식 (개별 항목별) - 프로세스 정보 추가
-            excelData = results.map((r, index) => {
-                // level 값의 안전한 처리
-                let evaluationResult = 'N/A';
-                if (r.level !== null && r.level !== undefined) {
-                    evaluationResult = r.level >= 3 ? '만족' : '불만족';
-                }
-                
-                return {
-                    'No.': index + 1,
-                    '사번': r.employee_id,
-                    '이름': r.name,
-                    '법인': r.entity,
-                    '팀': r.team,
-                    '프로세스': r.position,  // 직급을 프로세스로 표시
-                    'Lv 카테고리': r.category,
-                    '평가항목': r.item_name,
-                    '평가 결과': evaluationResult,
-                    '평가일자': new Date(r.assessment_date).toLocaleDateString('ko-KR')
-                };
-            });
+            excelData = results.map((r, index) => ({
+                'No.': index + 1,
+                '사번': r.employee_id,
+                '이름': r.name,
+                '법인': r.entity,
+                '팀': r.team,
+                '프로세스': r.position,
+                'Lv 카테고리': r.category,
+                '평가항목': r.item_name,
+                '평가 결과': convertLevelToResult(r.level),
+                '평가일자': new Date(r.assessment_date).toLocaleDateString('ko-KR')
+            }));
             
             fileName = `Assessment_Detailed_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
         }
@@ -2408,51 +2460,36 @@ async function downloadAssessmentResults() {
         const ws = XLSX.utils.json_to_sheet(excelData);
         
         // 열 너비 설정
-        if (downloadType === 'summary') {
-            ws['!cols'] = [
-                { wch: 6 },   // No.
-                { wch: 12 },  // 사번
-                { wch: 15 },  // 이름
-                { wch: 10 },  // 법인
-                { wch: 20 },  // 팀
-                { wch: 15 },  // 직급
-                { wch: 20 },  // 카테고리
-                { wch: 12 },  // 평균 레벨
-                { wch: 15 }   // 평가일자
+        const columnWidths = downloadType === 'summary' 
+            ? [
+                { wch: EXCEL_COLUMN_WIDTHS.NO },
+                { wch: EXCEL_COLUMN_WIDTHS.EMPLOYEE_ID },
+                { wch: EXCEL_COLUMN_WIDTHS.NAME },
+                { wch: EXCEL_COLUMN_WIDTHS.ENTITY },
+                { wch: EXCEL_COLUMN_WIDTHS.TEAM },
+                { wch: EXCEL_COLUMN_WIDTHS.POSITION },
+                { wch: EXCEL_COLUMN_WIDTHS.CATEGORY },
+                { wch: EXCEL_COLUMN_WIDTHS.LEVEL },
+                { wch: EXCEL_COLUMN_WIDTHS.DATE }
+            ]
+            : [
+                { wch: EXCEL_COLUMN_WIDTHS.NO },
+                { wch: EXCEL_COLUMN_WIDTHS.EMPLOYEE_ID },
+                { wch: EXCEL_COLUMN_WIDTHS.NAME },
+                { wch: EXCEL_COLUMN_WIDTHS.ENTITY },
+                { wch: EXCEL_COLUMN_WIDTHS.TEAM },
+                { wch: EXCEL_COLUMN_WIDTHS.POSITION },
+                { wch: EXCEL_COLUMN_WIDTHS.LEVEL_CATEGORY },
+                { wch: EXCEL_COLUMN_WIDTHS.ITEM_NAME },
+                { wch: EXCEL_COLUMN_WIDTHS.RESULT },
+                { wch: EXCEL_COLUMN_WIDTHS.DATE }
             ];
-        } else {
-            ws['!cols'] = [
-                { wch: 6 },   // No.
-                { wch: 12 },  // 사번
-                { wch: 15 },  // 이름
-                { wch: 10 },  // 법인
-                { wch: 20 },  // 팀
-                { wch: 15 },  // 프로세스
-                { wch: 15 },  // Lv 카테고리
-                { wch: 50 },  // 평가항목
-                { wch: 12 },  // 평가 결과
-                { wch: 15 }   // 평가일자
-            ];
-        }
         
-        // 헤더 스타일 적용 (첫 번째 행)
+        ws['!cols'] = columnWidths;
+        
+        // 헤더 스타일 적용
+        applyExcelHeaderStyle(ws);
         const range = XLSX.utils.decode_range(ws['!ref']);
-        for (let col = range.s.c; col <= range.e.c; col++) {
-            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-            if (!ws[cellAddress]) continue;
-            
-            ws[cellAddress].s = {
-                font: { bold: true, color: { rgb: "FFFFFF" } },
-                fill: { fgColor: { rgb: "70AD47" } },
-                alignment: { horizontal: "center", vertical: "center" },
-                border: {
-                    top: { style: "thin", color: { rgb: "000000" } },
-                    bottom: { style: "thin", color: { rgb: "000000" } },
-                    left: { style: "thin", color: { rgb: "000000" } },
-                    right: { style: "thin", color: { rgb: "000000" } }
-                }
-            };
-        }
         
         // 데이터 셀 스타일 적용
         for (let row = range.s.r + 1; row <= range.e.r; row++) {
@@ -2492,14 +2529,7 @@ async function downloadAssessmentResults() {
                 } else {
                     // 상세: 평가 결과 컬럼 (col 8)
                     if (col === 8) {
-                        const value = ws[cellAddress].v;
-                        if (value === '만족') {
-                            ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
-                            ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
-                        } else if (value === '불만족') {
-                            ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
-                            ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
-                        }
+                        applyCellColorByValue(ws, row, col, ws[cellAddress].v, '만족', '불만족');
                     }
                 }
             }
