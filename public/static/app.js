@@ -2379,17 +2379,17 @@ async function downloadAssessmentResults() {
             
             fileName = `Assessment_Summary_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
         } else {
-            // 상세 양식 (개별 항목별)
+            // 상세 양식 (개별 항목별) - 프로세스 정보 추가
             excelData = results.map((r, index) => ({
                 'No.': index + 1,
                 '사번': r.employee_id,
                 '이름': r.name,
                 '법인': r.entity,
                 '팀': r.team,
-                '직급': r.position,
-                '카테고리': r.category,
+                '프로세스': r.position,  // 직급을 프로세스로 표시
+                'Lv 카테고리': r.category,
                 '평가항목': r.item_name,
-                '레벨': r.level,
+                '평가 결과': r.level >= 3 ? '만족' : '불만족',
                 '평가일자': new Date(r.assessment_date).toLocaleDateString('ko-KR')
             }));
             
@@ -2419,10 +2419,10 @@ async function downloadAssessmentResults() {
                 { wch: 15 },  // 이름
                 { wch: 10 },  // 법인
                 { wch: 20 },  // 팀
-                { wch: 15 },  // 직급
-                { wch: 20 },  // 카테고리
-                { wch: 25 },  // 평가항목
-                { wch: 10 },  // 레벨
+                { wch: 15 },  // 프로세스
+                { wch: 15 },  // Lv 카테고리
+                { wch: 50 },  // 평가항목
+                { wch: 12 },  // 평가 결과
                 { wch: 15 }   // 평가일자
             ];
         }
@@ -2462,25 +2462,36 @@ async function downloadAssessmentResults() {
                     }
                 };
                 
-                // 레벨별 색상 적용
-                const levelCol = downloadType === 'summary' ? 7 : 8; // 평균 레벨 or 레벨 컬럼
-                if (col === levelCol) {
-                    const value = downloadType === 'summary' 
-                        ? parseFloat(ws[cellAddress].v) 
-                        : ws[cellAddress].v;
-                    
-                    if (value >= 4.5) {
-                        ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
-                        ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
-                    } else if (value >= 3.5) {
-                        ws[cellAddress].s.fill = { fgColor: { rgb: "C6E0B4" } };
-                    } else if (value >= 2.5) {
-                        ws[cellAddress].s.fill = { fgColor: { rgb: "FFE699" } };
-                    } else if (value >= 1.5) {
-                        ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
-                    } else {
-                        ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
-                        ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
+                // 결과별 색상 적용
+                if (downloadType === 'summary') {
+                    // 요약: 평균 레벨 컬럼 (col 7)
+                    if (col === 7) {
+                        const value = parseFloat(ws[cellAddress].v);
+                        if (value >= 4.5) {
+                            ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
+                            ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
+                        } else if (value >= 3.5) {
+                            ws[cellAddress].s.fill = { fgColor: { rgb: "C6E0B4" } };
+                        } else if (value >= 2.5) {
+                            ws[cellAddress].s.fill = { fgColor: { rgb: "FFE699" } };
+                        } else if (value >= 1.5) {
+                            ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
+                        } else {
+                            ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
+                            ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
+                        }
+                    }
+                } else {
+                    // 상세: 평가 결과 컬럼 (col 8)
+                    if (col === 8) {
+                        const value = ws[cellAddress].v;
+                        if (value === '만족') {
+                            ws[cellAddress].s.fill = { fgColor: { rgb: "C6EFCE" } };
+                            ws[cellAddress].s.font = { color: { rgb: "006100" }, bold: true };
+                        } else if (value === '불만족') {
+                            ws[cellAddress].s.fill = { fgColor: { rgb: "FFC7CE" } };
+                            ws[cellAddress].s.font = { color: { rgb: "9C0006" }, bold: true };
+                        }
                     }
                 }
             }
