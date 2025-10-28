@@ -1629,7 +1629,9 @@ function getSupervisorAssessmentHTML() {
                     <select id="sa-entity-select" onchange="filterSAWorkersByEntity()" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="">법인을 선택하세요</option>
-                        <!-- 등록된 작업자의 법인이 동적으로 로드됩니다 -->
+                        <option value="CSVN">CSVN</option>
+                        <option value="CSCN">CSCN</option>
+                        <option value="CSTW">CSTW</option>
                     </select>
                 </div>
                 
