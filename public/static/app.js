@@ -1750,6 +1750,7 @@ async function submitTest() {
 
 let categoryChart = null;
 let assessmentChart = null;
+let allWorkers = []; // 전역 변수로 선언
 
 async function showAnalysisPage() {
     const html = `
@@ -1907,6 +1908,9 @@ async function showAnalysisPage() {
     
     document.getElementById('app').innerHTML = html;
     
+    // allWorkers 초기화
+    allWorkers = [];
+    
     // 이벤트 리스너 등록
     document.getElementById('analysis-entity-select').addEventListener('change', loadAnalysisWorkers);
     
@@ -1914,9 +1918,8 @@ async function showAnalysisPage() {
     const searchInput = document.getElementById('analysis-worker-search');
     const dropdown = document.getElementById('analysis-worker-dropdown');
     
-    let allWorkers = [];
-    
     searchInput.addEventListener('focus', () => {
+        console.log('Search input focused, allWorkers:', allWorkers.length);
         if (!searchInput.disabled && allWorkers.length > 0) {
             renderWorkerDropdown(allWorkers);
         }
@@ -1924,27 +1927,42 @@ async function showAnalysisPage() {
     
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
+        console.log('Search term:', searchTerm);
         if (searchTerm === '') {
-            renderWorkerDropdown(allWorkers);
+            if (allWorkers.length > 0) {
+                renderWorkerDropdown(allWorkers);
+            }
         } else {
             const filtered = allWorkers.filter(w => 
                 w.employee_id.toLowerCase().includes(searchTerm) || 
                 w.name.toLowerCase().includes(searchTerm)
             );
+            console.log('Filtered workers:', filtered.length);
             renderWorkerDropdown(filtered);
         }
     });
     
     // 외부 클릭 시 드롭다운 닫기
-    document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+    const handleOutsideClick = (e) => {
+        if (dropdown && !searchInput.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.classList.add('hidden');
         }
-    });
+    };
+    
+    // 기존 이벤트 리스너 제거 후 새로 추가 (중복 방지)
+    document.removeEventListener('click', handleOutsideClick);
+    document.addEventListener('click', handleOutsideClick);
 }
 
 function renderWorkerDropdown(workers) {
     const dropdown = document.getElementById('analysis-worker-dropdown');
+    
+    if (!dropdown) {
+        console.error('Dropdown element not found');
+        return;
+    }
+    
+    console.log('Rendering worker dropdown with', workers.length, 'workers');
     
     if (workers.length === 0) {
         dropdown.innerHTML = '<div class="px-4 py-2 text-gray-500">검색 결과가 없습니다.</div>';
@@ -1963,12 +1981,14 @@ function renderWorkerDropdown(workers) {
     
     dropdown.innerHTML = html;
     dropdown.classList.remove('hidden');
+    console.log('Dropdown should now be visible');
     
     // 각 옵션에 클릭 이벤트 추가
     dropdown.querySelectorAll('.worker-option').forEach(option => {
         option.addEventListener('click', () => {
             const workerId = option.dataset.workerId;
             const workerName = option.dataset.workerName;
+            console.log('Worker selected:', workerId, workerName);
             document.getElementById('analysis-worker-search').value = workerName;
             dropdown.classList.add('hidden');
             loadWorkerAnalysis(workerId);
