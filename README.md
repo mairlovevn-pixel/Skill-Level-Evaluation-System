@@ -33,7 +33,11 @@
 ### 3. Supervisor Assessment 항목 등록 페이지 (세 번째 페이지)
 - ✅ 엑셀 파일 업로드 기능
 - ✅ 템플릿 다운로드 기능
-- ✅ 필수 컬럼: Category, Item Name, Description
+- ✅ 다중 형식 지원:
+  - **형식 1**: Category, Item Name, Description
+  - **형식 2**: Level2, Level3, Level4 컬럼 형식 (Cutting.xlsx, 자동 변환)
+- ✅ 프로세스 선택 기능 (형식 2 사용 시)
+- ✅ 프로세스별 평가 항목 관리
 - ✅ 일괄 등록 기능
 
 ### 4. 작업자 현황 등록 페이지 (네 번째 페이지)
@@ -109,9 +113,11 @@
    - Cutting, Beveling, Bending, LS Welding, Fit Up, CS Welding, VTMT
    - Bracket FU, Bracket Weld, UT repair, DF FU, DF Weld, Flatness
 3. Quiz 등록: 두 번째 페이지에서 프로세스별 시험 문제 업로드
-   - **형식 1**: 영문 컬럼명 사용 (Process ID 포함)
-   - **형식 2**: 한국어 컬럼명 사용 (번호, 질문, 1), 2), 3), 4), 정답) - 프로세스 선택 필요
+   - **형식 1**: 영문 컬럼명 (Process ID 포함)
+   - **형식 2**: 한국어 컬럼명 (번호, 질문, 1), 2), 3), 4), 정답) - 프로세스 선택
 4. Assessment 항목 등록: 세 번째 페이지에서 평가 항목 업로드
+   - **형식 1**: 표준 형식 (Category, Item Name, Description)
+   - **형식 2**: Level 형식 (Level2, Level3, Level4 컬럼) - 프로세스 선택
 
 ### 시험 진행
 1. 다섯 번째 페이지 접속
