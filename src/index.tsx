@@ -260,6 +260,58 @@ app.post('/api/quizzes/bulk', errorHandler(async (c) => {
   return c.json({ success: true, count: quizzes.length }, 201)
 }))
 
+// 퀴즈 수정
+app.put('/api/quizzes/:id', errorHandler(async (c) => {
+  const db = c.env.DB
+  const quizId = c.req.param('id')
+  const quiz: WrittenTestQuiz = await c.req.json()
+  
+  await db.prepare(`
+    UPDATE written_test_quizzes 
+    SET process_id = ?, 
+        question = ?, 
+        question_image_url = ?,
+        option_a = ?, 
+        option_a_image_url = ?,
+        option_b = ?, 
+        option_b_image_url = ?,
+        option_c = ?, 
+        option_c_image_url = ?,
+        option_d = ?,
+        option_d_image_url = ?,
+        correct_answer = ?
+    WHERE id = ?
+  `).bind(
+    quiz.process_id,
+    quiz.question,
+    quiz.question_image_url || null,
+    quiz.option_a,
+    quiz.option_a_image_url || null,
+    quiz.option_b,
+    quiz.option_b_image_url || null,
+    quiz.option_c || null,
+    quiz.option_c_image_url || null,
+    quiz.option_d || null,
+    quiz.option_d_image_url || null,
+    quiz.correct_answer,
+    quizId
+  ).run()
+
+  return c.json({ success: true })
+}))
+
+// 퀴즈 삭제
+app.delete('/api/quizzes/:id', errorHandler(async (c) => {
+  const db = c.env.DB
+  const quizId = c.req.param('id')
+  
+  await db.prepare('DELETE FROM written_test_quizzes WHERE id = ?')
+    .bind(quizId)
+    .run()
+
+  return c.json({ success: true })
+}))
+
 // ==================== Supervisor Assessment Items CRUD ====================
 
 // 모든 평가 항목 조회
@@ -294,18 +346,186 @@ app.post('/api/assessment-items/bulk', errorHandler(async (c) => {
 // 시험 결과 제출
 app.post('/api/test-results', errorHandler(async (c) => {
   const db = c.env.DB
-  const result: WrittenTestResult = await c.req.json()
+  const data: any = await c.req.json()
+  
+  // 시험 결과 저장
   const insertResult = await db.prepare(`
     INSERT INTO written_test_results (worker_id, process_id, score, passed)
     VALUES (?, ?, ?, ?)
   `).bind(
-    result.worker_id,
-    result.process_id,
-    result.score,
-    result.passed ? 1 : 0
+    data.worker_id,
+    data.process_id,
+    data.score,
+    data.passed ? 1 : 0
   ).run()
+  
+  const resultId = insertResult.meta.last_row_id
+  
+  // 각 문제의 답안 저장
+  if (data.answers && Array.isArray(data.answers)) {
+    for (const answer of data.answers) {
+      await db.prepare(`
+        INSERT INTO written_test_answers (result_id, quiz_id, selected_answer, is_correct)
+        VALUES (?, ?, ?, ?)
+      `).bind(
+        resultId,
+        answer.quiz_id,
+        answer.selected_answer,
+        answer.is_correct ? 1 : 0
+      ).run()
+    }
+  }
 
-  return c.json({ success: true, id: insertResult.meta.last_row_id }, 201)
+  return c.json({ success: true, id: resultId }, 201)
+}))
+
+// ==================== Analysis APIs ====================
+
+// 법인별 작업자 목록 조회
+app.get('/api/analysis/workers', errorHandler(async (c) => {
+  const db = c.env.DB
+  const entity = c.req.query('entity')
+  
+  if (!entity) {
+    return c.json({ error: 'Entity parameter is required' }, 400)
+  }
+  
+  const result = await db.prepare(`
+    SELECT 
+      w.id,
+      w.employee_id,
+      w.name,
+      w.entity,
+      w.team,
+      w.position,
+      COUNT(DISTINCT wtr.id) as test_count,
+      COUNT(DISTINCT sa.id) as assessment_count
+    FROM workers w
+    LEFT JOIN written_test_results wtr ON w.id = wtr.worker_id
+    LEFT JOIN supervisor_assessments sa ON w.id = sa.worker_id
+    WHERE w.entity = ?
+    GROUP BY w.id
+    ORDER BY w.name
+  `).bind(entity).all()
+  
+  return c.json(result.results)
+}))
+
+// 작업자 상세 분석 데이터 조회
+app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
+  const db = c.env.DB
+  const workerId = c.req.param('workerId')
+  
+  // 작업자 기본 정보
+  const workerResult = await db.prepare('SELECT * FROM workers WHERE id = ?').bind(workerId).first()
+  
+  if (!workerResult) {
+    return c.json({ error: 'Worker not found' }, 404)
+  }
+  
+  // Written Test 결과들
+  const testResults = await db.prepare(`
+    SELECT 
+      wtr.*,
+      p.name as process_name,
+      p.id as process_id
+    FROM written_test_results wtr
+    JOIN processes p ON wtr.process_id = p.id
+    WHERE wtr.worker_id = ?
+    ORDER BY wtr.created_at DESC
+  `).bind(workerId).all()
+  
+  // Supervisor Assessments
+  const assessments = await db.prepare(`
+    SELECT 
+      sa.*,
+      p.name as process_name
+    FROM supervisor_assessments sa
+    JOIN processes p ON sa.process_id = p.id
+    WHERE sa.worker_id = ?
+    ORDER BY sa.created_at DESC
+  `).bind(workerId).all()
+  
+  return c.json({
+    worker: workerResult,
+    test_results: testResults.results,
+    assessments: assessments.results
+  })
+}))
+
+// 법인 평균 점수 조회 (프로세스별)
+app.get('/api/analysis/entity-average', errorHandler(async (c) => {
+  const db = c.env.DB
+  const entity = c.req.query('entity')
+  const processId = c.req.query('processId')
+  
+  if (!entity || !processId) {
+    return c.json({ error: 'Entity and processId parameters are required' }, 400)
+  }
+  
+  const result = await db.prepare(`
+    SELECT 
+      AVG(wtr.score) as average_score
+    FROM written_test_results wtr
+    JOIN workers w ON wtr.worker_id = w.id
+    WHERE w.entity = ? AND wtr.process_id = ?
+  `).bind(entity, processId).first()
+  
+  return c.json({ average_score: result?.average_score || 0 })
+}))
+
+// Written Test 카테고리별 점수 조회
+app.get('/api/analysis/test-categories/:resultId', errorHandler(async (c) => {
+  const db = c.env.DB
+  const resultId = c.req.param('resultId')
+  
+  // 해당 시험 결과의 상세 답안 조회
+  const answersResult = await db.prepare(`
+    SELECT 
+      wtq.category,
+      COUNT(*) as total_questions,
+      SUM(CASE WHEN wta.is_correct = 1 THEN 1 ELSE 0 END) as correct_count
+    FROM written_test_answers wta
+    JOIN written_test_quizzes wtq ON wta.quiz_id = wtq.id
+    WHERE wta.result_id = ?
+    GROUP BY wtq.category
+  `).bind(resultId).all()
+  
+  // 카테고리별 점수 계산 (정답수 / 전체 문제수 * 100)
+  const categoryScores = (answersResult.results as any[]).map(item => ({
+    category: item.category,
+    score: (item.correct_count / item.total_questions * 100).toFixed(1),
+    correct: item.correct_count,
+    total: item.total_questions
+  }))
+  
+  return c.json(categoryScores)
+}))
+
+// 추천 교육 프로그램 조회
+app.get('/api/analysis/training-recommendations', errorHandler(async (c) => {
+  const db = c.env.DB
+  const processId = c.req.query('processId')
+  const weakCategory = c.req.query('weakCategory') // 가장 낮은 점수의 카테고리
+  
+  if (!processId) {
+    return c.json({ error: 'ProcessId parameter is required' }, 400)
+  }
+  
+  let query = 'SELECT * FROM training_programs WHERE process_id = ?'
+  let params = [processId]
+  
+  // 약한 카테고리가 있으면 해당 카테고리 우선
+  if (weakCategory) {
+    query += ' AND category = ? ORDER BY duration_hours DESC LIMIT 5'
+    params.push(weakCategory)
+  } else {
+    query += ' ORDER BY duration_hours DESC LIMIT 5'
+  }
+  
+  const result = await db.prepare(query).bind(...params).all()
+  
+  return c.json(result.results)
 }))
 
 // ==================== Main Page ====================
@@ -320,6 +540,7 @@ app.get('/', (c) => {
         <title>작업자 Skill Level 평가 대시보드</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+        <link href="/static/styles.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -347,6 +568,9 @@ app.get('/', (c) => {
                     </button>
                     <button onclick="showPage('test-page')" class="hover:underline">
                         <i class="fas fa-pencil-alt mr-1"></i>Written Test 응시
+                    </button>
+                    <button onclick="showPage('analysis-page')" class="hover:underline">
+                        <i class="fas fa-chart-line mr-1"></i>평가 결과 분석
                     </button>
                 </div>
             </div>

@@ -25,10 +25,15 @@ export interface WrittenTestQuiz {
   id?: number;
   process_id: number;
   question: string;
+  question_image_url?: string;
   option_a: string;
+  option_a_image_url?: string;
   option_b: string;
+  option_b_image_url?: string;
   option_c?: string;
+  option_c_image_url?: string;
   option_d?: string;
+  option_d_image_url?: string;
   correct_answer: string;
   created_at?: string;
 }
