@@ -15,10 +15,13 @@
 - ✅ 전체 작업자 수 표시
 - ✅ Written Test 응시자 수 표시
 - ✅ Written Test 합격자 수 표시
-- ✅ 프로세스별 Written Test 현황 (막대 그래프)
+- ✅ 프로세스별 Written Test 현황 (막대 그래프) - **데이터 레이블 표시**
   - 응시자 수와 합격자 수 비교
-- ✅ 프로세스별 평균 점수 (막대 그래프)
-- ✅ Level별 법인 현황 (Supervisor Assessment 막대 그래프)
+  - 막대 바깥쪽에 데이터 값 표시
+- ✅ 프로세스별 평균 점수 (막대 그래프) - **데이터 레이블 표시**
+  - 막대 바깥쪽에 점수 표시 (소수점 1자리)
+- ✅ Level별 법인 현황 (Supervisor Assessment 막대 그래프) - **데이터 레이블 표시**
+  - 막대 바깥쪽에 인원 수 표시
 
 ### 2. Written Test Quiz 등록 페이지 (두 번째 페이지)
 - ✅ **등록 현황 테이블**: 프로세스별 Quiz 수, 최근 등록일, 상태 표시
@@ -75,7 +78,7 @@
 - ✅ **탭 기반 분석**: Written Test와 Supervisor Assessment 분리
 - ✅ **Written Test 분석**:
   - 결과 목록 (프로세스별)
-  - 상세 분석 (법인 평균 비교, 카테고리별 차트, 추천 교육)
+  - 상세 분석 (법인 평균 비교 막대 그래프 - **데이터 레이블 포함**, 카테고리별 레이더 차트, 추천 교육)
   - 분석 닫기 기능
 - ✅ **Supervisor Assessment 분석**:
   - 결과 목록 (프로세스별, 년도 표시)
@@ -163,7 +166,7 @@
 ## 기술 스택
 - **백엔드**: Hono (Cloudflare Workers)
 - **프론트엔드**: Vanilla JavaScript + TailwindCSS
-- **차트**: Chart.js
+- **차트**: Chart.js + chartjs-plugin-datalabels (데이터 레이블 표시)
 - **엑셀 처리**: SheetJS (xlsx)
 - **데이터베이스**: Cloudflare D1 (SQLite)
 - **배포**: Cloudflare Pages
@@ -220,6 +223,7 @@
   - Quiz 프로세스별 일괄 삭제 기능 추가 (2중 확인)
   - 평가 결과 분석 페이지 대폭 개선 (드롭다운, 탭 분리, 다음 레벨 분석)
   - Assessment 분석 레이더 차트 추가 (Written Test와 동일한 형태)
+  - **Chart.js Datalabels 플러그인 추가**: 모든 막대 그래프에 데이터 레이블 표시 (막대 바깥쪽)
 
 ## 로컬 개발 명령어
 ```bash

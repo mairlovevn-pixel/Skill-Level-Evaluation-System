@@ -277,7 +277,17 @@ function renderTestStatusChart() {
         },
         options: {
             ...CHART_DEFAULTS,
-            scales: CHART_SCALE_DEFAULTS
+            scales: CHART_SCALE_DEFAULTS,
+            plugins: {
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+                    formatter: (value) => value,
+                    font: {
+                        weight: 'bold'
+                    }
+                }
+            }
         }
     });
 }
@@ -304,6 +314,16 @@ function renderAvgScoreChart() {
                 y: {
                     beginAtZero: true,
                     max: 100
+                }
+            },
+            plugins: {
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+                    formatter: (value) => parseFloat(value).toFixed(1),
+                    font: {
+                        weight: 'bold'
+                    }
                 }
             }
         }
@@ -347,7 +367,17 @@ function renderAssessmentChart() {
         },
         options: {
             ...CHART_DEFAULTS,
-            scales: CHART_SCALE_DEFAULTS
+            scales: CHART_SCALE_DEFAULTS,
+            plugins: {
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+                    formatter: (value) => value,
+                    font: {
+                        weight: 'bold'
+                    }
+                }
+            }
         }
     });
 }
@@ -2676,6 +2706,14 @@ function drawComparisonChart(processName, workerScore, entityAverage, entity) {
                         label: function(context) {
                             return context.parsed.y.toFixed(1) + '점';
                         }
+                    }
+                },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+                    formatter: (value) => parseFloat(value).toFixed(1) + '점',
+                    font: {
+                        weight: 'bold'
                     }
                 }
             }
