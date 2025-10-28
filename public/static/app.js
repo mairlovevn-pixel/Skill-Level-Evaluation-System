@@ -2440,18 +2440,33 @@ async function downloadAssessmentResults() {
             fileName = `Assessment_Summary_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
         } else {
             // 상세 양식 (개별 항목별) - 프로세스 정보 추가
-            excelData = results.map((r, index) => ({
-                'No.': index + 1,
-                '사번': r.employee_id,
-                '이름': r.name,
-                '법인': r.entity,
-                '팀': r.team,
-                '프로세스': r.position,
-                'Lv 카테고리': r.category,
-                '평가항목': r.item_name,
-                '평가 결과': convertLevelToResult(r.level),
-                '평가일자': new Date(r.assessment_date).toLocaleDateString('ko-KR')
-            }));
+            excelData = results.map((r, index) => {
+                // 데이터 검증
+                const evaluationResult = convertLevelToResult(r.level);
+                
+                // 디버깅: level이 null/undefined인 경우 콘솔에 경고
+                if (!evaluationResult || evaluationResult === 'N/A') {
+                    console.warn(`Row ${index + 1}: Missing or invalid level`, {
+                        employee_id: r.employee_id,
+                        name: r.name,
+                        item: r.item_name,
+                        level: r.level
+                    });
+                }
+                
+                return {
+                    'No.': index + 1,
+                    '사번': r.employee_id || '',
+                    '이름': r.name || '',
+                    '법인': r.entity || '',
+                    '팀': r.team || '',
+                    '프로세스': r.position || '',
+                    'Lv 카테고리': r.category || '',
+                    '평가항목': r.item_name || '',
+                    '평가 결과': evaluationResult,
+                    '평가일자': r.assessment_date ? new Date(r.assessment_date).toLocaleDateString('ko-KR') : ''
+                };
+            });
             
             fileName = `Assessment_Detailed_${entity || 'All'}_${new Date().toISOString().split('T')[0]}.xlsx`;
         }
