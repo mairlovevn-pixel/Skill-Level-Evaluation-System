@@ -64,6 +64,7 @@ function showPage(pageName) {
             break;
         case 'worker-upload':
             app.innerHTML = getWorkerUploadHTML();
+            loadWorkerUploadPage();
             break;
         case 'test-page':
             app.innerHTML = getTestPageHTML();
@@ -866,9 +867,114 @@ async function uploadAssessmentItems() {
 
 // ==================== 작업자 등록 페이지 ====================
 
+async function loadWorkerUploadPage() {
+    // 등록된 작업자 현황 로드
+    await loadWorkerStatus();
+}
+
+async function loadWorkerStatus() {
+    try {
+        const statusDiv = document.getElementById('worker-status-table');
+        
+        if (!workers.length) {
+            statusDiv.innerHTML = '<p class="text-gray-500">등록된 작업자가 없습니다.</p>';
+            return;
+        }
+        
+        // 법인별로 그룹화
+        const byEntity = {};
+        workers.forEach(worker => {
+            if (!byEntity[worker.entity]) {
+                byEntity[worker.entity] = [];
+            }
+            byEntity[worker.entity].push(worker);
+        });
+        
+        // 테이블 생성
+        let tableHTML = `
+            <div class="space-y-6">
+        `;
+        
+        // 법인별로 테이블 생성
+        Object.keys(byEntity).sort().forEach(entity => {
+            const entityWorkers = byEntity[entity];
+            
+            tableHTML += `
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <div class="bg-blue-50 px-6 py-3 border-b border-gray-200">
+                        <h4 class="text-lg font-bold text-gray-800">
+                            <i class="fas fa-building mr-2"></i>
+                            ${entity} (${entityWorkers.length}명)
+                        </h4>
+                    </div>
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">사번</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">팀</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">직책</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">입사일</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+            `;
+            
+            // 입사일 기준 정렬 (최신순)
+            entityWorkers.sort((a, b) => {
+                const dateA = new Date(a.start_to_work_date);
+                const dateB = new Date(b.start_to_work_date);
+                return dateB - dateA;
+            });
+            
+            entityWorkers.forEach(worker => {
+                const startDate = new Date(worker.start_to_work_date).toLocaleDateString('ko-KR');
+                tableHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${worker.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${worker.employee_id}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${worker.team}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${worker.position}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${startDate}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        });
+        
+        tableHTML += `
+            </div>
+        `;
+        
+        statusDiv.innerHTML = tableHTML;
+    } catch (error) {
+        console.error('작업자 현황 로드 실패:', error);
+        document.getElementById('worker-status-table').innerHTML = 
+            '<p class="text-red-500">현황을 불러오는데 실패했습니다.</p>';
+    }
+}
+
 function getWorkerUploadHTML() {
     return `
-        <div class="bg-white rounded-lg shadow-md p-8">
+        <div class="space-y-6">
+            <!-- 등록된 작업자 현황 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-list-check mr-2"></i>
+                    등록된 작업자 현황
+                </h3>
+                <div id="worker-status-table" class="overflow-x-auto">
+                    <p class="text-gray-500">로딩 중...</p>
+                </div>
+            </div>
+            
+            <!-- 업로드 섹션 -->
+            <div class="bg-white rounded-lg shadow-md p-8">
             <h2 class="text-3xl font-bold text-gray-800 mb-6">
                 <i class="fas fa-users mr-2"></i>
                 작업자 현황 등록
@@ -992,7 +1098,8 @@ async function uploadWorkers() {
             const response = await axios.post('/api/workers/bulk', workers);
             alert(`${response.data.count}명의 작업자가 성공적으로 등록되었습니다.`);
             fileInput.value = '';
-            loadWorkers(); // 작업자 목록 새로고침
+            await loadWorkers(); // 작업자 목록 새로고침
+            await loadWorkerStatus(); // 현황 새로고침
         } catch (error) {
             console.error('작업자 업로드 실패:', error);
             alert('작업자 업로드에 실패했습니다.\n\n오류: ' + (error.response?.data?.error || error.message));
@@ -1013,6 +1120,16 @@ function getTestPageHTML() {
             </h2>
             
             <div id="test-selection" class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">법인 선택</label>
+                    <select id="entity-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterWorkersByEntity()">
+                        <option value="">법인을 선택하세요</option>
+                        <option value="CSVN">CSVN</option>
+                        <option value="CSCN">CSCN</option>
+                        <option value="CSTW">CSTW</option>
+                    </select>
+                </div>
+                
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">작업자 선택</label>
                     <select id="worker-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
@@ -1051,15 +1168,6 @@ let currentQuizzes = [];
 let selectedAnswers = {};
 
 async function loadTestPage() {
-    // 작업자 목록 로드
-    const workerSelect = document.getElementById('worker-select');
-    workers.forEach(worker => {
-        const option = document.createElement('option');
-        option.value = worker.id;
-        option.textContent = `${worker.name} (${worker.employee_id})`;
-        workerSelect.appendChild(option);
-    });
-    
     // 프로세스 목록 로드
     const processSelect = document.getElementById('process-select');
     processes.forEach(process => {
@@ -1070,9 +1178,42 @@ async function loadTestPage() {
     });
 }
 
+function filterWorkersByEntity() {
+    const entitySelect = document.getElementById('entity-select');
+    const workerSelect = document.getElementById('worker-select');
+    const selectedEntity = entitySelect.value;
+    
+    // 작업자 선택 초기화
+    workerSelect.innerHTML = '<option value="">작업자를 선택하세요</option>';
+    
+    if (!selectedEntity) {
+        return;
+    }
+    
+    // 선택된 법인의 작업자만 필터링
+    const filteredWorkers = workers.filter(worker => worker.entity === selectedEntity);
+    
+    filteredWorkers.forEach(worker => {
+        const option = document.createElement('option');
+        option.value = worker.id;
+        option.textContent = `${worker.name} (${worker.employee_id})`;
+        workerSelect.appendChild(option);
+    });
+    
+    if (filteredWorkers.length === 0) {
+        workerSelect.innerHTML += '<option value="" disabled>해당 법인에 등록된 작업자가 없습니다</option>';
+    }
+}
+
 async function startTest() {
+    const entityId = document.getElementById('entity-select').value;
     const workerId = document.getElementById('worker-select').value;
     const processId = document.getElementById('process-select').value;
+    
+    if (!entityId) {
+        alert('법인을 선택해주세요.');
+        return;
+    }
     
     if (!workerId || !processId) {
         alert('작업자와 프로세스를 선택해주세요.');
@@ -1181,6 +1322,7 @@ async function submitTest() {
         // 초기화
         document.getElementById('test-selection').classList.remove('hidden');
         document.getElementById('test-content').classList.add('hidden');
+        document.getElementById('entity-select').value = '';
         document.getElementById('worker-select').value = '';
         document.getElementById('process-select').value = '';
     } catch (error) {

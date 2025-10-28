@@ -272,7 +272,7 @@ app.get('/', (c) => {
                         <i class="fas fa-users mr-1"></i>작업자 등록
                     </button>
                     <button onclick="showPage('test-page')" class="hover:underline">
-                        <i class="fas fa-pencil-alt mr-1"></i>시험 응시
+                        <i class="fas fa-pencil-alt mr-1"></i>Written Test 응시
                     </button>
                 </div>
             </div>
