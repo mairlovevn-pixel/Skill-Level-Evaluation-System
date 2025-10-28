@@ -1613,7 +1613,6 @@ async function uploadWorkers() {
 let assessmentItems = [];
 let currentAssessmentIndex = 0;
 let assessmentResults = [];
-let saFilteredWorkers = []; // Supervisor Assessment 페이지용 필터링된 작업자 목록
 
 function getSupervisorAssessmentHTML() {
     return `
@@ -1627,19 +1626,19 @@ function getSupervisorAssessmentHTML() {
                 <!-- 법인 선택 -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">법인 선택</label>
-                    <select id="sa-entity-select" onchange="filterWorkersByEntity()" 
+                    <select id="sa-entity-select" onchange="filterSAWorkersByEntity()" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="">법인을 선택하세요</option>
                         <!-- 등록된 작업자의 법인이 동적으로 로드됩니다 -->
                     </select>
                 </div>
                 
-                <!-- 팀 선택 -->
+                <!-- 작업자 선택 -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">팀 선택</label>
-                    <select id="sa-team-select" onchange="filterWorkersByTeam()" 
+                    <label class="block text-sm font-medium text-gray-700 mb-2">작업자 선택</label>
+                    <select id="sa-worker-select" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="">팀을 선택하세요</option>
+                        <option value="">작업자를 선택하세요</option>
                     </select>
                 </div>
                 
@@ -1650,26 +1649,6 @@ function getSupervisorAssessmentHTML() {
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="">프로세스를 선택하세요</option>
                     </select>
-                </div>
-                
-                <!-- 작업자 선택 -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">작업자 선택</label>
-                    <div class="relative">
-                        <input type="text" 
-                               id="sa-worker-search" 
-                               placeholder="작업자 이름 또는 사번으로 검색..."
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                               onfocus="showSAWorkerDropdown()"
-                               oninput="filterSAWorkerDropdown()"
-                               autocomplete="off">
-                        <div id="sa-worker-dropdown" 
-                             class="hidden absolute z-10 w-full mt-1 bg-white shadow-xl rounded-lg border border-gray-300 max-h-64 overflow-y-auto"
-                             style="top: 100%;">
-                            <!-- 작업자 목록이 여기에 표시됩니다 -->
-                        </div>
-                    </div>
-                    <input type="hidden" id="sa-worker-select">
                 </div>
                 
                 <!-- 평가 시작 버튼 -->
@@ -1752,144 +1731,36 @@ async function loadSupervisorAssessmentPage() {
         });
     }
     
-    // 법인 목록 동적 생성 (등록된 작업자의 법인만 표시)
-    const entitySelect = document.getElementById('sa-entity-select');
-    if (entitySelect && workers.length > 0) {
-        const entities = [...new Set(workers.map(w => w.entity))].sort();
-        entitySelect.innerHTML = '<option value="">법인을 선택하세요</option>';
-        entities.forEach(entity => {
-            const option = document.createElement('option');
-            option.value = entity;
-            option.textContent = entity;
-            entitySelect.appendChild(option);
-        });
-    }
-    
     console.log(`작업자 데이터 로드 완료: ${workers.length}명`);
 }
 
-function filterWorkersByEntity() {
-    const entity = document.getElementById('sa-entity-select').value;
-    const teamSelect = document.getElementById('sa-team-select');
-    const workerSearch = document.getElementById('sa-worker-search');
+// Supervisor Assessment 작업자 필터링 (Written Test와 동일한 방식)
+function filterSAWorkersByEntity() {
+    const entitySelect = document.getElementById('sa-entity-select');
     const workerSelect = document.getElementById('sa-worker-select');
+    const selectedEntity = entitySelect.value;
     
-    if (!entity) {
-        teamSelect.innerHTML = '<option value="">팀을 선택하세요</option>';
-        workerSearch.value = '';
-        workerSelect.value = '';
-        saFilteredWorkers = [];
-        document.getElementById('sa-worker-dropdown').classList.add('hidden');
+    // 작업자 선택 초기화
+    workerSelect.innerHTML = '<option value="">작업자를 선택하세요</option>';
+    
+    if (!selectedEntity) {
         return;
     }
     
-    // 선택한 법인의 작업자들로 필터링
-    const filteredWorkers = workers.filter(w => w.entity === entity);
+    // 선택된 법인의 작업자만 필터링
+    const filteredWorkers = workers.filter(worker => worker.entity === selectedEntity);
     
-    // 팀 목록 생성 (중복 제거)
-    const teams = [...new Set(filteredWorkers.map(w => w.team))].sort();
-    teamSelect.innerHTML = '<option value="">팀을 선택하세요</option>';
-    teams.forEach(team => {
+    filteredWorkers.forEach(worker => {
         const option = document.createElement('option');
-        option.value = team;
-        option.textContent = team;
-        teamSelect.appendChild(option);
+        option.value = worker.id;
+        option.textContent = `${worker.name} (${worker.employee_id})`;
+        workerSelect.appendChild(option);
     });
     
-    // 작업자 선택 초기화
-    workerSearch.value = '';
-    workerSelect.value = '';
-    saFilteredWorkers = [];
-    document.getElementById('sa-worker-dropdown').classList.add('hidden');
-}
-
-function filterWorkersByTeam() {
-    const entity = document.getElementById('sa-entity-select').value;
-    const team = document.getElementById('sa-team-select').value;
-    const workerSearch = document.getElementById('sa-worker-search');
-    const workerSelect = document.getElementById('sa-worker-select');
-    
-    if (!entity || !team) {
-        workerSearch.value = '';
-        workerSelect.value = '';
-        saFilteredWorkers = [];
-        document.getElementById('sa-worker-dropdown').classList.add('hidden');
-        return;
+    if (filteredWorkers.length === 0) {
+        workerSelect.innerHTML += '<option value="" disabled>해당 법인에 등록된 작업자가 없습니다</option>';
     }
-    
-    // 선택한 법인과 팀의 작업자들로 필터링
-    saFilteredWorkers = workers.filter(w => w.entity === entity && w.team === team);
-    
-    // 작업자 선택 초기화
-    workerSearch.value = '';
-    workerSelect.value = '';
-    document.getElementById('sa-worker-dropdown').classList.add('hidden');
 }
-
-// Supervisor Assessment 작업자 드롭다운 표시
-function showSAWorkerDropdown() {
-    if (saFilteredWorkers.length === 0) {
-        return;
-    }
-    
-    const dropdown = document.getElementById('sa-worker-dropdown');
-    updateSAWorkerDropdown(saFilteredWorkers);
-    dropdown.classList.remove('hidden');
-}
-
-// Supervisor Assessment 작업자 드롭다운 필터링
-function filterSAWorkerDropdown() {
-    const searchText = document.getElementById('sa-worker-search').value.toLowerCase();
-    
-    if (saFilteredWorkers.length === 0) {
-        return;
-    }
-    
-    const filtered = saFilteredWorkers.filter(worker => 
-        worker.name.toLowerCase().includes(searchText) ||
-        worker.employee_id.toLowerCase().includes(searchText)
-    );
-    
-    updateSAWorkerDropdown(filtered);
-    document.getElementById('sa-worker-dropdown').classList.remove('hidden');
-}
-
-// Supervisor Assessment 작업자 드롭다운 업데이트
-function updateSAWorkerDropdown(workerList) {
-    const dropdown = document.getElementById('sa-worker-dropdown');
-    
-    if (workerList.length === 0) {
-        dropdown.innerHTML = '<div class="px-4 py-3 text-gray-500 text-sm">검색 결과가 없습니다</div>';
-        return;
-    }
-    
-    dropdown.innerHTML = workerList.map(worker => `
-        <div class="worker-option px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-             onclick="selectSAWorker(${worker.id}, '${worker.name}', '${worker.employee_id}')">
-            <div class="font-medium text-gray-900">${worker.name}</div>
-            <div class="text-sm text-gray-500">${worker.employee_id} | ${worker.entity} | ${worker.team}</div>
-        </div>
-    `).join('');
-}
-
-// Supervisor Assessment 작업자 선택
-function selectSAWorker(workerId, workerName, employeeId) {
-    document.getElementById('sa-worker-search').value = `${workerName} (${employeeId})`;
-    document.getElementById('sa-worker-select').value = workerId;
-    document.getElementById('sa-worker-dropdown').classList.add('hidden');
-}
-
-// 드롭다운 외부 클릭 시 닫기
-document.addEventListener('click', function(event) {
-    const dropdown = document.getElementById('sa-worker-dropdown');
-    const searchInput = document.getElementById('sa-worker-search');
-    
-    if (dropdown && searchInput && 
-        !dropdown.contains(event.target) && 
-        event.target !== searchInput) {
-        dropdown.classList.add('hidden');
-    }
-});
 
 async function startAssessment() {
     const workerId = document.getElementById('sa-worker-select').value;
