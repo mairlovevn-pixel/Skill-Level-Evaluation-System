@@ -1019,9 +1019,14 @@ async function loadAssessmentStatus() {
                         <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">공통</span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        <button onclick="showAssessmentManagement(null, '일반 항목 (공통)')" class="text-blue-600 hover:text-blue-800">
-                            <i class="fas fa-cog mr-1"></i>관리
-                        </button>
+                        <div class="flex gap-2">
+                            <button onclick="showAssessmentManagement(null, '일반 항목 (공통)')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">
+                                <i class="fas fa-cog mr-1"></i>관리
+                            </button>
+                            <button onclick="deleteAllAssessmentsByProcess(null, '일반 항목 (공통)', ${count})" class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded">
+                                <i class="fas fa-trash-alt mr-1"></i>전체 삭제
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -1041,6 +1046,19 @@ async function loadAssessmentStatus() {
                 ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">등록됨</span>'
                 : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">미등록</span>';
             
+            const manageButtons = count > 0 
+                ? `
+                    <div class="flex gap-2">
+                        <button onclick="showAssessmentManagement(${process.id}, '${process.name}')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">
+                            <i class="fas fa-cog mr-1"></i>관리
+                        </button>
+                        <button onclick="deleteAllAssessmentsByProcess(${process.id}, '${process.name}', ${count})" class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded">
+                            <i class="fas fa-trash-alt mr-1"></i>전체 삭제
+                        </button>
+                    </div>
+                  `
+                : '-';
+            
             tableHTML += `
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${process.name}</td>
@@ -1048,13 +1066,7 @@ async function loadAssessmentStatus() {
                     <td class="px-6 py-4 text-sm text-gray-500">${categories}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        ${count > 0 ? `
-                            <button onclick="showAssessmentManagement(${process.id}, '${process.name}')" class="text-blue-600 hover:text-blue-800">
-                                <i class="fas fa-cog mr-1"></i>관리
-                            </button>
-                        ` : '-'}
-                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${manageButtons}</td>
                 </tr>
             `;
         });
@@ -1155,6 +1167,25 @@ async function deleteAssessmentItem(itemId, processId, processName) {
     } catch (error) {
         console.error('Assessment 항목 삭제 실패:', error);
         alert('평가 항목 삭제에 실패했습니다.');
+    }
+}
+
+// Assessment 프로세스별 일괄 삭제
+async function deleteAllAssessmentsByProcess(processId, processName, count) {
+    const confirmMessage = `⚠️ 경고: ${processName}의 모든 Assessment 항목을 삭제하시겠습니까?\n\n삭제될 항목 수: ${count}개\n\n※ 이 항목들과 연결된 모든 평가 기록도 함께 삭제됩니다.\n\n이 작업은 되돌릴 수 없습니다!`;
+    
+    if (!confirm(confirmMessage)) return;
+    if (!confirm(`정말로 ${processName}의 ${count}개 Assessment 항목을 모두 삭제하시겠습니까?`)) return;
+    
+    try {
+        // processId가 null이면 'null' 문자열로 전송
+        const processParam = processId === null ? 'null' : processId;
+        const response = await axios.delete(`/api/assessment-items/process/${processParam}`);
+        alert(`${processName}의 ${response.data.deletedCount}개 Assessment 항목이 삭제되었습니다.`);
+        await loadAssessmentStatus();
+    } catch (error) {
+        console.error('Assessment 일괄 삭제 실패:', error);
+        alert('Assessment 일괄 삭제에 실패했습니다.\n\n오류: ' + (error.response?.data?.error || error.message));
     }
 }
 

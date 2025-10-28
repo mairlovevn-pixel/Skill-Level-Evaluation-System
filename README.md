@@ -40,7 +40,10 @@
 
 ### 3. Supervisor Assessment 항목 등록 페이지 (세 번째 페이지)
 - ✅ **등록 현황 테이블**: 프로세스별 항목 수, 카테고리 분포, 최근 등록일, 상태 표시
-- ✅ **Assessment 관리 기능**: 등록된 항목 조회 및 삭제 (일반 항목 및 프로세스별 항목)
+- ✅ **Assessment 관리 기능**: 
+  - 등록된 항목 조회 및 개별 삭제 (일반 항목 및 프로세스별 항목)
+  - **프로세스별 일괄 삭제** (2중 확인 메시지, 연관된 평가 기록도 함께 삭제)
+  - 일반 항목(공통) 일괄 삭제 지원
 - ✅ 엑셀 파일 업로드 기능
 - ✅ 템플릿 다운로드 기능
 - ✅ 다중 형식 지원:
@@ -221,6 +224,7 @@
 - **최근 변경사항**: 
   - Quiz 및 Assessment 삭제 기능 추가
   - Quiz 프로세스별 일괄 삭제 기능 추가 (2중 확인)
+  - **Assessment 프로세스별 일괄 삭제 기능 추가** (일반 항목 포함, 2중 확인, 연관 평가 기록 함께 삭제)
   - 평가 결과 분석 페이지 대폭 개선 (드롭다운, 탭 분리, 다음 레벨 분석)
   - Assessment 분석 레이더 차트 추가 (Written Test와 동일한 형태)
   - **Chart.js Datalabels 플러그인 추가**: 모든 막대 그래프에 데이터 레이블 표시 (막대 바깥쪽)
@@ -269,7 +273,8 @@ npm run clean-port
 ### 평가 항목
 - `GET /api/assessment-items`: 모든 평가 항목 조회
 - `POST /api/assessment-items/bulk`: 평가 항목 일괄 등록
-- `DELETE /api/assessment-items/:id`: 평가 항목 삭제 (연관된 평가 기록도 함께 삭제)
+- `DELETE /api/assessment-items/:id`: 평가 항목 개별 삭제 (연관된 평가 기록도 함께 삭제)
+- `DELETE /api/assessment-items/process/:processId`: 프로세스별 평가 항목 일괄 삭제 (processId가 'null'이면 일반 항목 삭제)
 
 ### 시험 결과
 - `POST /api/test-results`: 시험 결과 제출

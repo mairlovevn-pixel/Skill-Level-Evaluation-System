@@ -375,6 +375,50 @@ app.delete('/api/assessment-items/:id', errorHandler(async (c) => {
   return c.json({ success: true })
 }))
 
+// Assessment Item 프로세스별 일괄 삭제
+app.delete('/api/assessment-items/process/:processId', errorHandler(async (c) => {
+  const db = c.env.DB
+  const processId = c.req.param('processId')
+  
+  // processId가 'null'인 경우 일반 항목 삭제
+  const isGeneral = processId === 'null'
+  
+  // 해당 프로세스의 모든 item_id 조회
+  let itemsResult
+  if (isGeneral) {
+    itemsResult = await db.prepare('SELECT id FROM supervisor_assessment_items WHERE process_id IS NULL').all()
+  } else {
+    itemsResult = await db.prepare('SELECT id FROM supervisor_assessment_items WHERE process_id = ?')
+      .bind(processId)
+      .all()
+  }
+  
+  const itemIds = itemsResult.results.map((item: any) => item.id)
+  
+  // supervisor_assessments에서 해당 항목들 삭제
+  if (itemIds.length > 0) {
+    const placeholders = itemIds.map(() => '?').join(',')
+    await db.prepare(`DELETE FROM supervisor_assessments WHERE item_id IN (${placeholders})`)
+      .bind(...itemIds)
+      .run()
+  }
+  
+  // Assessment items 삭제
+  let result
+  if (isGeneral) {
+    result = await db.prepare('DELETE FROM supervisor_assessment_items WHERE process_id IS NULL').run()
+  } else {
+    result = await db.prepare('DELETE FROM supervisor_assessment_items WHERE process_id = ?')
+      .bind(processId)
+      .run()
+  }
+
+  return c.json({ 
+    success: true, 
+    deletedCount: result.meta.changes 
+  })
+}))
+
 // ==================== Written Test Results ====================
 
 // 시험 결과 제출
