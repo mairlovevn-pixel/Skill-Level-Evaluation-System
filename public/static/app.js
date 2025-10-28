@@ -1878,15 +1878,34 @@ async function showAnalysisPage() {
                         </div>
                         
                         <div class="bg-gray-50 rounded-lg p-6 space-y-6">
-                            <!-- Assessment 차트 -->
-                            <div>
-                                <h4 class="text-lg font-semibold mb-3">카테고리별 평가 점수</h4>
-                                <div class="max-w-md mx-auto">
-                                    <canvas id="assessment-chart"></canvas>
+                            <!-- 레벨 평가 분석 -->
+                            <div class="bg-white rounded-lg p-6 border-l-4 border-blue-500">
+                                <h4 class="text-lg font-semibold mb-4">
+                                    <i class="fas fa-clipboard-check mr-2 text-blue-600"></i>레벨 평가 카테고리 분석
+                                </h4>
+                                <div id="assessment-categories" class="space-y-4"></div>
+                            </div>
+                            
+                            <!-- 잘하고 있는 부분 / 취약한 부분 -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- 잘하고 있는 부분 -->
+                                <div class="bg-white rounded-lg p-6 border-l-4 border-green-500">
+                                    <h4 class="text-lg font-semibold mb-3">
+                                        <i class="fas fa-thumbs-up mr-2 text-green-600"></i>잘하고 있는 부분
+                                    </h4>
+                                    <div id="assessment-strengths" class="space-y-2"></div>
+                                </div>
+                                
+                                <!-- 취약한 부분 -->
+                                <div class="bg-white rounded-lg p-6 border-l-4 border-red-500">
+                                    <h4 class="text-lg font-semibold mb-3">
+                                        <i class="fas fa-exclamation-triangle mr-2 text-red-600"></i>취약한 부분
+                                    </h4>
+                                    <div id="assessment-weaknesses" class="space-y-2"></div>
                                 </div>
                             </div>
                             
-                            <!-- 다음 레벨 달성을 위한 분석 -->
+                            <!-- 다음 레벨 달성을 위한 개선점 -->
                             <div id="assessment-next-level" class="bg-white rounded-lg p-6 border-l-4 border-yellow-500">
                                 <h4 class="text-lg font-semibold mb-3">
                                     <i class="fas fa-arrow-up mr-2 text-yellow-600"></i>다음 레벨 달성을 위한 개선점
@@ -2031,12 +2050,6 @@ function closeTestAnalysis() {
 
 function closeAssessmentAnalysis() {
     document.getElementById('assessment-analysis').classList.add('hidden');
-    
-    // 차트 파괴
-    if (assessmentChart) {
-        assessmentChart.destroy();
-        assessmentChart = null;
-    }
 }
 
 async function loadAnalysisWorkers() {
@@ -2213,8 +2226,11 @@ async function showAssessmentAnalysis(processId, processName) {
     // 상세 분석 영역 표시
     document.getElementById('assessment-analysis').classList.remove('hidden');
     
-    // 차트 그리기
-    drawAssessmentRadarChart(assessmentData, processName);
+    // 레벨 평가 카테고리 분석 표시
+    displayAssessmentCategories(assessmentData, processName);
+    
+    // 잘하는 부분과 취약한 부분 분석
+    displayStrengthsAndWeaknesses(assessmentData);
     
     // 다음 레벨 달성을 위한 분석
     displayNextLevelAnalysis(assessmentData, processId, processName);
@@ -2223,62 +2239,141 @@ async function showAssessmentAnalysis(processId, processName) {
     await displayAssessmentTraining(assessmentData, processId);
 }
 
-function drawAssessmentRadarChart(assessmentData, processName) {
-    const ctx = document.getElementById('assessment-chart');
+function displayAssessmentCategories(assessmentData, processName) {
+    const container = document.getElementById('assessment-categories');
     
-    // 기존 차트 파괴
-    if (assessmentChart) {
-        assessmentChart.destroy();
+    // 카테고리별로 데이터 정리 및 레벨별 색상 설정
+    const getLevelColor = (level) => {
+        if (level >= 4.5) return 'bg-green-100 text-green-800 border-green-300';
+        if (level >= 3.5) return 'bg-blue-100 text-blue-800 border-blue-300';
+        if (level >= 2.5) return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        if (level >= 1.5) return 'bg-orange-100 text-orange-800 border-orange-300';
+        return 'bg-red-100 text-red-800 border-red-300';
+    };
+    
+    const getLevelText = (level) => {
+        if (level >= 4.5) return '우수';
+        if (level >= 3.5) return '양호';
+        if (level >= 2.5) return '보통';
+        if (level >= 1.5) return '미흡';
+        return '매우 미흡';
+    };
+    
+    // 레벨 순으로 정렬
+    const sortedData = [...assessmentData].sort((a, b) => b.avg_level - a.avg_level);
+    
+    const html = sortedData.map(item => {
+        const colorClass = getLevelColor(item.avg_level);
+        const levelText = getLevelText(item.avg_level);
+        const percentage = (item.avg_level / 5) * 100;
+        
+        return `
+            <div class="border rounded-lg p-4 ${colorClass.split(' ')[0].replace('100', '50')}">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="flex items-center gap-3">
+                        <h5 class="font-bold text-lg">${item.category}</h5>
+                        <span class="px-3 py-1 rounded-full text-sm font-semibold border ${colorClass}">
+                            ${levelText}
+                        </span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-2xl font-bold">${item.avg_level.toFixed(1)}</span>
+                        <span class="text-gray-600"> / 5.0</span>
+                    </div>
+                </div>
+                
+                <!-- 프로그레스 바 -->
+                <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                    <div class="${colorClass.split(' ')[0].replace('100', '500')} h-3 rounded-full transition-all duration-500" 
+                         style="width: ${percentage}%"></div>
+                </div>
+                
+                <div class="text-sm text-gray-600">
+                    평가 항목 수: ${item.item_count}개 | 
+                    최근 평가: ${new Date(item.latest_date).toLocaleDateString('ko-KR')}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = html;
+}
+
+function displayStrengthsAndWeaknesses(assessmentData) {
+    const strengthsContainer = document.getElementById('assessment-strengths');
+    const weaknessesContainer = document.getElementById('assessment-weaknesses');
+    
+    // 평균 레벨 계산
+    const avgLevel = assessmentData.reduce((sum, a) => sum + a.avg_level, 0) / assessmentData.length;
+    
+    // 잘하는 부분 (평균 이상 + 레벨 3.5 이상)
+    const strengths = assessmentData
+        .filter(a => a.avg_level >= 3.5 && a.avg_level >= avgLevel)
+        .sort((a, b) => b.avg_level - a.avg_level)
+        .slice(0, 5); // 상위 5개
+    
+    // 취약한 부분 (평균 이하 또는 레벨 3.0 미만)
+    const weaknesses = assessmentData
+        .filter(a => a.avg_level < avgLevel || a.avg_level < 3.0)
+        .sort((a, b) => a.avg_level - b.avg_level)
+        .slice(0, 5); // 하위 5개
+    
+    // 잘하는 부분 표시
+    if (strengths.length === 0) {
+        strengthsContainer.innerHTML = `
+            <p class="text-gray-500 text-center py-4">
+                <i class="fas fa-info-circle mr-2"></i>
+                현재 우수한 카테고리가 없습니다.<br>
+                전반적인 실력 향상이 필요합니다.
+            </p>
+        `;
+    } else {
+        const strengthsHtml = strengths.map((item, index) => `
+            <div class="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
+                    ${index + 1}
+                </div>
+                <div class="flex-1">
+                    <div class="font-semibold text-gray-800">${item.category}</div>
+                    <div class="text-sm text-gray-600">${item.item_count}개 항목 평가</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-xl font-bold text-green-600">${item.avg_level.toFixed(1)}</div>
+                    <div class="text-xs text-gray-500">/ 5.0</div>
+                </div>
+            </div>
+        `).join('');
+        
+        strengthsContainer.innerHTML = strengthsHtml;
     }
     
-    const labels = assessmentData.map(a => a.category);
-    const data = assessmentData.map(a => a.avg_level);
-    
-    assessmentChart = new Chart(ctx, {
-        type: 'radar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: processName,
-                data: data,
-                backgroundColor: 'rgba(139, 92, 246, 0.2)',
-                borderColor: 'rgba(139, 92, 246, 1)',
-                borderWidth: 2,
-                pointBackgroundColor: 'rgba(139, 92, 246, 1)',
-                pointBorderColor: '#fff',
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: 'rgba(139, 92, 246, 1)'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            aspectRatio: 1.2,
-            scales: {
-                r: {
-                    beginAtZero: true,
-                    max: 5,
-                    min: 0,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.parsed.r.toFixed(1) + ' / 5.0';
-                        }
-                    }
-                }
-            }
-        }
-    });
+    // 취약한 부분 표시
+    if (weaknesses.length === 0) {
+        weaknessesContainer.innerHTML = `
+            <p class="text-gray-500 text-center py-4">
+                <i class="fas fa-check-circle mr-2 text-green-500"></i>
+                모든 카테고리에서 우수한 성과를 보이고 있습니다!
+            </p>
+        `;
+    } else {
+        const weaknessesHtml = weaknesses.map((item, index) => `
+            <div class="flex items-center gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center font-bold">
+                    ${index + 1}
+                </div>
+                <div class="flex-1">
+                    <div class="font-semibold text-gray-800">${item.category}</div>
+                    <div class="text-sm text-gray-600">${item.item_count}개 항목 평가</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-xl font-bold text-red-600">${item.avg_level.toFixed(1)}</div>
+                    <div class="text-xs text-gray-500">/ 5.0</div>
+                </div>
+            </div>
+        `).join('');
+        
+        weaknessesContainer.innerHTML = weaknessesHtml;
+    }
 }
 
 function displayNextLevelAnalysis(assessmentData, processId, processName) {
