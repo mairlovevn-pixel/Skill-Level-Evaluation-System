@@ -414,8 +414,19 @@ async function loadQuizStatus() {
                 ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">등록됨</span>'
                 : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">미등록</span>';
             
-            const manageButton = count > 0 
-                ? `<button onclick="showQuizManagement(${process.id}, '${process.name}')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">관리</button>`
+            const manageButtons = count > 0 
+                ? `
+                    <div class="flex gap-2">
+                        <button onclick="showQuizManagement(${process.id}, '${process.name}')" 
+                                class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">
+                            <i class="fas fa-cog mr-1"></i>관리
+                        </button>
+                        <button onclick="deleteAllQuizzesByProcess(${process.id}, '${process.name}', ${count})" 
+                                class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded">
+                            <i class="fas fa-trash-alt mr-1"></i>전체 삭제
+                        </button>
+                    </div>
+                  `
                 : '-';
             
             tableHTML += `
@@ -424,7 +435,7 @@ async function loadQuizStatus() {
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}개</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">${manageButton}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${manageButtons}</td>
                 </tr>
             `;
         });
@@ -721,6 +732,24 @@ async function deleteQuiz(quizId, processId) {
     } catch (error) {
         console.error('Quiz 삭제 실패:', error);
         alert('문제 삭제에 실패했습니다.');
+    }
+}
+
+async function deleteAllQuizzesByProcess(processId, processName, count) {
+    const confirmMessage = `⚠️ 경고: ${processName}의 모든 Quiz를 삭제하시겠습니까?\n\n삭제될 문제 수: ${count}개\n\n이 작업은 되돌릴 수 없습니다!`;
+    
+    if (!confirm(confirmMessage)) return;
+    
+    // 한 번 더 확인
+    if (!confirm(`정말로 ${processName}의 ${count}개 Quiz를 모두 삭제하시겠습니까?`)) return;
+    
+    try {
+        const response = await axios.delete(`/api/quizzes/process/${processId}`);
+        alert(`${processName}의 ${response.data.deletedCount}개 Quiz가 삭제되었습니다.`);
+        await loadQuizStatus();
+    } catch (error) {
+        console.error('Quiz 일괄 삭제 실패:', error);
+        alert('Quiz 일괄 삭제에 실패했습니다.\n\n오류: ' + (error.response?.data?.error || error.message));
     }
 }
 

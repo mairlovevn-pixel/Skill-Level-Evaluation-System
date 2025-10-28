@@ -312,6 +312,22 @@ app.delete('/api/quizzes/:id', errorHandler(async (c) => {
   return c.json({ success: true })
 }))
 
+// 프로세스별 Quiz 일괄 삭제
+app.delete('/api/quizzes/process/:processId', errorHandler(async (c) => {
+  const db = c.env.DB
+  const processId = c.req.param('processId')
+  
+  // 해당 프로세스의 모든 quiz 삭제
+  const result = await db.prepare('DELETE FROM written_test_quizzes WHERE process_id = ?')
+    .bind(processId)
+    .run()
+
+  return c.json({ 
+    success: true, 
+    deletedCount: result.meta.changes 
+  })
+}))
+
 // ==================== Supervisor Assessment Items CRUD ====================
 
 // 모든 평가 항목 조회

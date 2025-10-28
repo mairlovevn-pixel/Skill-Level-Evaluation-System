@@ -22,7 +22,9 @@
 
 ### 2. Written Test Quiz 등록 페이지 (두 번째 페이지)
 - ✅ **등록 현황 테이블**: 프로세스별 Quiz 수, 최근 등록일, 상태 표시
-- ✅ **Quiz 관리 기능**: 등록된 Quiz 조회 및 삭제 (프로세스별 관리 모달)
+- ✅ **Quiz 관리 기능**: 
+  - 등록된 Quiz 조회 및 개별 삭제 (프로세스별 관리 모달)
+  - **프로세스별 일괄 삭제** (2중 확인 메시지)
 - ✅ 엑셀 파일 업로드 기능
 - ✅ 템플릿 다운로드 기능
 - ✅ 다중 형식 지원:
@@ -215,6 +217,7 @@
 - **마지막 업데이트**: 2025-10-28
 - **최근 변경사항**: 
   - Quiz 및 Assessment 삭제 기능 추가
+  - Quiz 프로세스별 일괄 삭제 기능 추가 (2중 확인)
   - 평가 결과 분석 페이지 대폭 개선 (드롭다운, 탭 분리, 다음 레벨 분석)
   - Assessment 분석 레이더 차트 추가 (Written Test와 동일한 형태)
 
@@ -256,7 +259,8 @@ npm run clean-port
 ### 퀴즈
 - `GET /api/quizzes/:processId`: 프로세스별 퀴즈 조회
 - `POST /api/quizzes/bulk`: 퀴즈 일괄 등록
-- `DELETE /api/quizzes/:id`: 퀴즈 삭제
+- `DELETE /api/quizzes/:id`: 퀴즈 개별 삭제
+- `DELETE /api/quizzes/process/:processId`: 프로세스별 퀴즈 일괄 삭제
 
 ### 평가 항목
 - `GET /api/assessment-items`: 모든 평가 항목 조회
