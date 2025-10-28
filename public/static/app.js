@@ -1715,13 +1715,17 @@ async function showAnalysisPage() {
                     <!-- 평균 비교 차트 -->
                     <div class="mb-6">
                         <h4 class="text-lg font-semibold mb-3">법인 평균 대비 점수</h4>
-                        <canvas id="comparison-chart" class="max-w-2xl"></canvas>
+                        <div class="max-w-2xl">
+                            <canvas id="comparison-chart"></canvas>
+                        </div>
                     </div>
                     
                     <!-- 카테고리별 오각형 차트 -->
                     <div class="mb-6">
                         <h4 class="text-lg font-semibold mb-3">영역별 성취도 (카테고리 분석)</h4>
-                        <canvas id="category-chart" class="max-w-xl mx-auto"></canvas>
+                        <div class="max-w-md mx-auto">
+                            <canvas id="category-chart"></canvas>
+                        </div>
                     </div>
                     
                     <!-- 추천 교육 프로그램 -->
@@ -1735,10 +1739,12 @@ async function showAnalysisPage() {
                 <div id="assessment-analysis" class="hidden mb-6">
                     <h3 class="text-xl font-bold mb-4">Supervisor Assessment 분석</h3>
                     
-                    <!-- Assessment 삼각형 차트 -->
+                    <!-- Assessment 차트 -->
                     <div class="mb-6">
                         <h4 class="text-lg font-semibold mb-3">평가 항목별 점수</h4>
-                        <canvas id="assessment-chart" class="max-w-xl mx-auto"></canvas>
+                        <div class="max-w-md mx-auto">
+                            <canvas id="assessment-chart"></canvas>
+                        </div>
                     </div>
                     
                     <!-- Assessment 추천 교육 -->
@@ -1852,6 +1858,9 @@ async function loadAnalysisWorkers() {
     }
 }
 
+// 현재 선택된 작업자 정보 저장
+let currentWorkerData = null;
+
 async function loadWorkerAnalysis() {
     const workerSelect = document.getElementById('analysis-worker-select');
     const selectedOption = workerSelect.options[workerSelect.selectedIndex];
@@ -1867,6 +1876,9 @@ async function loadWorkerAnalysis() {
     try {
         const response = await axios.get(`/api/analysis/worker/${workerId}`);
         const data = response.data;
+        
+        // 전역 변수에 저장
+        currentWorkerData = data;
         
         // 작업자 정보 표시
         displayWorkerInfo(data.worker);
@@ -1909,7 +1921,7 @@ function displayTestResults(testResults) {
     }
     
     const html = testResults.map((result, index) => `
-        <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="showTestAnalysis(${result.id}, '${result.process_name}', ${result.process_id}, ${result.score})">
+        <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="showTestAnalysis(${result.id}, '${result.process_name}', ${result.process_id}, ${result.score}, ${result.worker_id})">
             <div class="flex justify-between items-center">
                 <div>
                     <span class="font-semibold">${result.process_name}</span>
@@ -1928,16 +1940,17 @@ function displayTestResults(testResults) {
     container.innerHTML = html;
 }
 
-async function showTestAnalysis(resultId, processName, processId, score) {
-    const entity = document.getElementById('analysis-entity-select').value;
+async function showTestAnalysis(resultId, processName, processId, score, workerId) {
+    // 작업자 정보에서 법인 가져오기
+    const entity = currentWorkerData ? currentWorkerData.worker.entity : document.getElementById('analysis-entity-select').value;
     
     try {
-        // 법인 평균 점수 가져오기
+        // 해당 법인, 해당 프로세스의 평균 점수 가져오기
         const avgResponse = await axios.get(`/api/analysis/entity-average?entity=${entity}&processId=${processId}`);
         const entityAverage = avgResponse.data.average_score;
         
-        // 평균 비교 차트 그리기
-        drawComparisonChart(processName, score, entityAverage);
+        // 평균 비교 차트 그리기 (법인명과 프로세스명 포함)
+        drawComparisonChart(processName, score, entityAverage, entity);
         
         // 카테고리별 점수 가져오기
         const categoryResponse = await axios.get(`/api/analysis/test-categories/${resultId}`);
@@ -1965,7 +1978,7 @@ async function showTestAnalysis(resultId, processName, processId, score) {
     }
 }
 
-function drawComparisonChart(processName, workerScore, entityAverage) {
+function drawComparisonChart(processName, workerScore, entityAverage, entity) {
     const ctx = document.getElementById('comparison-chart');
     
     // 기존 차트 파괴
@@ -1976,7 +1989,7 @@ function drawComparisonChart(processName, workerScore, entityAverage) {
     window.comparisonChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['내 점수', '법인 평균'],
+            labels: ['내 점수', `${entity} ${processName} 평균`],
             datasets: [{
                 label: processName + ' 점수',
                 data: [workerScore, entityAverage],
@@ -1993,6 +2006,8 @@ function drawComparisonChart(processName, workerScore, entityAverage) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 2.5,
             scales: {
                 y: {
                     beginAtZero: true,
@@ -2049,6 +2064,8 @@ function drawCategoryChart(categoryScores) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 1.2,
             scales: {
                 r: {
                     beginAtZero: true,
@@ -2156,6 +2173,8 @@ function drawAssessmentChart(assessments) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 1.2,
             scales: {
                 r: {
                     beginAtZero: true,
@@ -2172,7 +2191,7 @@ function drawAssessmentChart(assessments) {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return context.parsed.r.toFixed(1) + '점';
+                            return 'Level ' + context.parsed.r.toFixed(1);
                         }
                     }
                 }
