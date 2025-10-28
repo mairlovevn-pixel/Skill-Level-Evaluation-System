@@ -673,7 +673,7 @@ app.get('/api/results/written-test', errorHandler(async (c) => {
       p.name as process_name,
       wtr.score,
       wtr.passed,
-      wtr.created_at as test_date
+      wtr.test_date
     FROM written_test_results wtr
     JOIN workers w ON wtr.worker_id = w.id
     JOIN processes p ON wtr.process_id = p.id
@@ -765,7 +765,7 @@ app.post('/api/results/written-test/bulk', errorHandler(async (c) => {
     
     // 결과 저장
     await db.prepare(`
-      INSERT INTO written_test_results (worker_id, process_id, score, passed, created_at)
+      INSERT INTO written_test_results (worker_id, process_id, score, passed, test_date)
       VALUES (?, ?, ?, ?, ?)
     `).bind(
       worker.id,
