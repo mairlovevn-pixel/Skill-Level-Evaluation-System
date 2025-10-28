@@ -271,7 +271,7 @@ function renderAssessmentChart() {
 
 // ==================== Quiz 등록 페이지 ====================
 
-function loadQuizUploadPage() {
+async function loadQuizUploadPage() {
     // 프로세스 목록 로드
     const processSelect = document.getElementById('quiz-process-select');
     if (processSelect) {
@@ -283,63 +283,145 @@ function loadQuizUploadPage() {
             processSelect.appendChild(option);
         });
     }
+    
+    // 등록된 Quiz 현황 로드
+    await loadQuizStatus();
+}
+
+async function loadQuizStatus() {
+    try {
+        const statusDiv = document.getElementById('quiz-status-table');
+        
+        // 프로세스별 Quiz 개수 조회
+        const quizCounts = {};
+        const latestDates = {};
+        
+        for (const process of processes) {
+            const response = await axios.get(`/api/quizzes/${process.id}`);
+            const quizzes = response.data;
+            quizCounts[process.id] = quizzes.length;
+            
+            if (quizzes.length > 0) {
+                // 가장 최근 등록일 찾기
+                const dates = quizzes.map(q => new Date(q.created_at));
+                latestDates[process.id] = new Date(Math.max(...dates));
+            }
+        }
+        
+        // 테이블 생성
+        let tableHTML = `
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">프로세스</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">등록된 Quiz 수</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">최근 등록일</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+        `;
+        
+        processes.forEach(process => {
+            const count = quizCounts[process.id] || 0;
+            const latestDate = latestDates[process.id];
+            const dateStr = latestDate ? latestDate.toLocaleDateString('ko-KR') : '-';
+            const statusBadge = count > 0 
+                ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">등록됨</span>'
+                : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">미등록</span>';
+            
+            tableHTML += `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${process.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}개</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
+                </tr>
+            `;
+        });
+        
+        tableHTML += `
+                </tbody>
+            </table>
+        `;
+        
+        statusDiv.innerHTML = tableHTML;
+    } catch (error) {
+        console.error('Quiz 현황 로드 실패:', error);
+        document.getElementById('quiz-status-table').innerHTML = 
+            '<p class="text-red-500">현황을 불러오는데 실패했습니다.</p>';
+    }
 }
 
 function getQuizUploadHTML() {
     return `
-        <div class="bg-white rounded-lg shadow-md p-8">
-            <h2 class="text-3xl font-bold text-gray-800 mb-6">
-                <i class="fas fa-question-circle mr-2"></i>
-                Written Test Quiz 등록
-            </h2>
-            
-            <div class="mb-6">
-                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
-                    <p class="text-sm text-blue-700 mb-2">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        <strong>지원 형식 1:</strong> Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer
-                    </p>
-                    <p class="text-sm text-blue-700">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        <strong>지원 형식 2:</strong> 번호, 질문, 1), 2), 3), 4), 정답 (자동 변환됨)
-                    </p>
+        <div class="space-y-6">
+            <!-- 등록된 프로세스 현황 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-list-check mr-2"></i>
+                    등록된 Quiz 현황
+                </h3>
+                <div id="quiz-status-table" class="overflow-x-auto">
+                    <p class="text-gray-500">로딩 중...</p>
                 </div>
-                
-                <div class="mb-4">
-                    <label class="block text-gray-700 font-semibold mb-2">
-                        프로세스 선택 (형식 2 사용 시 필수)
-                    </label>
-                    <select id="quiz-process-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="">프로세스를 선택하세요</option>
-                    </select>
-                </div>
-                
-                <label class="block text-gray-700 font-semibold mb-2">
-                    엑셀 파일 선택
-                </label>
-                <input type="file" id="quiz-file" accept=".xlsx,.xls" 
-                       class="block w-full text-sm text-gray-500
-                              file:mr-4 file:py-2 file:px-4
-                              file:rounded-lg file:border-0
-                              file:text-sm file:font-semibold
-                              file:bg-blue-50 file:text-blue-700
-                              hover:file:bg-blue-100
-                              cursor-pointer">
             </div>
             
-            <div class="mb-6">
-                <button onclick="downloadQuizTemplate()" 
-                        class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition">
-                    <i class="fas fa-download mr-2"></i>
-                    템플릿 다운로드
+            <!-- 업로드 섹션 -->
+            <div class="bg-white rounded-lg shadow-md p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                    <i class="fas fa-question-circle mr-2"></i>
+                    Written Test Quiz 등록
+                </h2>
+                
+                <div class="mb-6">
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                        <p class="text-sm text-blue-700 mb-2">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <strong>지원 형식 1:</strong> Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer
+                        </p>
+                        <p class="text-sm text-blue-700">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <strong>지원 형식 2:</strong> 번호, 질문, 1), 2), 3), 4), 정답 (자동 변환됨)
+                        </p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-semibold mb-2">
+                            프로세스 선택 (형식 2 사용 시 필수)
+                        </label>
+                        <select id="quiz-process-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">프로세스를 선택하세요</option>
+                        </select>
+                    </div>
+                    
+                    <label class="block text-gray-700 font-semibold mb-2">
+                        엑셀 파일 선택
+                    </label>
+                    <input type="file" id="quiz-file" accept=".xlsx,.xls" 
+                           class="block w-full text-sm text-gray-500
+                                  file:mr-4 file:py-2 file:px-4
+                                  file:rounded-lg file:border-0
+                                  file:text-sm file:font-semibold
+                                  file:bg-blue-50 file:text-blue-700
+                                  hover:file:bg-blue-100
+                                  cursor-pointer">
+                </div>
+                
+                <div class="mb-6">
+                    <button onclick="downloadQuizTemplate()" 
+                            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition">
+                        <i class="fas fa-download mr-2"></i>
+                        템플릿 다운로드
+                    </button>
+                </div>
+                
+                <button onclick="uploadQuizzes()" 
+                        class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
+                    <i class="fas fa-upload mr-2"></i>
+                    퀴즈 업로드
                 </button>
             </div>
-            
-            <button onclick="uploadQuizzes()" 
-                    class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
-                <i class="fas fa-upload mr-2"></i>
-                퀴즈 업로드
-            </button>
         </div>
     `;
 }
@@ -449,6 +531,8 @@ async function uploadQuizzes() {
             if (document.getElementById('quiz-process-select')) {
                 document.getElementById('quiz-process-select').value = '';
             }
+            // 현황 새로고침
+            await loadQuizStatus();
         } catch (error) {
             console.error('퀴즈 업로드 실패:', error);
             alert('퀴즈 업로드에 실패했습니다.\n\n오류: ' + (error.response?.data?.error || error.message));
@@ -460,7 +544,7 @@ async function uploadQuizzes() {
 
 // ==================== Assessment 등록 페이지 ====================
 
-function loadAssessmentUploadPage() {
+async function loadAssessmentUploadPage() {
     // 프로세스 목록 로드
     const processSelect = document.getElementById('assessment-process-select');
     if (processSelect) {
@@ -472,63 +556,193 @@ function loadAssessmentUploadPage() {
             processSelect.appendChild(option);
         });
     }
+    
+    // 등록된 Assessment 항목 현황 로드
+    await loadAssessmentStatus();
+}
+
+async function loadAssessmentStatus() {
+    try {
+        const statusDiv = document.getElementById('assessment-status-table');
+        
+        // 모든 Assessment 항목 조회
+        const response = await axios.get('/api/assessment-items');
+        const allItems = response.data;
+        
+        // 프로세스별 항목 개수 계산
+        const itemCounts = {};
+        const latestDates = {};
+        const categoryBreakdown = {};
+        
+        // 프로세스별로 그룹화
+        allItems.forEach(item => {
+            const processId = item.process_id || 'general';
+            
+            if (!itemCounts[processId]) {
+                itemCounts[processId] = 0;
+                categoryBreakdown[processId] = {};
+            }
+            
+            itemCounts[processId]++;
+            
+            // 카테고리별 집계
+            const category = item.category;
+            if (!categoryBreakdown[processId][category]) {
+                categoryBreakdown[processId][category] = 0;
+            }
+            categoryBreakdown[processId][category]++;
+            
+            // 최근 등록일
+            const itemDate = new Date(item.created_at);
+            if (!latestDates[processId] || itemDate > latestDates[processId]) {
+                latestDates[processId] = itemDate;
+            }
+        });
+        
+        // 테이블 생성
+        let tableHTML = `
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">프로세스</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">등록된 항목 수</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리 분포</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">최근 등록일</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+        `;
+        
+        // 일반 항목 (프로세스 미연결)
+        if (itemCounts['general']) {
+            const count = itemCounts['general'];
+            const latestDate = latestDates['general'];
+            const dateStr = latestDate ? latestDate.toLocaleDateString('ko-KR') : '-';
+            const categories = Object.entries(categoryBreakdown['general'])
+                .map(([cat, cnt]) => `${cat}(${cnt})`)
+                .join(', ');
+            
+            tableHTML += `
+                <tr class="bg-blue-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">일반 항목 (공통)</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}개</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">${categories}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">공통</span>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        // 프로세스별 항목
+        processes.forEach(process => {
+            const count = itemCounts[process.id] || 0;
+            const latestDate = latestDates[process.id];
+            const dateStr = latestDate ? latestDate.toLocaleDateString('ko-KR') : '-';
+            const categories = categoryBreakdown[process.id] 
+                ? Object.entries(categoryBreakdown[process.id])
+                    .map(([cat, cnt]) => `${cat}(${cnt})`)
+                    .join(', ')
+                : '-';
+            const statusBadge = count > 0 
+                ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">등록됨</span>'
+                : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">미등록</span>';
+            
+            tableHTML += `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${process.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}개</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">${categories}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
+                </tr>
+            `;
+        });
+        
+        tableHTML += `
+                </tbody>
+            </table>
+        `;
+        
+        statusDiv.innerHTML = tableHTML;
+    } catch (error) {
+        console.error('Assessment 현황 로드 실패:', error);
+        document.getElementById('assessment-status-table').innerHTML = 
+            '<p class="text-red-500">현황을 불러오는데 실패했습니다.</p>';
+    }
 }
 
 function getAssessmentUploadHTML() {
     return `
-        <div class="bg-white rounded-lg shadow-md p-8">
-            <h2 class="text-3xl font-bold text-gray-800 mb-6">
-                <i class="fas fa-clipboard-check mr-2"></i>
-                Supervisor Assessment 항목 등록
-            </h2>
-            
-            <div class="mb-6">
-                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
-                    <p class="text-sm text-blue-700 mb-2">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        <strong>지원 형식 1:</strong> Category, Item Name, Description
-                    </p>
-                    <p class="text-sm text-blue-700">
-                        <i class="fas fa-info-circle mr-2"></i>
-                        <strong>지원 형식 2:</strong> Level2, Level3, Level4 컬럼 (Cutting.xlsx 형식, 자동 변환됨)
-                    </p>
+        <div class="space-y-6">
+            <!-- 등록된 프로세스 현황 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-list-check mr-2"></i>
+                    등록된 Assessment 항목 현황
+                </h3>
+                <div id="assessment-status-table" class="overflow-x-auto">
+                    <p class="text-gray-500">로딩 중...</p>
                 </div>
-                
-                <div class="mb-4">
-                    <label class="block text-gray-700 font-semibold mb-2">
-                        프로세스 선택 (형식 2 사용 시 필수)
-                    </label>
-                    <select id="assessment-process-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="">프로세스를 선택하세요</option>
-                    </select>
-                </div>
-                
-                <label class="block text-gray-700 font-semibold mb-2">
-                    엑셀 파일 선택
-                </label>
-                <input type="file" id="assessment-file" accept=".xlsx,.xls" 
-                       class="block w-full text-sm text-gray-500
-                              file:mr-4 file:py-2 file:px-4
-                              file:rounded-lg file:border-0
-                              file:text-sm file:font-semibold
-                              file:bg-blue-50 file:text-blue-700
-                              hover:file:bg-blue-100
-                              cursor-pointer">
             </div>
             
-            <div class="mb-6">
-                <button onclick="downloadAssessmentTemplate()" 
-                        class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition">
-                    <i class="fas fa-download mr-2"></i>
-                    템플릿 다운로드
+            <!-- 업로드 섹션 -->
+            <div class="bg-white rounded-lg shadow-md p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                    <i class="fas fa-clipboard-check mr-2"></i>
+                    Supervisor Assessment 항목 등록
+                </h2>
+                
+                <div class="mb-6">
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                        <p class="text-sm text-blue-700 mb-2">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <strong>지원 형식 1:</strong> Category, Item Name, Description
+                        </p>
+                        <p class="text-sm text-blue-700">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <strong>지원 형식 2:</strong> Level2, Level3, Level4 컬럼 (Cutting.xlsx 형식, 자동 변환됨)
+                        </p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-semibold mb-2">
+                            프로세스 선택 (형식 2 사용 시 필수)
+                        </label>
+                        <select id="assessment-process-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">프로세스를 선택하세요</option>
+                        </select>
+                    </div>
+                    
+                    <label class="block text-gray-700 font-semibold mb-2">
+                        엑셀 파일 선택
+                    </label>
+                    <input type="file" id="assessment-file" accept=".xlsx,.xls" 
+                           class="block w-full text-sm text-gray-500
+                                  file:mr-4 file:py-2 file:px-4
+                                  file:rounded-lg file:border-0
+                                  file:text-sm file:font-semibold
+                                  file:bg-blue-50 file:text-blue-700
+                                  hover:file:bg-blue-100
+                                  cursor-pointer">
+                </div>
+                
+                <div class="mb-6">
+                    <button onclick="downloadAssessmentTemplate()" 
+                            class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition">
+                        <i class="fas fa-download mr-2"></i>
+                        템플릿 다운로드
+                    </button>
+                </div>
+                
+                <button onclick="uploadAssessmentItems()" 
+                        class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
+                    <i class="fas fa-upload mr-2"></i>
+                    평가 항목 업로드
                 </button>
             </div>
-            
-            <button onclick="uploadAssessmentItems()" 
-                    class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
-                <i class="fas fa-upload mr-2"></i>
-                평가 항목 업로드
-            </button>
         </div>
     `;
 }
@@ -620,6 +834,8 @@ async function uploadAssessmentItems() {
             if (document.getElementById('assessment-process-select')) {
                 document.getElementById('assessment-process-select').value = '';
             }
+            // 현황 새로고침
+            await loadAssessmentStatus();
         } catch (error) {
             console.error('평가 항목 업로드 실패:', error);
             alert('평가 항목 업로드에 실패했습니다.\n\n오류: ' + (error.response?.data?.error || error.message));
