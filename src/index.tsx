@@ -226,9 +226,10 @@ app.post('/api/assessment-items/bulk', async (c) => {
     
     for (const item of items) {
       await db.prepare(`
-        INSERT INTO supervisor_assessment_items (category, item_name, description)
-        VALUES (?, ?, ?)
+        INSERT INTO supervisor_assessment_items (process_id, category, item_name, description)
+        VALUES (?, ?, ?, ?)
       `).bind(
+        item.process_id || null,
         item.category,
         item.item_name,
         item.description || null

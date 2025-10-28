@@ -44,6 +44,7 @@ export interface WrittenTestResult {
 
 export interface SupervisorAssessmentItem {
   id?: number;
+  process_id?: number;
   category: string;
   item_name: string;
   description?: string;

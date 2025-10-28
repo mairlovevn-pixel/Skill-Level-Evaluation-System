@@ -27,6 +27,7 @@ function showPage(pageName) {
             break;
         case 'assessment-upload':
             app.innerHTML = getAssessmentUploadHTML();
+            loadAssessmentUploadPage();
             break;
         case 'worker-upload':
             app.innerHTML = getWorkerUploadHTML();
@@ -459,6 +460,20 @@ async function uploadQuizzes() {
 
 // ==================== Assessment 등록 페이지 ====================
 
+function loadAssessmentUploadPage() {
+    // 프로세스 목록 로드
+    const processSelect = document.getElementById('assessment-process-select');
+    if (processSelect) {
+        processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
+        processes.forEach(process => {
+            const option = document.createElement('option');
+            option.value = process.id;
+            option.textContent = process.name;
+            processSelect.appendChild(option);
+        });
+    }
+}
+
 function getAssessmentUploadHTML() {
     return `
         <div class="bg-white rounded-lg shadow-md p-8">
@@ -469,10 +484,23 @@ function getAssessmentUploadHTML() {
             
             <div class="mb-6">
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                    <p class="text-sm text-blue-700 mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>지원 형식 1:</strong> Category, Item Name, Description
+                    </p>
                     <p class="text-sm text-blue-700">
                         <i class="fas fa-info-circle mr-2"></i>
-                        엑셀 파일 형식: Category, Item Name, Description
+                        <strong>지원 형식 2:</strong> Level2, Level3, Level4 컬럼 (Cutting.xlsx 형식, 자동 변환됨)
                     </p>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2">
+                        프로세스 선택 (형식 2 사용 시 필수)
+                    </label>
+                    <select id="assessment-process-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">프로세스를 선택하세요</option>
+                    </select>
                 </div>
                 
                 <label class="block text-gray-700 font-semibold mb-2">
@@ -531,20 +559,70 @@ async function uploadAssessmentItems() {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(firstSheet);
             
-            const items = rows.map(row => ({
-                category: row['Category'],
-                item_name: row['Item Name'],
-                description: row['Description'] || ''
-            }));
+            // 헤더 없이 전체 데이터를 가져옴 (range 사용)
+            const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+            
+            let items = [];
+            
+            // 형식 1: Category, Item Name, Description (일반적인 형식)
+            if (sheetData[0] && sheetData[0].includes('Category')) {
+                const rows = XLSX.utils.sheet_to_json(firstSheet);
+                items = rows.map(row => ({
+                    process_id: null,
+                    category: row['Category'],
+                    item_name: row['Item Name'],
+                    description: row['Description'] || ''
+                }));
+            }
+            // 형식 2: Level2, Level3, Level4 형식 (Cutting.xlsx)
+            else if (sheetData[1] && (sheetData[1].includes('Level2') || sheetData[1].includes('Level3') || sheetData[1].includes('Level4'))) {
+                const processSelect = document.getElementById('assessment-process-select');
+                const processId = processSelect.value;
+                
+                if (!processId) {
+                    alert('프로세스를 선택해주세요. (형식 2 사용 시 필수)');
+                    return;
+                }
+                
+                // 행 2: 레벨 정보 (Level2, Level3, Level4)
+                // 행 3: 질문 내용
+                const levelRow = sheetData[1]; // 행 2
+                const questionRow = sheetData[2]; // 행 3
+                
+                // 컬럼 7부터 질문 시작 (0-based index: 7 = H열)
+                for (let i = 7; i < questionRow.length; i++) {
+                    const question = questionRow[i];
+                    const level = levelRow[i];
+                    
+                    if (question && level) {
+                        items.push({
+                            process_id: parseInt(processId),
+                            category: level, // Level2, Level3, Level4
+                            item_name: question,
+                            description: ''
+                        });
+                    }
+                }
+            } else {
+                alert('지원하지 않는 엑셀 파일 형식입니다.\n\n지원 형식:\n1. Category, Item Name, Description\n2. Level2, Level3, Level4 컬럼 형식 (Cutting.xlsx)');
+                return;
+            }
+            
+            if (items.length === 0) {
+                alert('평가 항목을 찾을 수 없습니다.');
+                return;
+            }
             
             const response = await axios.post('/api/assessment-items/bulk', items);
             alert(`${response.data.count}개의 평가 항목이 성공적으로 등록되었습니다.`);
             fileInput.value = '';
+            if (document.getElementById('assessment-process-select')) {
+                document.getElementById('assessment-process-select').value = '';
+            }
         } catch (error) {
             console.error('평가 항목 업로드 실패:', error);
-            alert('평가 항목 업로드에 실패했습니다.');
+            alert('평가 항목 업로드에 실패했습니다.\n\n오류: ' + (error.response?.data?.error || error.message));
         }
     };
     
