@@ -2314,10 +2314,13 @@ function getSupervisorAssessmentHTML() {
             </h2>
             
             <div id="assessment-selection" class="space-y-6">
-                <!-- 법인 선택 -->
+                <!-- 1단계: 법인 선택 -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">법인 선택</label>
-                    <select id="sa-entity-select" onchange="filterSAWorkersByEntity()" 
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <span class="bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs mr-2">1</span>
+                        법인 선택
+                    </label>
+                    <select id="sa-entity-select" onchange="onSAEntityChange()" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="">법인을 선택하세요</option>
                         <option value="CSVN">CSVN</option>
@@ -2326,21 +2329,27 @@ function getSupervisorAssessmentHTML() {
                     </select>
                 </div>
                 
-                <!-- 작업자 선택 -->
+                <!-- 2단계: 프로세스 선택 -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">작업자 선택</label>
-                    <select id="sa-worker-select" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="">작업자를 선택하세요</option>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <span class="bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs mr-2">2</span>
+                        프로세스 선택
+                    </label>
+                    <select id="sa-process-select" onchange="onSAProcessChange()" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
+                        <option value="">먼저 법인을 선택하세요</option>
                     </select>
                 </div>
                 
-                <!-- 프로세스 선택 -->
+                <!-- 3단계: 작업자 선택 -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">프로세스 선택</label>
-                    <select id="sa-process-select" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="">프로세스를 선택하세요</option>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <span class="bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs mr-2">3</span>
+                        작업자 선택
+                    </label>
+                    <select id="sa-worker-select" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
+                        <option value="">먼저 프로세스를 선택하세요</option>
                     </select>
                 </div>
                 
@@ -2412,36 +2421,79 @@ async function loadSupervisorAssessmentPage() {
         }
     }
     
-    // 프로세스 목록 로드
-    const processSelect = document.getElementById('sa-process-select');
-    if (processSelect) {
-        processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
-        processes.forEach(process => {
-            const option = document.createElement('option');
-            option.value = process.id;
-            option.textContent = process.name;
-            processSelect.appendChild(option);
-        });
-    }
-    
     console.log(`작업자 데이터 로드 완료: ${workers.length}명`);
 }
 
-// Supervisor Assessment 작업자 필터링 (Written Test와 동일한 방식)
-function filterSAWorkersByEntity() {
+// 1단계: 법인 선택 시 - 프로세스 필터링
+function onSAEntityChange() {
     const entitySelect = document.getElementById('sa-entity-select');
+    const processSelect = document.getElementById('sa-process-select');
     const workerSelect = document.getElementById('sa-worker-select');
     const selectedEntity = entitySelect.value;
+    
+    // 프로세스와 작업자 선택 초기화
+    processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
+    workerSelect.innerHTML = '<option value="">먼저 프로세스를 선택하세요</option>';
+    workerSelect.disabled = true;
+    
+    if (!selectedEntity) {
+        processSelect.disabled = true;
+        processSelect.innerHTML = '<option value="">먼저 법인을 선택하세요</option>';
+        return;
+    }
+    
+    // 선택된 법인에 속한 작업자들의 position을 통해 사용 가능한 프로세스 추출
+    const entityWorkers = workers.filter(w => w.entity === selectedEntity);
+    const availableProcesses = new Set();
+    
+    entityWorkers.forEach(worker => {
+        const processName = mapPositionToProcess(worker.position);
+        if (processName) {
+            availableProcesses.add(processName);
+        }
+    });
+    
+    // 프로세스 드롭다운 채우기 (알파벳 순 정렬)
+    const sortedProcesses = Array.from(availableProcesses).sort();
+    sortedProcesses.forEach(processName => {
+        const option = document.createElement('option');
+        option.value = processName;
+        option.textContent = processName;
+        processSelect.appendChild(option);
+    });
+    
+    // 프로세스 선택 활성화
+    processSelect.disabled = false;
+    
+    console.log(`법인 "${selectedEntity}" 선택 완료. 사용 가능한 프로세스: ${sortedProcesses.length}개`);
+}
+
+// 2단계: 프로세스 선택 시 - 작업자 필터링
+function onSAProcessChange() {
+    const entitySelect = document.getElementById('sa-entity-select');
+    const processSelect = document.getElementById('sa-process-select');
+    const workerSelect = document.getElementById('sa-worker-select');
+    const selectedEntity = entitySelect.value;
+    const selectedProcess = processSelect.value;
     
     // 작업자 선택 초기화
     workerSelect.innerHTML = '<option value="">작업자를 선택하세요</option>';
     
-    if (!selectedEntity) {
+    if (!selectedProcess) {
+        workerSelect.disabled = true;
+        workerSelect.innerHTML = '<option value="">먼저 프로세스를 선택하세요</option>';
         return;
     }
     
-    // 선택된 법인의 작업자만 필터링
-    const filteredWorkers = workers.filter(worker => worker.entity === selectedEntity);
+    // 선택된 법인 + 프로세스에 맞는 작업자 필터링
+    const filteredWorkers = workers.filter(worker => {
+        if (worker.entity !== selectedEntity) return false;
+        const workerProcess = mapPositionToProcess(worker.position);
+        return workerProcess === selectedProcess;
+    });
+    
+    // 작업자 이름순 정렬
+    filteredWorkers.sort((a, b) => a.name.localeCompare(b.name));
     
     filteredWorkers.forEach(worker => {
         const option = document.createElement('option');
@@ -2450,19 +2502,32 @@ function filterSAWorkersByEntity() {
         workerSelect.appendChild(option);
     });
     
+    // 작업자 선택 활성화
+    workerSelect.disabled = false;
+    
     if (filteredWorkers.length === 0) {
-        workerSelect.innerHTML += '<option value="" disabled>해당 법인에 등록된 작업자가 없습니다</option>';
+        workerSelect.innerHTML += '<option value="" disabled>해당 프로세스에 등록된 작업자가 없습니다</option>';
     }
+    
+    console.log(`프로세스 "${selectedProcess}" 선택 완료. 필터링된 작업자: ${filteredWorkers.length}명`);
 }
 
 async function startAssessment() {
     const workerId = document.getElementById('sa-worker-select').value;
-    const processId = document.getElementById('sa-process-select').value;
+    const processName = document.getElementById('sa-process-select').value;
     
-    if (!workerId || !processId) {
+    if (!workerId || !processName) {
         alert('작업자와 프로세스를 선택해주세요.');
         return;
     }
+    
+    // 프로세스 이름으로 프로세스 ID 찾기
+    const process = processes.find(p => p.name === processName);
+    if (!process) {
+        alert('선택한 프로세스를 찾을 수 없습니다.');
+        return;
+    }
+    const processId = process.id;
     
     try {
         // 해당 프로세스의 모든 assessment 항목 로드
