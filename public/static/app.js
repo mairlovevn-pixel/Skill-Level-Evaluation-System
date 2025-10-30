@@ -204,14 +204,23 @@ function getDashboardHTML() {
                     Skill Level 평가 요약
                 </h2>
                 
-                <div class="w-64">
-                    <label class="block text-gray-700 font-semibold mb-2">법인 선택</label>
-                    <select id="dashboard-entity-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterDashboardByEntity()">
-                        <option value="">전체 법인</option>
-                        <option value="CSVN">CSVN</option>
-                        <option value="CSCN">CSCN</option>
-                        <option value="CSTW">CSTW</option>
-                    </select>
+                <div class="flex gap-4">
+                    <div class="w-64">
+                        <label class="block text-gray-700 font-semibold mb-2">법인 선택</label>
+                        <select id="dashboard-entity-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterDashboard()">
+                            <option value="">전체 법인</option>
+                            <option value="CSVN">CSVN</option>
+                            <option value="CSCN">CSCN</option>
+                            <option value="CSTW">CSTW</option>
+                        </select>
+                    </div>
+                    
+                    <div class="w-64">
+                        <label class="block text-gray-700 font-semibold mb-2">프로세스 선택</label>
+                        <select id="dashboard-process-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterDashboard()">
+                            <option value="">전체 프로세스</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             
@@ -290,6 +299,18 @@ async function loadDashboard() {
         allDashboardData = response.data;
         dashboardData = response.data;
         
+        // 프로세스 셀렉트 박스 채우기
+        const processSelect = document.getElementById('dashboard-process-select');
+        if (processSelect && processes.length > 0) {
+            processSelect.innerHTML = '<option value="">전체 프로세스</option>';
+            processes.forEach(process => {
+                const option = document.createElement('option');
+                option.value = process.id;
+                option.textContent = process.name;
+                processSelect.appendChild(option);
+            });
+        }
+        
         // 요약 카드 업데이트
         updateDashboardStats();
         
@@ -309,16 +330,25 @@ function updateDashboardStats() {
     document.getElementById('test-passed').textContent = dashboardData.written_test_passed;
 }
 
-async function filterDashboardByEntity() {
+async function filterDashboard() {
     const entitySelect = document.getElementById('dashboard-entity-select');
+    const processSelect = document.getElementById('dashboard-process-select');
     const selectedEntity = entitySelect.value;
+    const selectedProcess = processSelect.value;
     
     try {
-        // 법인 필터를 적용하여 서버에서 데이터 가져오기
-        let url = '/api/dashboard/stats';
+        // 법인 및 프로세스 필터를 적용하여 서버에서 데이터 가져오기
+        let url = '/api/dashboard/stats?';
+        const params = [];
+        
         if (selectedEntity) {
-            url += `?entity=${selectedEntity}`;
+            params.push(`entity=${selectedEntity}`);
         }
+        if (selectedProcess) {
+            params.push(`processId=${selectedProcess}`);
+        }
+        
+        url += params.join('&');
         
         const response = await axios.get(url);
         dashboardData = response.data;
@@ -342,9 +372,14 @@ async function filterDashboardByEntity() {
         renderAvgScoreChart();
         renderAssessmentChart();
     } catch (error) {
-        console.error('법인별 필터링 실패:', error);
-        alert('법인별 데이터를 불러오는데 실패했습니다.');
+        console.error('필터링 실패:', error);
+        alert('데이터를 불러오는데 실패했습니다.');
     }
+}
+
+// 기존 함수명 호환성 유지
+async function filterDashboardByEntity() {
+    await filterDashboard();
 }
 
 function renderTestStatusChart() {

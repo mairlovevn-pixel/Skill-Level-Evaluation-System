@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Assessment Download</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <h1>Assessment Download Test</h1>
+    <button onclick="testDownload()">Test Download for CSVN Worker 1057</button>
+    <div id="results"></div>
+
+    <script>
+        // Copy constants and functions from app.js
+        const EXCEL_COLORS = {
+            HEADER_BG: "70AD47",
+            HEADER_BG_YELLOW: "FFFF00",
+            HEADER_TEXT: "FFFFFF",
+            HEADER_TEXT_BLACK: "000000",
+            PASS_BG: "C6EFCE",
+            PASS_TEXT: "006100",
+            FAIL_BG: "FFC7CE",
+            FAIL_TEXT: "9C0006",
+            BORDER: "000000",
+            BORDER_LIGHT: "D3D3D3"
+        };
+
+        const EXCEL_COLUMN_WIDTHS = {
+            NO: 6,
+            EMPLOYEE_ID: 12,
+            NAME: 15,
+            ENTITY: 10,
+            TEAM: 20,
+            POSITION: 15,
+            CATEGORY: 20,
+            LEVEL_CATEGORY: 15,
+            ITEM_NAME: 50,
+            ITEM_NAME_SHORT: 25,
+            LEVEL: 12,
+            RESULT: 12,
+            DATE: 15
+        };
+
+        const ASSESSMENT_LEVEL = {
+            SATISFACTORY_THRESHOLD: 3
+        };
+
+        function convertLevelToResult(level) {
+            if (level === null || level === undefined) {
+                return 'N/A';
+            }
+            return level >= ASSESSMENT_LEVEL.SATISFACTORY_THRESHOLD ? '만족' : '불만족';
+        }
+
+        function applyExcelHeaderStyle(worksheet, useYellowBg = false) {
+            const range = XLSX.utils.decode_range(worksheet['!ref']);
+            const bgColor = useYellowBg ? EXCEL_COLORS.HEADER_BG_YELLOW : EXCEL_COLORS.HEADER_BG;
+            const textColor = useYellowBg ? EXCEL_COLORS.HEADER_TEXT_BLACK : EXCEL_COLORS.HEADER_TEXT;
+            
+            for (let col = range.s.c; col <= range.e.c; col++) {
+                const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+                if (!worksheet[cellAddress]) continue;
+                
+                worksheet[cellAddress].s = {
+                    font: { bold: true, color: { rgb: textColor }, sz: 12 },
+                    fill: { fgColor: { rgb: bgColor } },
+                    alignment: { horizontal: "center", vertical: "center" },
+                    border: {
+                        top: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER } },
+                        bottom: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER } },
+                        left: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER } },
+                        right: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER } }
+                    }
+                };
+            }
+        }
+
+        function applyCellColorByValue(worksheet, rowIndex, colIndex, value, passKeyword, failKeyword) {
+            const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+            if (!worksheet[cellAddress] || !worksheet[cellAddress].s) return;
+            
+            if (value === passKeyword) {
+                worksheet[cellAddress].s.fill = { fgColor: { rgb: EXCEL_COLORS.PASS_BG } };
+                worksheet[cellAddress].s.font = { color: { rgb: EXCEL_COLORS.PASS_TEXT }, bold: true };
+            } else if (value === failKeyword) {
+                worksheet[cellAddress].s.fill = { fgColor: { rgb: EXCEL_COLORS.FAIL_BG } };
+                worksheet[cellAddress].s.font = { color: { rgb: EXCEL_COLORS.FAIL_TEXT }, bold: true };
+            }
+        }
+
+        async function testDownload() {
+            try {
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '<p>Fetching data...</p>';
+                
+                // Fetch data
+                const response = await axios.get('/api/results/assessment?entity=CSVN');
+                const allResults = response.data;
+                
+                // Filter for worker 1057
+                const results = allResults.filter(r => r.employee_id === '1057');
+                
+                resultsDiv.innerHTML += `<p>Total records fetched: ${allResults.length}</p>`;
+                resultsDiv.innerHTML += `<p>Records for worker 1057: ${results.length}</p>`;
+                
+                // Create Excel data
+                const excelData = results.map((r, index) => ({
+                    'No.': index + 1,
+                    '사번': r.employee_id,
+                    '이름': r.name,
+                    '법인': r.entity,
+                    '팀': r.team,
+                    '프로세스': r.position,
+                    'Lv 카테고리': r.category,
+                    '평가항목': r.item_name,
+                    '평가 결과': convertLevelToResult(r.level),
+                    '평가일자': new Date(r.assessment_date).toLocaleDateString('ko-KR')
+                }));
+                
+                resultsDiv.innerHTML += '<h3>Data Preview:</h3><ul>';
+                excelData.forEach((row, i) => {
+                    if (i < 5 || i >= excelData.length - 5) {
+                        resultsDiv.innerHTML += `<li>${row['No.']}. ${row['평가항목'].substring(0, 40)}... → ${row['평가 결과']}</li>`;
+                    } else if (i === 5) {
+                        resultsDiv.innerHTML += '<li>... (middle rows omitted) ...</li>';
+                    }
+                });
+                resultsDiv.innerHTML += '</ul>';
+                
+                // Check for missing results
+                const missingResults = excelData.filter(row => !row['평가 결과'] || row['평가 결과'] === 'N/A');
+                if (missingResults.length > 0) {
+                    resultsDiv.innerHTML += `<p style="color: red;">⚠️ Found ${missingResults.length} rows with missing results!</p>`;
+                    resultsDiv.innerHTML += '<ul>';
+                    missingResults.forEach(row => {
+                        resultsDiv.innerHTML += `<li>Row ${row['No.']}: ${row['평가항목']}</li>`;
+                    });
+                    resultsDiv.innerHTML += '</ul>';
+                } else {
+                    resultsDiv.innerHTML += '<p style="color: green;">✅ All rows have valid results!</p>';
+                }
+                
+                // Create worksheet
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                
+                // Set column widths
+                ws['!cols'] = [
+                    { wch: EXCEL_COLUMN_WIDTHS.NO },
+                    { wch: EXCEL_COLUMN_WIDTHS.EMPLOYEE_ID },
+                    { wch: EXCEL_COLUMN_WIDTHS.NAME },
+                    { wch: EXCEL_COLUMN_WIDTHS.ENTITY },
+                    { wch: EXCEL_COLUMN_WIDTHS.TEAM },
+                    { wch: EXCEL_COLUMN_WIDTHS.POSITION },
+                    { wch: EXCEL_COLUMN_WIDTHS.LEVEL_CATEGORY },
+                    { wch: EXCEL_COLUMN_WIDTHS.ITEM_NAME },
+                    { wch: EXCEL_COLUMN_WIDTHS.RESULT },
+                    { wch: EXCEL_COLUMN_WIDTHS.DATE }
+                ];
+                
+                // Apply header style
+                applyExcelHeaderStyle(ws);
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                
+                // Apply data cell styles
+                for (let row = range.s.r + 1; row <= range.e.r; row++) {
+                    for (let col = range.s.c; col <= range.e.c; col++) {
+                        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+                        if (!ws[cellAddress]) continue;
+                        
+                        ws[cellAddress].s = {
+                            alignment: { horizontal: "center", vertical: "center" },
+                            border: {
+                                top: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER_LIGHT } },
+                                bottom: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER_LIGHT } },
+                                left: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER_LIGHT } },
+                                right: { style: "thin", color: { rgb: EXCEL_COLORS.BORDER_LIGHT } }
+                            }
+                        };
+                        
+                        // Apply colors for result column (col 8)
+                        if (col === 8) {
+                            applyCellColorByValue(ws, row, col, ws[cellAddress].v, '만족', '불만족');
+                        }
+                    }
+                }
+                
+                // Create workbook and download
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Assessment Results');
+                XLSX.writeFile(wb, `Test_Assessment_1057_${new Date().toISOString().split('T')[0]}.xlsx`);
+                
+                resultsDiv.innerHTML += '<p style="color: blue;">✅ Excel file downloaded successfully!</p>';
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('results').innerHTML += `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

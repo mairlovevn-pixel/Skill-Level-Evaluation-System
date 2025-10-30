@@ -126,32 +126,39 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     }
     const avg_score_by_process = avgScoreResult.results || []
 
-    // Level별 법인 현황
+    // Level별 법인 현황 (프로세스 필터 추가)
+    const processId = c.req.query('processId')
     let assessmentByLevelResult
+    
+    // 동적 쿼리 빌드
+    let levelQuery = `
+      SELECT 
+        sa.level,
+        w.entity,
+        COUNT(*) as count
+      FROM supervisor_assessments sa
+      JOIN workers w ON sa.worker_id = w.id
+      JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
+      WHERE 1=1
+    `
+    const params: any[] = []
+    
     if (entity) {
-      assessmentByLevelResult = await db.prepare(`
-        SELECT 
-          sa.level,
-          w.entity,
-          COUNT(*) as count
-        FROM supervisor_assessments sa
-        JOIN workers w ON sa.worker_id = w.id
-        WHERE w.entity = ?
-        GROUP BY sa.level, w.entity
-        ORDER BY sa.level, w.entity
-      `).bind(entity).all()
-    } else {
-      assessmentByLevelResult = await db.prepare(`
-        SELECT 
-          sa.level,
-          w.entity,
-          COUNT(*) as count
-        FROM supervisor_assessments sa
-        JOIN workers w ON sa.worker_id = w.id
-        GROUP BY sa.level, w.entity
-        ORDER BY sa.level, w.entity
-      `).all()
+      levelQuery += ' AND w.entity = ?'
+      params.push(entity)
     }
+    
+    if (processId) {
+      levelQuery += ' AND sai.process_id = ?'
+      params.push(processId)
+    }
+    
+    levelQuery += `
+      GROUP BY sa.level, w.entity
+      ORDER BY sa.level, w.entity
+    `
+    
+    assessmentByLevelResult = await db.prepare(levelQuery).bind(...params).all()
     const supervisor_assessment_by_level = assessmentByLevelResult.results || []
 
     const stats: DashboardStats = {
