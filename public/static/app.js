@@ -204,23 +204,14 @@ function getDashboardHTML() {
                     Skill Level 평가 요약
                 </h2>
                 
-                <div class="flex gap-4">
-                    <div class="w-64">
-                        <label class="block text-gray-700 font-semibold mb-2">법인 선택</label>
-                        <select id="dashboard-entity-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterDashboard()">
-                            <option value="">전체 법인</option>
-                            <option value="CSVN">CSVN</option>
-                            <option value="CSCN">CSCN</option>
-                            <option value="CSTW">CSTW</option>
-                        </select>
-                    </div>
-                    
-                    <div class="w-64">
-                        <label class="block text-gray-700 font-semibold mb-2">프로세스 선택</label>
-                        <select id="dashboard-process-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterDashboard()">
-                            <option value="">전체 프로세스</option>
-                        </select>
-                    </div>
+                <div class="w-64">
+                    <label class="block text-gray-700 font-semibold mb-2">법인 선택</label>
+                    <select id="dashboard-entity-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterDashboardByEntity()">
+                        <option value="">전체 법인</option>
+                        <option value="CSVN">CSVN</option>
+                        <option value="CSCN">CSCN</option>
+                        <option value="CSTW">CSTW</option>
+                    </select>
                 </div>
             </div>
             
@@ -268,20 +259,48 @@ function getDashboardHTML() {
                 </div>
                 
                 <div class="bg-white rounded-lg shadow-md p-6">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4">
-                        <i class="fas fa-chart-column mr-2"></i>
-                        프로세스별 평균 점수
-                    </h3>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">
+                            <i class="fas fa-chart-column mr-2"></i>
+                            WRITTEN TEST [평균점수]
+                        </h3>
+                        <div class="flex gap-2">
+                            <div class="w-36">
+                                <select id="avg-score-team-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="onAvgScoreTeamChange()">
+                                    <option value="">전체 팀</option>
+                                </select>
+                            </div>
+                            <div class="w-36">
+                                <select id="avg-score-process-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="filterAvgScoreChart()">
+                                    <option value="">전체 프로세스</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                     <canvas id="avg-score-chart"></canvas>
                 </div>
             </div>
             
             <!-- Supervisor Assessment 현황 -->
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-xl font-bold text-gray-800 mb-4">
-                    <i class="fas fa-star mr-2"></i>
-                    Level별 법인 현황 (Supervisor Assessment)
-                </h3>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">
+                        <i class="fas fa-star mr-2"></i>
+                        Level별 법인 현황 (Supervisor Assessment)
+                    </h3>
+                    <div class="flex gap-2">
+                        <div class="w-36">
+                            <select id="assessment-team-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="onAssessmentTeamChange()">
+                                <option value="">전체 팀</option>
+                            </select>
+                        </div>
+                        <div class="w-36">
+                            <select id="assessment-process-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="filterAssessmentChart()">
+                                <option value="">전체 프로세스</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
                 <canvas id="assessment-chart"></canvas>
             </div>
         </div>
@@ -293,23 +312,71 @@ let currentTestStatusChart = null;
 let currentAvgScoreChart = null;
 let currentAssessmentChart = null;
 
+// 팀-프로세스 매핑을 저장할 전역 변수
+let teamProcessMapping = {};
+
 async function loadDashboard() {
     try {
         const response = await axios.get('/api/dashboard/stats');
         allDashboardData = response.data;
         dashboardData = response.data;
         
-        // 프로세스 셀렉트 박스 채우기
-        const processSelect = document.getElementById('dashboard-process-select');
-        if (processSelect && processes.length > 0) {
-            processSelect.innerHTML = '<option value="">전체 프로세스</option>';
-            processes.forEach(process => {
-                const option = document.createElement('option');
-                option.value = process.id;
-                option.textContent = process.name;
-                processSelect.appendChild(option);
-            });
+        // 팀 목록 및 팀-프로세스 매핑 가져오기
+        const workersResponse = await axios.get('/api/workers');
+        const workers = workersResponse.data;
+        const teams = [...new Set(workers.map(w => w.team).filter(t => t))].sort();
+        
+        // 팀별로 사용하는 프로세스(position) 매핑 생성
+        teamProcessMapping = {};
+        workers.forEach(worker => {
+            if (worker.team && worker.position) {
+                if (!teamProcessMapping[worker.team]) {
+                    teamProcessMapping[worker.team] = new Set();
+                }
+                // position을 프로세스 이름으로 매핑
+                const processName = mapPositionToProcess(worker.position);
+                if (processName) {
+                    teamProcessMapping[worker.team].add(processName);
+                }
+            }
+        });
+        
+        // Set을 배열로 변환
+        Object.keys(teamProcessMapping).forEach(team => {
+            teamProcessMapping[team] = Array.from(teamProcessMapping[team]);
+        });
+        
+        // 팀 셀렉트 박스 채우기
+        const avgScoreTeamSelect = document.getElementById('avg-score-team-select');
+        const assessmentTeamSelect = document.getElementById('assessment-team-select');
+        
+        if (teams.length > 0) {
+            // 평균 점수 차트 팀 셀렉트
+            if (avgScoreTeamSelect) {
+                avgScoreTeamSelect.innerHTML = '<option value="">전체 팀</option>';
+                teams.forEach(team => {
+                    const option = document.createElement('option');
+                    option.value = team;
+                    option.textContent = team;
+                    avgScoreTeamSelect.appendChild(option);
+                });
+            }
+            
+            // Assessment 차트 팀 셀렉트
+            if (assessmentTeamSelect) {
+                assessmentTeamSelect.innerHTML = '<option value="">전체 팀</option>';
+                teams.forEach(team => {
+                    const option = document.createElement('option');
+                    option.value = team;
+                    option.textContent = team;
+                    assessmentTeamSelect.appendChild(option);
+                });
+            }
         }
+        
+        // 초기 프로세스 셀렉트 박스 채우기 (전체 프로세스)
+        updateProcessSelectForTeam('avg-score', null);
+        updateProcessSelectForTeam('assessment', null);
         
         // 요약 카드 업데이트
         updateDashboardStats();
@@ -324,31 +391,114 @@ async function loadDashboard() {
     }
 }
 
+// position을 프로세스 이름으로 매핑하는 함수
+function mapPositionToProcess(position) {
+    const positionLower = position.toLowerCase().trim();
+    
+    // 프로세스 이름 매핑
+    if (positionLower.includes('cutting') || positionLower.includes('cnc')) {
+        return 'Cutting';
+    } else if (positionLower.includes('bevel')) {
+        return 'Beveling';
+    } else if (positionLower.includes('bend')) {
+        return 'Bending';
+    } else if (positionLower.includes('ls') && positionLower.includes('weld')) {
+        return 'LS Welding';
+    } else if (positionLower.includes('fit') && positionLower.includes('up')) {
+        return 'Fit Up';
+    } else if (positionLower.includes('cs') && positionLower.includes('weld')) {
+        return 'CS Welding';
+    } else if (positionLower.includes('vtmt')) {
+        return 'VTMT';
+    } else if (positionLower.includes('bracket') && positionLower.includes('fu')) {
+        return 'Bracket FU';
+    } else if (positionLower.includes('bracket') && positionLower.includes('weld')) {
+        return 'Bracket Weld';
+    } else if (positionLower.includes('ut') && positionLower.includes('repair')) {
+        return 'UT repair';
+    } else if (positionLower.includes('df') && positionLower.includes('fu')) {
+        return 'DF FU';
+    } else if (positionLower.includes('df') && positionLower.includes('weld')) {
+        return 'DF Weld';
+    } else if (positionLower.includes('flatness')) {
+        return 'Flatness';
+    }
+    
+    return null;
+}
+
+// 팀 선택에 따라 프로세스 셀렉트 업데이트
+function updateProcessSelectForTeam(chartType, selectedTeam) {
+    const processSelectId = chartType === 'avg-score' ? 'avg-score-process-select' : 'assessment-process-select';
+    const processSelect = document.getElementById(processSelectId);
+    
+    if (!processSelect) return;
+    
+    processSelect.innerHTML = '<option value="">전체 프로세스</option>';
+    
+    if (selectedTeam && teamProcessMapping[selectedTeam]) {
+        // 선택된 팀의 프로세스만 표시
+        const teamProcesses = teamProcessMapping[selectedTeam];
+        processes.forEach(process => {
+            if (teamProcesses.includes(process.name)) {
+                const option = document.createElement('option');
+                option.value = process.id;
+                option.textContent = process.name;
+                processSelect.appendChild(option);
+            }
+        });
+    } else {
+        // 전체 프로세스 표시
+        processes.forEach(process => {
+            const option = document.createElement('option');
+            option.value = process.id;
+            option.textContent = process.name;
+            processSelect.appendChild(option);
+        });
+    }
+}
+
+// 평균 점수 차트 팀 변경 핸들러
+function onAvgScoreTeamChange() {
+    const teamSelect = document.getElementById('avg-score-team-select');
+    const selectedTeam = teamSelect.value;
+    
+    // 프로세스 셀렉트 업데이트
+    updateProcessSelectForTeam('avg-score', selectedTeam);
+    
+    // 차트 필터링
+    filterAvgScoreChart();
+}
+
+// Assessment 차트 팀 변경 핸들러
+function onAssessmentTeamChange() {
+    const teamSelect = document.getElementById('assessment-team-select');
+    const selectedTeam = teamSelect.value;
+    
+    // 프로세스 셀렉트 업데이트
+    updateProcessSelectForTeam('assessment', selectedTeam);
+    
+    // 차트 필터링
+    filterAssessmentChart();
+}
+
 function updateDashboardStats() {
     document.getElementById('total-workers').textContent = dashboardData.total_workers;
     document.getElementById('test-takers').textContent = dashboardData.written_test_takers;
     document.getElementById('test-passed').textContent = dashboardData.written_test_passed;
 }
 
-async function filterDashboard() {
+// 법인 필터 (전체 대시보드에 영향)
+async function filterDashboardByEntity() {
     const entitySelect = document.getElementById('dashboard-entity-select');
-    const processSelect = document.getElementById('dashboard-process-select');
     const selectedEntity = entitySelect.value;
-    const selectedProcess = processSelect.value;
     
     try {
-        // 법인 및 프로세스 필터를 적용하여 서버에서 데이터 가져오기
-        let url = '/api/dashboard/stats?';
-        const params = [];
-        
+        // 법인 필터만 적용
+        let url = '/api/dashboard/stats';
         if (selectedEntity) {
-            params.push(`entity=${selectedEntity}`);
+            url += `?entity=${selectedEntity}`;
         }
-        if (selectedProcess) {
-            params.push(`processId=${selectedProcess}`);
-        }
-        
-        url += params.join('&');
         
         const response = await axios.get(url);
         dashboardData = response.data;
@@ -377,9 +527,92 @@ async function filterDashboard() {
     }
 }
 
-// 기존 함수명 호환성 유지
-async function filterDashboardByEntity() {
-    await filterDashboard();
+// 평균 점수 차트 팀/프로세스 필터
+async function filterAvgScoreChart() {
+    const entitySelect = document.getElementById('dashboard-entity-select');
+    const teamSelect = document.getElementById('avg-score-team-select');
+    const processSelect = document.getElementById('avg-score-process-select');
+    const selectedEntity = entitySelect.value;
+    const selectedTeam = teamSelect.value;
+    const selectedProcess = processSelect.value;
+    
+    try {
+        let url = '/api/dashboard/stats?';
+        const params = [];
+        
+        if (selectedEntity) {
+            params.push(`entity=${selectedEntity}`);
+        }
+        if (selectedTeam) {
+            params.push(`team=${encodeURIComponent(selectedTeam)}`);
+        }
+        if (selectedProcess) {
+            params.push(`processId=${selectedProcess}`);
+        }
+        
+        url += params.join('&');
+        
+        const response = await axios.get(url);
+        const filteredData = response.data;
+        
+        // 평균 점수 차트만 업데이트
+        if (currentAvgScoreChart) {
+            currentAvgScoreChart.destroy();
+        }
+        
+        // 임시로 데이터 교체
+        const originalData = dashboardData;
+        dashboardData = filteredData;
+        renderAvgScoreChart();
+        dashboardData = originalData;
+    } catch (error) {
+        console.error('평균 점수 차트 필터링 실패:', error);
+        alert('데이터를 불러오는데 실패했습니다.');
+    }
+}
+
+// Assessment 차트 프로세스/팀 필터
+async function filterAssessmentChart() {
+    const entitySelect = document.getElementById('dashboard-entity-select');
+    const processSelect = document.getElementById('assessment-process-select');
+    const teamSelect = document.getElementById('assessment-team-select');
+    const selectedEntity = entitySelect.value;
+    const selectedProcess = processSelect.value;
+    const selectedTeam = teamSelect.value;
+    
+    try {
+        let url = '/api/dashboard/stats?';
+        const params = [];
+        
+        if (selectedEntity) {
+            params.push(`entity=${selectedEntity}`);
+        }
+        if (selectedProcess) {
+            params.push(`processId=${selectedProcess}`);
+        }
+        if (selectedTeam) {
+            params.push(`team=${encodeURIComponent(selectedTeam)}`);
+        }
+        
+        url += params.join('&');
+        
+        const response = await axios.get(url);
+        const filteredData = response.data;
+        
+        // Assessment 차트만 업데이트
+        if (currentAssessmentChart) {
+            currentAssessmentChart.destroy();
+        }
+        
+        // 임시로 데이터 교체
+        const originalData = dashboardData;
+        dashboardData = filteredData;
+        renderAssessmentChart();
+        dashboardData = originalData;
+    } catch (error) {
+        console.error('Assessment 차트 필터링 실패:', error);
+        alert('데이터를 불러오는데 실패했습니다.');
+    }
 }
 
 function renderTestStatusChart() {
@@ -1540,32 +1773,41 @@ async function loadWorkerStatus() {
         
         // 테이블 생성
         let tableHTML = `
-            <div class="space-y-6">
+            <div class="space-y-4">
         `;
         
         // 법인별로 테이블 생성
         Object.keys(byEntity).sort().forEach(entity => {
             const entityWorkers = byEntity[entity];
+            const entityId = entity.replace(/\s+/g, '-'); // 공백을 하이픈으로 변경하여 ID 생성
             
             tableHTML += `
                 <div class="border border-gray-200 rounded-lg overflow-hidden">
-                    <div class="bg-blue-50 px-6 py-3 border-b border-gray-200">
-                        <h4 class="text-lg font-bold text-gray-800">
-                            <i class="fas fa-building mr-2"></i>
-                            ${entity} (${entityWorkers.length}명)
-                        </h4>
+                    <!-- 클릭 가능한 헤더 -->
+                    <div class="bg-blue-50 px-6 py-3 border-b border-gray-200 cursor-pointer hover:bg-blue-100 transition" 
+                         onclick="toggleEntityList('${entityId}')">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-lg font-bold text-gray-800">
+                                <i class="fas fa-building mr-2"></i>
+                                ${entity} (${entityWorkers.length}명)
+                            </h4>
+                            <i id="chevron-${entityId}" class="fas fa-chevron-down text-gray-600 transition-transform"></i>
+                        </div>
                     </div>
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">사번</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">팀</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">직책</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">입사일</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                    
+                    <!-- 접을 수 있는 테이블 컨텐츠 -->
+                    <div id="entity-${entityId}" class="entity-content">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">사번</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">팀</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">직책</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">입사일</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
             `;
             
             // 입사일 기준 정렬 (최신순)
@@ -1589,8 +1831,9 @@ async function loadWorkerStatus() {
             });
             
             tableHTML += `
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             `;
         });
@@ -1604,6 +1847,22 @@ async function loadWorkerStatus() {
         console.error('작업자 현황 로드 실패:', error);
         document.getElementById('worker-status-table').innerHTML = 
             '<p class="text-red-500">현황을 불러오는데 실패했습니다.</p>';
+    }
+}
+
+// 법인별 리스트 열기/닫기 토글 함수
+function toggleEntityList(entityId) {
+    const contentDiv = document.getElementById(`entity-${entityId}`);
+    const chevron = document.getElementById(`chevron-${entityId}`);
+    
+    if (contentDiv.style.display === 'none') {
+        contentDiv.style.display = 'block';
+        chevron.classList.remove('fa-chevron-right');
+        chevron.classList.add('fa-chevron-down');
+    } else {
+        contentDiv.style.display = 'none';
+        chevron.classList.remove('fa-chevron-down');
+        chevron.classList.add('fa-chevron-right');
     }
 }
 
@@ -1710,22 +1969,22 @@ async function uploadWorkers() {
             // 형식 1: No, Entity, Name, Employee ID, Team, Position, Start to work date
             if (firstRow.hasOwnProperty('Entity') && firstRow.hasOwnProperty('Team')) {
                 workers = rows.map(row => ({
-                    employee_id: String(row['Employee ID'] || ''),
-                    name: String(row['Name'] || ''),
-                    entity: String(row['Entity'] || ''),
-                    team: String(row['Team'] || ''),
-                    position: String(row['Position'] || ''),
+                    employee_id: String(row['Employee ID'] || '').trim(),
+                    name: String(row['Name'] || '').trim(),
+                    entity: String(row['Entity'] || '').trim(),
+                    team: String(row['Team'] || '').trim().toLowerCase(),  // 소문자로 변환
+                    position: String(row['Position'] || '').trim(),
                     start_to_work_date: convertExcelDate(row['Start to work date'])
                 }));
             }
             // 형식 2: Name, Employee ID, Company, Department, Position, start to work
             else if (firstRow.hasOwnProperty('Company') && firstRow.hasOwnProperty('Department')) {
                 workers = rows.map(row => ({
-                    employee_id: String(row['Employee ID'] || ''),
-                    name: String(row['Name'] || ''),
-                    entity: String(row['Company'] || ''),  // Company -> Entity
-                    team: String(row['Department'] || ''),  // Department -> Team
-                    position: String(row['Position'] || ''),
+                    employee_id: String(row['Employee ID'] || '').trim(),
+                    name: String(row['Name'] || '').trim(),
+                    entity: String(row['Company'] || '').trim(),  // Company -> Entity
+                    team: String(row['Department'] || '').trim().toLowerCase(),  // 소문자로 변환
+                    position: String(row['Position'] || '').trim(),
                     start_to_work_date: convertExcelDate(row['start to work'])
                 }));
             } else {

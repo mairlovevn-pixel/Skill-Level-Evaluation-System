@@ -99,38 +99,50 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     }
     const written_test_by_process = testByProcessResult.results || []
 
-    // 프로세스별 평균 점수 (법인별로 구분)
+    // 공통 쿼리 파라미터
+    const processId = c.req.query('processId')
+    const team = c.req.query('team')
+    
+    // 프로세스별 평균 점수 (법인별로 구분, 프로세스/팀 필터 추가)
     let avgScoreResult
+    
+    // 동적 쿼리 빌드 for avg_score
+    let avgScoreQuery = `
+      SELECT 
+        p.name as process_name,
+        w.entity,
+        COALESCE(AVG(wtr.score), 0) as avg_score
+      FROM processes p
+      LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
+      LEFT JOIN workers w ON wtr.worker_id = w.id
+      WHERE 1=1
+    `
+    const avgScoreParams: any[] = []
+    
     if (entity) {
-      avgScoreResult = await db.prepare(`
-        SELECT 
-          p.name as process_name,
-          w.entity,
-          COALESCE(AVG(wtr.score), 0) as avg_score
-        FROM processes p
-        LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
-        LEFT JOIN workers w ON wtr.worker_id = w.id
-        WHERE w.entity = ? OR w.entity IS NULL
-        GROUP BY p.id, p.name, w.entity
-        ORDER BY p.id, w.entity
-      `).bind(entity).all()
-    } else {
-      avgScoreResult = await db.prepare(`
-        SELECT 
-          p.name as process_name,
-          w.entity,
-          COALESCE(AVG(wtr.score), 0) as avg_score
-        FROM processes p
-        LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
-        LEFT JOIN workers w ON wtr.worker_id = w.id
-        GROUP BY p.id, p.name, w.entity
-        ORDER BY p.id, w.entity
-      `).all()
+      avgScoreQuery += ' AND (w.entity = ? OR w.entity IS NULL)'
+      avgScoreParams.push(entity)
     }
+    
+    if (team) {
+      avgScoreQuery += ' AND w.team = ?'
+      avgScoreParams.push(team)
+    }
+    
+    if (processId) {
+      avgScoreQuery += ' AND p.id = ?'
+      avgScoreParams.push(processId)
+    }
+    
+    avgScoreQuery += `
+      GROUP BY p.id, p.name, w.entity
+      ORDER BY p.id, w.entity
+    `
+    
+    avgScoreResult = await db.prepare(avgScoreQuery).bind(...avgScoreParams).all()
     const avg_score_by_process = avgScoreResult.results || []
 
-    // Level별 법인 현황 (프로세스 필터 추가)
-    const processId = c.req.query('processId')
+    // Level별 법인 현황 (프로세스/팀 필터 추가)
     let assessmentByLevelResult
     
     // 동적 쿼리 빌드
@@ -154,6 +166,11 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     if (processId) {
       levelQuery += ' AND sai.process_id = ?'
       params.push(processId)
+    }
+    
+    if (team) {
+      levelQuery += ' AND w.team = ?'
+      params.push(team)
     }
     
     levelQuery += `
@@ -908,6 +925,9 @@ app.get('/', (c) => {
                     Skill Level 평가 시스템
                 </h1>
                 <div class="space-x-4">
+                    <button onclick="showPage('worker-upload')" class="hover:underline">
+                        <i class="fas fa-users mr-1"></i>작업자 등록
+                    </button>
                     <button onclick="showPage('dashboard')" class="hover:underline">
                         <i class="fas fa-home mr-1"></i>대시보드
                     </button>
@@ -916,9 +936,6 @@ app.get('/', (c) => {
                     </button>
                     <button onclick="showPage('assessment-upload')" class="hover:underline">
                         <i class="fas fa-clipboard-check mr-1"></i>Assessment 등록
-                    </button>
-                    <button onclick="showPage('worker-upload')" class="hover:underline">
-                        <i class="fas fa-users mr-1"></i>작업자 등록
                     </button>
                     <button onclick="showPage('supervisor-assessment')" class="hover:underline">
                         <i class="fas fa-user-check mr-1"></i>Supervisor Assessment 시행
