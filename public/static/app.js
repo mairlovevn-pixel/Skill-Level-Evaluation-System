@@ -1,8 +1,52 @@
-// 전역 변수
-let currentPage = 'dashboard';
-let dashboardData = null;
-let processes = [];
-let workers = [];
+// 애플리케이션 상태 관리 객체
+const AppState = {
+    currentPage: 'dashboard',
+    dashboardData: null,
+    processes: [],
+    workers: [],
+    teamProcessMapping: {},
+    charts: {
+        testStatus: null,
+        avgScore: null,
+        assessment: null
+    },
+    
+    // 상태 초기화 (테스트용)
+    reset() {
+        this.currentPage = 'dashboard';
+        this.dashboardData = null;
+        this.processes = [];
+        this.workers = [];
+        this.teamProcessMapping = {};
+        this.charts = {
+            testStatus: null,
+            avgScore: null,
+            assessment: null
+        };
+    },
+    
+    // Getter 메서드
+    getCurrentPage() { return this.currentPage; },
+    getDashboardData() { return this.dashboardData; },
+    getProcesses() { return this.processes; },
+    getWorkers() { return this.workers; },
+    getTeamProcessMapping() { return this.teamProcessMapping; },
+    getChart(name) { return this.charts[name]; },
+    
+    // Setter 메서드
+    setCurrentPage(page) { this.currentPage = page; },
+    setDashboardData(data) { this.dashboardData = data; },
+    setProcesses(processes) { this.processes = processes; },
+    setWorkers(workers) { this.workers = workers; },
+    setTeamProcessMapping(mapping) { this.teamProcessMapping = mapping; },
+    setChart(name, chart) { this.charts[name] = chart; }
+};
+
+// 하위 호환성을 위한 전역 변수 (점진적 마이그레이션용)
+let currentPage = AppState.currentPage;
+let dashboardData = AppState.dashboardData;
+let processes = AppState.processes;
+let workers = AppState.workers;
 
 // 유틸리티 함수: Excel 날짜를 ISO 형식으로 변환
 function convertExcelDate(dateValue) {
@@ -307,12 +351,11 @@ function getDashboardHTML() {
     `;
 }
 
+// 레거시 전역 변수 (AppState로 점진적 마이그레이션 예정)
 let allDashboardData = null;
 let currentTestStatusChart = null;
 let currentAvgScoreChart = null;
 let currentAssessmentChart = null;
-
-// 팀-프로세스 매핑을 저장할 전역 변수
 let teamProcessMapping = {};
 
 async function loadDashboard() {
@@ -347,31 +390,9 @@ async function loadDashboard() {
         });
         
         // 팀 셀렉트 박스 채우기
-        const avgScoreTeamSelect = document.getElementById('avg-score-team-select');
-        const assessmentTeamSelect = document.getElementById('assessment-team-select');
-        
         if (teams.length > 0) {
-            // 평균 점수 차트 팀 셀렉트
-            if (avgScoreTeamSelect) {
-                avgScoreTeamSelect.innerHTML = '<option value="">전체 팀</option>';
-                teams.forEach(team => {
-                    const option = document.createElement('option');
-                    option.value = team;
-                    option.textContent = team;
-                    avgScoreTeamSelect.appendChild(option);
-                });
-            }
-            
-            // Assessment 차트 팀 셀렉트
-            if (assessmentTeamSelect) {
-                assessmentTeamSelect.innerHTML = '<option value="">전체 팀</option>';
-                teams.forEach(team => {
-                    const option = document.createElement('option');
-                    option.value = team;
-                    option.textContent = team;
-                    assessmentTeamSelect.appendChild(option);
-                });
-            }
+            populateTeamSelect('avg-score-team-select', teams);
+            populateTeamSelect('assessment-team-select', teams);
         }
         
         // 초기 프로세스 셀렉트 박스 채우기 (전체 프로세스)
@@ -391,40 +412,64 @@ async function loadDashboard() {
     }
 }
 
-// position을 프로세스 이름으로 매핑하는 함수
+// Position → Process 매핑 테이블 (확장 용이)
+const POSITION_TO_PROCESS_MAP = [
+    { keywords: ['cutting', 'cnc'], process: 'Cutting' },
+    { keywords: ['bevel'], process: 'Beveling' },
+    { keywords: ['bend'], process: 'Bending' },
+    { keywords: ['ls', 'weld'], process: 'LS Welding', requireAll: true },
+    { keywords: ['fit', 'up'], process: 'Fit Up', requireAll: true },
+    { keywords: ['cs', 'weld'], process: 'CS Welding', requireAll: true },
+    { keywords: ['vtmt'], process: 'VTMT' },
+    { keywords: ['bracket', 'fu'], process: 'Bracket FU', requireAll: true },
+    { keywords: ['bracket', 'weld'], process: 'Bracket Weld', requireAll: true },
+    { keywords: ['ut', 'repair'], process: 'UT repair', requireAll: true },
+    { keywords: ['df', 'fu'], process: 'DF FU', requireAll: true },
+    { keywords: ['df', 'weld'], process: 'DF Weld', requireAll: true },
+    { keywords: ['flatness'], process: 'Flatness' }
+];
+
+/**
+ * position 문자열을 프로세스 이름으로 매핑
+ * @param {string} position - 작업자 직책/위치
+ * @returns {string|null} 매핑된 프로세스 이름 또는 null
+ */
 function mapPositionToProcess(position) {
+    if (!position) return null;
+    
     const positionLower = position.toLowerCase().trim();
     
-    // 프로세스 이름 매핑
-    if (positionLower.includes('cutting') || positionLower.includes('cnc')) {
-        return 'Cutting';
-    } else if (positionLower.includes('bevel')) {
-        return 'Beveling';
-    } else if (positionLower.includes('bend')) {
-        return 'Bending';
-    } else if (positionLower.includes('ls') && positionLower.includes('weld')) {
-        return 'LS Welding';
-    } else if (positionLower.includes('fit') && positionLower.includes('up')) {
-        return 'Fit Up';
-    } else if (positionLower.includes('cs') && positionLower.includes('weld')) {
-        return 'CS Welding';
-    } else if (positionLower.includes('vtmt')) {
-        return 'VTMT';
-    } else if (positionLower.includes('bracket') && positionLower.includes('fu')) {
-        return 'Bracket FU';
-    } else if (positionLower.includes('bracket') && positionLower.includes('weld')) {
-        return 'Bracket Weld';
-    } else if (positionLower.includes('ut') && positionLower.includes('repair')) {
-        return 'UT repair';
-    } else if (positionLower.includes('df') && positionLower.includes('fu')) {
-        return 'DF FU';
-    } else if (positionLower.includes('df') && positionLower.includes('weld')) {
-        return 'DF Weld';
-    } else if (positionLower.includes('flatness')) {
-        return 'Flatness';
+    for (const mapping of POSITION_TO_PROCESS_MAP) {
+        const { keywords, process, requireAll = false } = mapping;
+        
+        const matchFn = requireAll
+            ? keywords.every(kw => positionLower.includes(kw))
+            : keywords.some(kw => positionLower.includes(kw));
+        
+        if (matchFn) {
+            return process;
+        }
     }
     
     return null;
+}
+
+/**
+ * 셀렉트 박스에 팀 옵션 채우기 (헬퍼 함수)
+ * @param {string} selectId - 셀렉트 엘리먼트 ID
+ * @param {string[]} teams - 팀 목록 배열
+ */
+function populateTeamSelect(selectId, teams) {
+    const selectElement = document.getElementById(selectId);
+    if (!selectElement) return;
+    
+    selectElement.innerHTML = '<option value="">전체 팀</option>';
+    teams.forEach(team => {
+        const option = document.createElement('option');
+        option.value = team;
+        option.textContent = team;
+        selectElement.appendChild(option);
+    });
 }
 
 // 팀 선택에 따라 프로세스 셀렉트 업데이트
