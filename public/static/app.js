@@ -430,7 +430,98 @@ const POSITION_TO_PROCESS_MAP = [
 ];
 
 /**
- * position 문자열을 프로세스 이름으로 매핑
+ * Team-Process 매핑 테이블 (엑셀 데이터 기반)
+ * 각 팀에서 사용 가능한 프로세스 목록
+ */
+const TEAM_PROCESS_MAP = {
+    'black tower': [
+        'Material Handling',
+        'Cutting',
+        'Bevelling',
+        'Bending',
+        'LS Welding',
+        'Fit-Up',
+        'CS Welding',
+        'FS Fit-up',
+        'FS SAW',
+        'VTMT',
+        'UT Repair',
+        'Bracket',
+        'Door Frame',
+        'Milling'
+    ],
+    'white tower': [
+        'Blasting',
+        'Blasting Repair',
+        'Metalizing',
+        'Painting',
+        'Painting Repair',
+        'Fitting Paint ring',
+        'Material Handling'
+    ],
+    'internal mounting': [
+        'Assembler',
+        'IM Cable',
+        'Green Tag Cleaning',
+        'Paint touch up'
+    ],
+    'mt': [
+        'Electrician / Mechanic'
+    ],
+    'transporation': [
+        'Transport',
+        'Storage Fit installation',
+        'H-Frame installation',
+        'Shipping Cleaning'
+    ],
+    'im qc': [
+        'QC Inspector - BT Incoming',
+        'QC Inspector - BT Fitup & Wedling',
+        'QC Inspector - BT Dimension',
+        'QC Inspector NDT Supervisor',
+        'QC Inspector - BT VT',
+        'QC Inspector - BT PT',
+        'QC Inspector - BT MT',
+        'QC Inspector - BT UT',
+        'QC Inspector - BT PAUT',
+        'QC WT Inspector Supervisor',
+        'QC Inspector - WTBlasting',
+        'QC Inspector - WTMetalizing',
+        'QC Inspector - WTPaiting',
+        'QC Inspector IM Supervisor',
+        'QC Inspector - IM Incoming',
+        'QC Inspector -IM FINAL'
+    ],
+    'warehouse': [
+        'Warehouse - BT / WT',
+        'Warehouse - IM',
+        'Warehouse - Pre-Assembly',
+        'Warehouse - Kit-set'
+    ]
+};
+
+/**
+ * 팀 이름 정규화 (소문자 + 공백 처리)
+ * @param {string} team - 팀 이름
+ * @returns {string} 정규화된 팀 이름
+ */
+function normalizeTeamName(team) {
+    if (!team) return '';
+    return team.toLowerCase().trim();
+}
+
+/**
+ * 특정 팀에서 사용 가능한 프로세스 목록 반환
+ * @param {string} team - 팀 이름
+ * @returns {string[]} 프로세스 목록
+ */
+function getProcessesForTeam(team) {
+    const normalizedTeam = normalizeTeamName(team);
+    return TEAM_PROCESS_MAP[normalizedTeam] || [];
+}
+
+/**
+ * position 문자열을 프로세스 이름으로 매핑 (하위 호환성 유지)
  * @param {string} position - 작업자 직책/위치
  * @returns {string|null} 매핑된 프로세스 이름 또는 null
  */
@@ -2499,7 +2590,7 @@ function onSAEntityChange() {
     console.log(`법인 "${selectedEntity}" 선택 완료. 사용 가능한 팀: ${sortedTeams.length}개`);
 }
 
-// 2단계: 팀 선택 시 - 프로세스 필터링
+// 2단계: 팀 선택 시 - 프로세스 필터링 (Team-Process 매핑 테이블 사용)
 function onSATeamChange() {
     const entitySelect = document.getElementById('sa-entity-select');
     const teamSelect = document.getElementById('sa-team-select');
@@ -2519,20 +2610,18 @@ function onSATeamChange() {
         return;
     }
     
-    // 선택된 법인 + 팀의 작업자들의 position을 통해 사용 가능한 프로세스 추출
-    const teamWorkers = workers.filter(w => w.entity === selectedEntity && w.team === selectedTeam);
-    const availableProcesses = new Set();
+    // Team-Process 매핑 테이블에서 해당 팀의 프로세스 가져오기
+    const availableProcesses = getProcessesForTeam(selectedTeam);
     
-    teamWorkers.forEach(worker => {
-        const processName = mapPositionToProcess(worker.position);
-        if (processName) {
-            availableProcesses.add(processName);
-        }
-    });
+    if (availableProcesses.length === 0) {
+        processSelect.innerHTML = '<option value="">해당 팀에 등록된 프로세스가 없습니다</option>';
+        processSelect.disabled = true;
+        console.warn(`팀 "${selectedTeam}"에 등록된 프로세스가 없습니다.`);
+        return;
+    }
     
-    // 프로세스 드롭다운 채우기 (알파벳 순 정렬)
-    const sortedProcesses = Array.from(availableProcesses).sort();
-    sortedProcesses.forEach(processName => {
+    // 프로세스 드롭다운 채우기 (정의된 순서대로)
+    availableProcesses.forEach(processName => {
         const option = document.createElement('option');
         option.value = processName;
         option.textContent = processName;
@@ -2564,12 +2653,14 @@ function onSAProcessChange() {
         return;
     }
     
-    // 선택된 법인 + 팀 + 프로세스에 맞는 작업자 필터링
+    // 선택된 법인 + 팀에 속한 모든 작업자 표시
+    // (프로세스는 팀에서 정의되므로, 팀의 작업자는 모두 해당 프로세스를 수행할 수 있음)
     const filteredWorkers = workers.filter(worker => {
         if (worker.entity !== selectedEntity) return false;
         if (worker.team !== selectedTeam) return false;
-        const workerProcess = mapPositionToProcess(worker.position);
-        return workerProcess === selectedProcess;
+        // 선택된 팀에 속한 모든 작업자를 표시
+        // position 필드와 프로세스 매칭은 선택 사항으로 처리
+        return true;
     });
     
     // 작업자 이름순 정렬
