@@ -428,17 +428,38 @@ function renderAvgScoreChart() {
     const ctx = document.getElementById('avg-score-chart');
     const data = dashboardData.avg_score_by_process;
     
+    // 법인별로 데이터 그룹화
+    const entityColors = {
+        'CSVN': { bg: 'rgba(59, 130, 246, 0.6)', border: 'rgba(59, 130, 246, 1)' },
+        'CSCN': { bg: 'rgba(34, 197, 94, 0.6)', border: 'rgba(34, 197, 94, 1)' },
+        'CSTW': { bg: 'rgba(168, 85, 247, 0.6)', border: 'rgba(168, 85, 247, 1)' }
+    };
+    
+    // 프로세스 목록 추출 (중복 제거)
+    const processNames = [...new Set(data.map(d => d.process_name))];
+    
+    // 법인별 데이터셋 생성
+    const entities = [...new Set(data.map(d => d.entity).filter(e => e))];
+    const datasets = entities.map(entity => {
+        const entityData = processNames.map(processName => {
+            const item = data.find(d => d.process_name === processName && d.entity === entity);
+            return item ? parseFloat(item.avg_score) : 0;
+        });
+        
+        return {
+            label: entity,
+            data: entityData,
+            backgroundColor: entityColors[entity]?.bg || 'rgba(156, 163, 175, 0.6)',
+            borderColor: entityColors[entity]?.border || 'rgba(156, 163, 175, 1)',
+            borderWidth: 1
+        };
+    });
+    
     currentAvgScoreChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: data.map(d => d.process_name),
-            datasets: [{
-                label: '평균 점수',
-                data: data.map(d => parseFloat(d.avg_score).toFixed(1)),
-                backgroundColor: 'rgba(168, 85, 247, 0.6)',
-                borderColor: 'rgba(168, 85, 247, 1)',
-                borderWidth: 1
-            }]
+            labels: processNames,
+            datasets: datasets
         },
         options: {
             ...CHART_DEFAULTS,

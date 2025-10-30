@@ -99,29 +99,32 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     }
     const written_test_by_process = testByProcessResult.results || []
 
-    // 프로세스별 평균 점수
+    // 프로세스별 평균 점수 (법인별로 구분)
     let avgScoreResult
     if (entity) {
       avgScoreResult = await db.prepare(`
         SELECT 
           p.name as process_name,
+          w.entity,
           COALESCE(AVG(wtr.score), 0) as avg_score
         FROM processes p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
         LEFT JOIN workers w ON wtr.worker_id = w.id
         WHERE w.entity = ? OR w.entity IS NULL
-        GROUP BY p.id, p.name
-        ORDER BY p.id
+        GROUP BY p.id, p.name, w.entity
+        ORDER BY p.id, w.entity
       `).bind(entity).all()
     } else {
       avgScoreResult = await db.prepare(`
         SELECT 
           p.name as process_name,
+          w.entity,
           COALESCE(AVG(wtr.score), 0) as avg_score
         FROM processes p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
-        GROUP BY p.id, p.name
-        ORDER BY p.id
+        LEFT JOIN workers w ON wtr.worker_id = w.id
+        GROUP BY p.id, p.name, w.entity
+        ORDER BY p.id, w.entity
       `).all()
     }
     const avg_score_by_process = avgScoreResult.results || []
