@@ -226,21 +226,89 @@ app.post('/api/workers/bulk', errorHandler(async (c) => {
   const db = c.env.DB
   const workers: Worker[] = await c.req.json()
   
+  let insertedCount = 0
+  let updatedCount = 0
+  
   for (const worker of workers) {
-    await db.prepare(`
-      INSERT OR REPLACE INTO workers (employee_id, name, entity, team, position, start_to_work_date)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(
-      worker.employee_id,
-      worker.name,
-      worker.entity,
-      worker.team,
-      worker.position,
-      worker.start_to_work_date
-    ).run()
+    // 기존 작업자 확인 (employee_id로 검색)
+    const existing = await db.prepare('SELECT id FROM workers WHERE employee_id = ?')
+      .bind(worker.employee_id).first()
+    
+    if (existing) {
+      // 업데이트
+      await db.prepare(`
+        UPDATE workers 
+        SET name = ?, entity = ?, team = ?, position = ?, start_to_work_date = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE employee_id = ?
+      `).bind(
+        worker.name,
+        worker.entity,
+        worker.team,
+        worker.position,
+        worker.start_to_work_date,
+        worker.employee_id
+      ).run()
+      updatedCount++
+    } else {
+      // 새로 삽입
+      await db.prepare(`
+        INSERT INTO workers (employee_id, name, entity, team, position, start_to_work_date)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(
+        worker.employee_id,
+        worker.name,
+        worker.entity,
+        worker.team,
+        worker.position,
+        worker.start_to_work_date
+      ).run()
+      insertedCount++
+    }
   }
 
-  return c.json({ success: true, count: workers.length }, 201)
+  return c.json({ 
+    success: true, 
+    count: workers.length,
+    inserted: insertedCount,
+    updated: updatedCount
+  }, 201)
+}))
+
+// 작업자 수정
+app.put('/api/workers/:id', errorHandler(async (c) => {
+  const db = c.env.DB
+  const workerId = c.req.param('id')
+  const worker: Worker = await c.req.json()
+  
+  await db.prepare(`
+    UPDATE workers 
+    SET employee_id = ?, name = ?, entity = ?, team = ?, position = ?, start_to_work_date = ?
+    WHERE id = ?
+  `).bind(
+    worker.employee_id,
+    worker.name,
+    worker.entity,
+    worker.team,
+    worker.position,
+    worker.start_to_work_date,
+    workerId
+  ).run()
+
+  return c.json({ success: true })
+}))
+
+// 작업자 삭제
+app.delete('/api/workers/:id', errorHandler(async (c) => {
+  const db = c.env.DB
+  const workerId = c.req.param('id')
+  
+  // 관련된 데이터도 함께 삭제
+  await db.prepare('DELETE FROM written_test_results WHERE worker_id = ?').bind(workerId).run()
+  await db.prepare('DELETE FROM written_test_answers WHERE worker_id = ?').bind(workerId).run()
+  await db.prepare('DELETE FROM supervisor_assessments WHERE worker_id = ?').bind(workerId).run()
+  await db.prepare('DELETE FROM workers WHERE id = ?').bind(workerId).run()
+
+  return c.json({ success: true })
 }))
 
 // ==================== Processes CRUD ====================

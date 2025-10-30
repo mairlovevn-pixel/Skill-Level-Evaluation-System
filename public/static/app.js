@@ -1850,6 +1850,7 @@ async function loadWorkerStatus() {
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">팀</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">직책</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">입사일</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
@@ -1871,6 +1872,14 @@ async function loadWorkerStatus() {
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${worker.team}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${worker.position}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${startDate}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            <button onclick="editWorker(${worker.id})" class="text-blue-600 hover:text-blue-900 mr-3">
+                                <i class="fas fa-edit"></i> 수정
+                            </button>
+                            <button onclick="deleteWorker(${worker.id}, '${worker.name}')" class="text-red-600 hover:text-red-900">
+                                <i class="fas fa-trash"></i> 삭제
+                            </button>
+                        </td>
                     </tr>
                 `;
             });
@@ -1908,6 +1917,173 @@ function toggleEntityList(entityId) {
         contentDiv.style.display = 'none';
         chevron.classList.remove('fa-chevron-down');
         chevron.classList.add('fa-chevron-right');
+    }
+}
+
+// 작업자 수정 함수
+async function editWorker(workerId) {
+    try {
+        // 해당 작업자 정보 찾기
+        const worker = workers.find(w => w.id === workerId);
+        if (!worker) {
+            alert('작업자 정보를 찾을 수 없습니다.');
+            return;
+        }
+        
+        // 모달 HTML 생성
+        const modalHTML = `
+            <div id="edit-worker-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onclick="closeEditWorkerModal(event)">
+                <div class="relative top-20 mx-auto p-8 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-lg bg-white" onclick="event.stopPropagation()">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-bold text-gray-900">
+                            <i class="fas fa-user-edit mr-2"></i>
+                            작업자 정보 수정
+                        </h3>
+                        <button onclick="closeEditWorkerModal()" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">사번</label>
+                            <input type="text" id="edit-employee-id" value="${worker.employee_id}" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">이름</label>
+                            <input type="text" id="edit-name" value="${worker.name}" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">법인</label>
+                            <select id="edit-entity" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="CSVN" ${worker.entity === 'CSVN' ? 'selected' : ''}>CSVN</option>
+                                <option value="CSCN" ${worker.entity === 'CSCN' ? 'selected' : ''}>CSCN</option>
+                                <option value="CSTW" ${worker.entity === 'CSTW' ? 'selected' : ''}>CSTW</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">팀</label>
+                            <input type="text" id="edit-team" value="${worker.team}" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">직책 (Position)</label>
+                            <select id="edit-position" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="Cutting" ${worker.position === 'Cutting' ? 'selected' : ''}>Cutting</option>
+                                <option value="Beveling" ${worker.position === 'Beveling' ? 'selected' : ''}>Beveling</option>
+                                <option value="Bending" ${worker.position === 'Bending' ? 'selected' : ''}>Bending</option>
+                                <option value="LS Welding" ${worker.position === 'LS Welding' ? 'selected' : ''}>LS Welding</option>
+                                <option value="Fit Up" ${worker.position === 'Fit Up' || worker.position === 'Fit-up' ? 'selected' : ''}>Fit Up</option>
+                                <option value="CS Welding" ${worker.position === 'CS Welding' ? 'selected' : ''}>CS Welding</option>
+                                <option value="VTMT" ${worker.position === 'VTMT' ? 'selected' : ''}>VTMT</option>
+                                <option value="Bracket FU" ${worker.position === 'Bracket FU' ? 'selected' : ''}>Bracket FU</option>
+                                <option value="Bracket Weld" ${worker.position === 'Bracket Weld' ? 'selected' : ''}>Bracket Weld</option>
+                                <option value="UT repair" ${worker.position === 'UT repair' ? 'selected' : ''}>UT repair</option>
+                                <option value="DF FU" ${worker.position === 'DF FU' ? 'selected' : ''}>DF FU</option>
+                                <option value="DF Weld" ${worker.position === 'DF Weld' ? 'selected' : ''}>DF Weld</option>
+                                <option value="Flatness" ${worker.position === 'Flatness' ? 'selected' : ''}>Flatness</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">입사일</label>
+                            <input type="date" id="edit-start-date" value="${worker.start_to_work_date}" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button onclick="closeEditWorkerModal()" 
+                                class="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold rounded-lg transition">
+                            취소
+                        </button>
+                        <button onclick="saveWorkerEdit(${workerId})" 
+                                class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition">
+                            <i class="fas fa-save mr-2"></i>저장
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 모달 추가
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+    } catch (error) {
+        console.error('작업자 수정 모달 열기 실패:', error);
+        alert('작업자 정보를 불러오는데 실패했습니다.');
+    }
+}
+
+// 수정 모달 닫기
+function closeEditWorkerModal(event) {
+    if (event && event.target.id !== 'edit-worker-modal') return;
+    const modal = document.getElementById('edit-worker-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// 작업자 수정 저장
+async function saveWorkerEdit(workerId) {
+    try {
+        const updatedWorker = {
+            employee_id: document.getElementById('edit-employee-id').value.trim(),
+            name: document.getElementById('edit-name').value.trim(),
+            entity: document.getElementById('edit-entity').value,
+            team: document.getElementById('edit-team').value.trim().toLowerCase(),
+            position: document.getElementById('edit-position').value,
+            start_to_work_date: document.getElementById('edit-start-date').value
+        };
+        
+        // 필수 항목 검증
+        if (!updatedWorker.employee_id || !updatedWorker.name || !updatedWorker.team || !updatedWorker.start_to_work_date) {
+            alert('모든 필수 항목을 입력해주세요.');
+            return;
+        }
+        
+        const response = await axios.put(`/api/workers/${workerId}`, updatedWorker);
+        
+        if (response.data.success) {
+            alert('✅ 작업자 정보가 수정되었습니다.');
+            closeEditWorkerModal();
+            await loadWorkers();
+            await loadWorkerStatus();
+        }
+    } catch (error) {
+        console.error('작업자 수정 실패:', error);
+        alert('작업자 수정에 실패했습니다.\n\n오류: ' + (error.response?.data?.error || error.message));
+    }
+}
+
+// 작업자 삭제
+async function deleteWorker(workerId, workerName) {
+    if (!confirm(`⚠️ "${workerName}" 작업자를 삭제하시겠습니까?\n\n이 작업자와 관련된 모든 시험 결과 및 평가 기록도 함께 삭제됩니다.\n\n이 작업은 되돌릴 수 없습니다.`)) {
+        return;
+    }
+    
+    // 2차 확인
+    if (!confirm(`정말로 "${workerName}" 작업자를 삭제하시겠습니까?`)) {
+        return;
+    }
+    
+    try {
+        const response = await axios.delete(`/api/workers/${workerId}`);
+        
+        if (response.data.success) {
+            alert(`✅ "${workerName}" 작업자가 삭제되었습니다.`);
+            await loadWorkers();
+            await loadWorkerStatus();
+        }
+    } catch (error) {
+        console.error('작업자 삭제 실패:', error);
+        alert('작업자 삭제에 실패했습니다.\n\n오류: ' + (error.response?.data?.error || error.message));
     }
 }
 
