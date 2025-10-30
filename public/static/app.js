@@ -2329,28 +2329,57 @@ function getSupervisorAssessmentHTML() {
                     </select>
                 </div>
                 
-                <!-- 2단계: 프로세스 선택 -->
+                <!-- 2단계: 팀 선택 -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <span class="bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs mr-2">2</span>
-                        프로세스 선택
+                        팀 선택
                     </label>
-                    <select id="sa-process-select" onchange="onSAProcessChange()" 
+                    <select id="sa-team-select" onchange="onSATeamChange()" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
                         <option value="">먼저 법인을 선택하세요</option>
                     </select>
                 </div>
                 
-                <!-- 3단계: 작업자 선택 -->
+                <!-- 3단계: 프로세스 선택 -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <span class="bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs mr-2">3</span>
+                        프로세스 선택
+                    </label>
+                    <select id="sa-process-select" onchange="onSAProcessChange()" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
+                        <option value="">먼저 팀을 선택하세요</option>
+                    </select>
+                </div>
+                
+                <!-- 4단계: 작업자 선택 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <span class="bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs mr-2">4</span>
                         작업자 선택
                     </label>
-                    <select id="sa-worker-select" 
+                    <select id="sa-worker-select" onchange="onSAWorkerChange()"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
                         <option value="">먼저 프로세스를 선택하세요</option>
                     </select>
+                </div>
+                
+                <!-- 이전 평가 이력 표시 -->
+                <div id="sa-history-container" class="hidden">
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                        <div class="flex items-start">
+                            <i class="fas fa-history text-yellow-600 mt-1 mr-3"></i>
+                            <div class="flex-1">
+                                <h4 class="text-sm font-semibold text-yellow-800 mb-2">
+                                    이전 평가 이력
+                                </h4>
+                                <div id="sa-history-content" class="text-sm text-yellow-700">
+                                    <!-- 평가 이력이 여기에 표시됩니다 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- 평가 시작 버튼 -->
@@ -2424,29 +2453,77 @@ async function loadSupervisorAssessmentPage() {
     console.log(`작업자 데이터 로드 완료: ${workers.length}명`);
 }
 
-// 1단계: 법인 선택 시 - 프로세스 필터링
+// 1단계: 법인 선택 시 - 팀 필터링
 function onSAEntityChange() {
     const entitySelect = document.getElementById('sa-entity-select');
+    const teamSelect = document.getElementById('sa-team-select');
     const processSelect = document.getElementById('sa-process-select');
     const workerSelect = document.getElementById('sa-worker-select');
     const selectedEntity = entitySelect.value;
+    
+    // 팀, 프로세스, 작업자 선택 초기화
+    teamSelect.innerHTML = '<option value="">팀을 선택하세요</option>';
+    processSelect.innerHTML = '<option value="">먼저 팀을 선택하세요</option>';
+    workerSelect.innerHTML = '<option value="">먼저 프로세스를 선택하세요</option>';
+    processSelect.disabled = true;
+    workerSelect.disabled = true;
+    
+    if (!selectedEntity) {
+        teamSelect.disabled = true;
+        teamSelect.innerHTML = '<option value="">먼저 법인을 선택하세요</option>';
+        return;
+    }
+    
+    // 선택된 법인의 팀 목록 추출
+    const entityWorkers = workers.filter(w => w.entity === selectedEntity);
+    const availableTeams = new Set();
+    
+    entityWorkers.forEach(worker => {
+        if (worker.team) {
+            availableTeams.add(worker.team);
+        }
+    });
+    
+    // 팀 드롭다운 채우기 (알파벳 순 정렬)
+    const sortedTeams = Array.from(availableTeams).sort();
+    sortedTeams.forEach(team => {
+        const option = document.createElement('option');
+        option.value = team;
+        option.textContent = team;
+        teamSelect.appendChild(option);
+    });
+    
+    // 팀 선택 활성화
+    teamSelect.disabled = false;
+    
+    console.log(`법인 "${selectedEntity}" 선택 완료. 사용 가능한 팀: ${sortedTeams.length}개`);
+}
+
+// 2단계: 팀 선택 시 - 프로세스 필터링
+function onSATeamChange() {
+    const entitySelect = document.getElementById('sa-entity-select');
+    const teamSelect = document.getElementById('sa-team-select');
+    const processSelect = document.getElementById('sa-process-select');
+    const workerSelect = document.getElementById('sa-worker-select');
+    const selectedEntity = entitySelect.value;
+    const selectedTeam = teamSelect.value;
     
     // 프로세스와 작업자 선택 초기화
     processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
     workerSelect.innerHTML = '<option value="">먼저 프로세스를 선택하세요</option>';
     workerSelect.disabled = true;
     
-    if (!selectedEntity) {
+    if (!selectedTeam) {
         processSelect.disabled = true;
-        processSelect.innerHTML = '<option value="">먼저 법인을 선택하세요</option>';
+        processSelect.innerHTML = '<option value="">먼저 팀을 선택하세요</option>';
         return;
     }
     
-    // 선택된 법인에 속한 작업자들의 position을 통해 사용 가능한 프로세스 추출
-    const entityWorkers = workers.filter(w => w.entity === selectedEntity);
+    // 선택된 법인 + 팀의 작업자들의 position을 통해 사용 가능한 프로세스 추출
+    const teamWorkers = workers.filter(w => w.entity === selectedEntity && w.team === selectedTeam);
     const availableProcesses = new Set();
     
-    entityWorkers.forEach(worker => {
+    teamWorkers.forEach(worker => {
         const processName = mapPositionToProcess(worker.position);
         if (processName) {
             availableProcesses.add(processName);
@@ -2465,15 +2542,17 @@ function onSAEntityChange() {
     // 프로세스 선택 활성화
     processSelect.disabled = false;
     
-    console.log(`법인 "${selectedEntity}" 선택 완료. 사용 가능한 프로세스: ${sortedProcesses.length}개`);
+    console.log(`팀 "${selectedTeam}" 선택 완료. 사용 가능한 프로세스: ${sortedProcesses.length}개`);
 }
 
-// 2단계: 프로세스 선택 시 - 작업자 필터링
+// 3단계: 프로세스 선택 시 - 작업자 필터링
 function onSAProcessChange() {
     const entitySelect = document.getElementById('sa-entity-select');
+    const teamSelect = document.getElementById('sa-team-select');
     const processSelect = document.getElementById('sa-process-select');
     const workerSelect = document.getElementById('sa-worker-select');
     const selectedEntity = entitySelect.value;
+    const selectedTeam = teamSelect.value;
     const selectedProcess = processSelect.value;
     
     // 작업자 선택 초기화
@@ -2485,9 +2564,10 @@ function onSAProcessChange() {
         return;
     }
     
-    // 선택된 법인 + 프로세스에 맞는 작업자 필터링
+    // 선택된 법인 + 팀 + 프로세스에 맞는 작업자 필터링
     const filteredWorkers = workers.filter(worker => {
         if (worker.entity !== selectedEntity) return false;
+        if (worker.team !== selectedTeam) return false;
         const workerProcess = mapPositionToProcess(worker.position);
         return workerProcess === selectedProcess;
     });
@@ -2510,6 +2590,65 @@ function onSAProcessChange() {
     }
     
     console.log(`프로세스 "${selectedProcess}" 선택 완료. 필터링된 작업자: ${filteredWorkers.length}명`);
+}
+
+// 4단계: 작업자 선택 시 - 이전 평가 이력 표시
+async function onSAWorkerChange() {
+    const workerSelect = document.getElementById('sa-worker-select');
+    const processSelect = document.getElementById('sa-process-select');
+    const historyContainer = document.getElementById('sa-history-container');
+    const historyContent = document.getElementById('sa-history-content');
+    
+    const workerId = workerSelect.value;
+    const processName = processSelect.value;
+    
+    if (!workerId || !processName) {
+        historyContainer.classList.add('hidden');
+        return;
+    }
+    
+    // 프로세스 이름으로 프로세스 ID 찾기
+    const process = processes.find(p => p.name === processName);
+    if (!process) {
+        historyContainer.classList.add('hidden');
+        return;
+    }
+    
+    try {
+        // 이전 평가 이력 조회
+        const response = await axios.get(`/api/supervisor-assessment-history/${workerId}/${process.id}`);
+        const history = response.data;
+        
+        if (history.length === 0) {
+            historyContent.innerHTML = '<p>이전 평가 이력이 없습니다. 첫 번째 평가를 진행하세요.</p>';
+            historyContainer.classList.remove('hidden');
+        } else {
+            // 최신 평가 정보 표시
+            const latest = history[0];
+            const assessmentDate = new Date(latest.assessment_date).toLocaleDateString('ko-KR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            
+            historyContent.innerHTML = `
+                <div class="space-y-2">
+                    <p><strong>총 평가 횟수:</strong> ${history.length}회</p>
+                    <p><strong>최근 평가일:</strong> ${assessmentDate}</p>
+                    <p><strong>최근 평가 항목 수:</strong> ${latest.total_items}개</p>
+                    <p><strong>최근 평균 레벨:</strong> ${parseFloat(latest.average_level).toFixed(2)}</p>
+                    <p class="mt-3 text-xs text-yellow-600">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        새로운 평가를 진행하면 이전 이력은 보존되고 새 평가가 추가됩니다.
+                    </p>
+                </div>
+            `;
+            historyContainer.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('평가 이력 조회 실패:', error);
+        historyContainer.classList.add('hidden');
+    }
 }
 
 async function startAssessment() {

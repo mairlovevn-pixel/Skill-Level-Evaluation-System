@@ -517,6 +517,32 @@ app.delete('/api/assessment-items/process/:processId', errorHandler(async (c) =>
 // ==================== Supervisor Assessment Results ====================
 
 // Supervisor Assessment 결과 제출
+// 작업자별 평가 이력 조회 (프로세스별)
+app.get('/api/supervisor-assessment-history/:workerId/:processId', errorHandler(async (c) => {
+  const db = c.env.DB
+  const workerId = c.req.param('workerId')
+  const processId = c.req.param('processId')
+  
+  // 해당 작업자의 프로세스별 평가 이력 조회 (최신순)
+  const result = await db.prepare(`
+    SELECT 
+      sa.id,
+      sa.assessment_date,
+      COUNT(DISTINCT sa.item_id) as total_items,
+      AVG(sa.level) as average_level,
+      MAX(sa.level) as max_level,
+      MIN(sa.level) as min_level
+    FROM supervisor_assessments sa
+    JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
+    WHERE sa.worker_id = ? 
+      AND (sai.process_id = ? OR sai.process_id IS NULL)
+    GROUP BY DATE(sa.assessment_date)
+    ORDER BY sa.assessment_date DESC
+  `).bind(workerId, processId).all()
+  
+  return c.json(result.results)
+}))
+
 app.post('/api/supervisor-assessment-results', errorHandler(async (c) => {
   const db = c.env.DB
   const data: any = await c.req.json()
