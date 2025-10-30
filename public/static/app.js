@@ -1997,10 +1997,13 @@ async function uploadWorkers() {
     
     reader.onload = async (e) => {
         try {
+            console.log('📂 파일 읽기 시작...');
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(firstSheet);
+            
+            console.log(`📊 읽은 행 수: ${rows.length}개`);
             
             if (rows.length === 0) {
                 alert('엑셀 파일에 데이터가 없습니다.');
@@ -2009,52 +2012,111 @@ async function uploadWorkers() {
             
             // 첫 번째 행의 컬럼 확인하여 형식 감지
             const firstRow = rows[0];
+            console.log('🔍 첫 번째 행 컬럼:', Object.keys(firstRow));
+            console.log('🔍 첫 번째 데이터 샘플:', firstRow);
+            
             let workers = [];
             
             // 형식 1: No, Entity, Name, Employee ID, Team, Position, Start to work date
             if (firstRow.hasOwnProperty('Entity') && firstRow.hasOwnProperty('Team')) {
-                workers = rows.map(row => ({
-                    employee_id: String(row['Employee ID'] || '').trim(),
-                    name: String(row['Name'] || '').trim(),
-                    entity: String(row['Entity'] || '').trim(),
-                    team: String(row['Team'] || '').trim().toLowerCase(),  // 소문자로 변환
-                    position: String(row['Position'] || '').trim(),
-                    start_to_work_date: convertExcelDate(row['Start to work date'])
-                }));
+                console.log('✅ 형식 1 감지 (Entity, Team 컬럼 존재)');
+                workers = rows.map((row, idx) => {
+                    const worker = {
+                        employee_id: String(row['Employee ID'] || '').trim(),
+                        name: String(row['Name'] || '').trim(),
+                        entity: String(row['Entity'] || '').trim(),
+                        team: String(row['Team'] || '').trim().toLowerCase(),
+                        position: String(row['Position'] || '').trim(),
+                        start_to_work_date: convertExcelDate(row['Start to work date'])
+                    };
+                    
+                    // 처음 3개 데이터 디버깅
+                    if (idx < 3) {
+                        console.log(`📋 행 ${idx + 2} 변환 결과:`, worker);
+                    }
+                    
+                    return worker;
+                });
             }
             // 형식 2: Name, Employee ID, Company, Department, Position, start to work
             else if (firstRow.hasOwnProperty('Company') && firstRow.hasOwnProperty('Department')) {
-                workers = rows.map(row => ({
-                    employee_id: String(row['Employee ID'] || '').trim(),
-                    name: String(row['Name'] || '').trim(),
-                    entity: String(row['Company'] || '').trim(),  // Company -> Entity
-                    team: String(row['Department'] || '').trim().toLowerCase(),  // 소문자로 변환
-                    position: String(row['Position'] || '').trim(),
-                    start_to_work_date: convertExcelDate(row['start to work'])
-                }));
+                console.log('✅ 형식 2 감지 (Company, Department 컬럼 존재)');
+                workers = rows.map((row, idx) => {
+                    const worker = {
+                        employee_id: String(row['Employee ID'] || '').trim(),
+                        name: String(row['Name'] || '').trim(),
+                        entity: String(row['Company'] || '').trim(),
+                        team: String(row['Department'] || '').trim().toLowerCase(),
+                        position: String(row['Position'] || '').trim(),
+                        start_to_work_date: convertExcelDate(row['start to work'])
+                    };
+                    
+                    if (idx < 3) {
+                        console.log(`📋 행 ${idx + 2} 변환 결과:`, worker);
+                    }
+                    
+                    return worker;
+                });
             } else {
-                alert('지원하지 않는 엑셀 파일 형식입니다.\n\n지원 형식:\n1. No, Entity, Name, Employee ID, Team, Position, Start to work date\n2. Name, Employee ID, Company, Department, Position, start to work');
+                const availableColumns = Object.keys(firstRow).join(', ');
+                console.error('❌ 지원하지 않는 형식. 발견된 컬럼:', availableColumns);
+                alert(`지원하지 않는 엑셀 파일 형식입니다.\n\n발견된 컬럼: ${availableColumns}\n\n지원 형식:\n1. No, Entity, Name, Employee ID, Team, Position, Start to work date\n2. Name, Employee ID, Company, Department, Position, start to work`);
                 return;
             }
+            
+            console.log(`✅ 총 ${workers.length}개 데이터 변환 완료`);
             
             // 필수 항목 검증
             for (let i = 0; i < workers.length; i++) {
                 const worker = workers[i];
-                if (!worker.employee_id || !worker.name || !worker.entity || 
-                    !worker.team || !worker.position || !worker.start_to_work_date) {
-                    alert(`${i + 2}번째 행에 필수 항목이 누락되었습니다.\n누락된 항목을 확인해주세요.`);
+                const missingFields = [];
+                
+                if (!worker.employee_id) missingFields.push('사번');
+                if (!worker.name) missingFields.push('이름');
+                if (!worker.entity) missingFields.push('법인');
+                if (!worker.team) missingFields.push('팀');
+                if (!worker.position) missingFields.push('직책');
+                if (!worker.start_to_work_date) missingFields.push('입사일');
+                
+                if (missingFields.length > 0) {
+                    console.error(`❌ 행 ${i + 2} 검증 실패:`, worker);
+                    alert(`${i + 2}번째 행에 필수 항목이 누락되었습니다.\n\n누락된 항목: ${missingFields.join(', ')}\n\n해당 행 데이터:\n사번: ${worker.employee_id}\n이름: ${worker.name}\n법인: ${worker.entity}\n팀: ${worker.team}\n직책: ${worker.position}\n입사일: ${worker.start_to_work_date}`);
                     return;
                 }
             }
             
+            console.log('✅ 필수 항목 검증 통과');
+            console.log('📤 API 전송 시작...', workers.slice(0, 2)); // 처음 2개만 로그
+            
             const response = await axios.post('/api/workers/bulk', workers);
-            alert(`${response.data.count}명의 작업자가 성공적으로 등록되었습니다.`);
+            
+            console.log('🎉 업로드 성공:', response.data);
+            alert(`✅ ${response.data.count}명의 작업자가 성공적으로 등록되었습니다.`);
+            
             fileInput.value = '';
-            await loadWorkers(); // 작업자 목록 새로고침
-            await loadWorkerStatus(); // 현황 새로고침
+            await loadWorkers();
+            await loadWorkerStatus();
         } catch (error) {
-            console.error('작업자 업로드 실패:', error);
-            alert('작업자 업로드에 실패했습니다.\n\n오류: ' + (error.response?.data?.error || error.message));
+            console.error('❌ 작업자 업로드 실패:', error);
+            console.error('에러 상세:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            });
+            
+            let errorMessage = '작업자 업로드에 실패했습니다.\n\n';
+            
+            if (error.response?.status === 500) {
+                errorMessage += '서버 오류가 발생했습니다.\n';
+                errorMessage += `상세: ${error.response.data?.error || '알 수 없는 오류'}`;
+            } else if (error.response?.status === 400) {
+                errorMessage += '잘못된 데이터 형식입니다.\n';
+                errorMessage += `상세: ${error.response.data?.error || '데이터 형식을 확인해주세요'}`;
+            } else {
+                errorMessage += `오류: ${error.message}`;
+            }
+            
+            alert(errorMessage);
         }
     };
     
