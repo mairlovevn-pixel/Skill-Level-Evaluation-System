@@ -2123,10 +2123,18 @@ async function uploadAssessmentItems() {
             // 헤더 없이 전체 데이터를 가져옴 (range 사용)
             const sheetData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
             
+            console.log('📋 엑셀 헤더:', sheetData[0]);
+            console.log('📋 첫 번째 데이터 행:', sheetData[1]);
+            
             let items = [];
             
             // 형식 1: No., 팀, 프로세스, Lv 카테고리, 평가항목 (신규 형식)
-            if (sheetData[0] && (sheetData[0].includes('No.') || sheetData[0].includes('프로세스')) && sheetData[0].includes('Lv 카테고리')) {
+            const hasNoOrProcess = sheetData[0] && (sheetData[0].includes('No.') || sheetData[0].includes('프로세스'));
+            const hasLvCategory = sheetData[0] && sheetData[0].includes('Lv 카테고리');
+            console.log('🔍 형식 1 조건:', { hasNoOrProcess, hasLvCategory });
+            
+            if (hasNoOrProcess && hasLvCategory) {
+                console.log('✅ 형식 1 감지: 프로세스 포함 형식');
                 // 먼저 프로세스 목록 가져오기
                 const processesResponse = await axios.get('/api/processes');
                 const processes = processesResponse.data;
@@ -2186,6 +2194,7 @@ async function uploadAssessmentItems() {
             }
             // 형식 2: Category, Item Name, Description (일반적인 형식)
             else if (sheetData[0] && sheetData[0].includes('Category')) {
+                console.log('✅ 형식 2 감지: Category 형식');
                 const rows = XLSX.utils.sheet_to_json(firstSheet);
                 items = rows.map(row => ({
                     process_id: null,
@@ -2196,6 +2205,7 @@ async function uploadAssessmentItems() {
             }
             // 형식 3: Level2, Level3, Level4 형식 (Cutting.xlsx)
             else if (sheetData[1] && (sheetData[1].includes('Level2') || sheetData[1].includes('Level3') || sheetData[1].includes('Level4'))) {
+                console.log('✅ 형식 3 감지: Level 컬럼 형식');
                 const processSelect = document.getElementById('assessment-process-select');
                 const processId = processSelect.value;
                 
