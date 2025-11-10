@@ -1175,12 +1175,12 @@ async function uploadQuizzes() {
             if (firstRow.hasOwnProperty('Process ID') && firstRow.hasOwnProperty('Question')) {
                 quizzes = rows.map(row => ({
                     process_id: row['Process ID'],
-                    question: row['Question'],
-                    option_a: row['Option A'],
-                    option_b: row['Option B'],
-                    option_c: row['Option C'] || '',
-                    option_d: row['Option D'] || '',
-                    correct_answer: row['Correct Answer']
+                    question: (row['Question'] || '').toString().trim(),
+                    option_a: (row['Option A'] || '').toString().trim(),
+                    option_b: (row['Option B'] || '').toString().trim(),
+                    option_c: (row['Option C'] || '').toString().trim(),
+                    option_d: (row['Option D'] || '').toString().trim(),
+                    correct_answer: (row['Correct Answer'] || '').toString().trim().toUpperCase()
                 }));
             }
             // 형식 2: 프로세스, 번호, 질문, 1), 2), 3), 4), 정답
@@ -1241,11 +1241,11 @@ async function uploadQuizzes() {
                     
                     return {
                         process_id: processId,
-                        question: row['질문'],
-                        option_a: row['1)'] || '',
-                        option_b: row['2)'] || '',
-                        option_c: row['3)'] || '',
-                        option_d: row['4)'] || '',
+                        question: (row['질문'] || '').toString().trim(),
+                        option_a: (row['1)'] || '').toString().trim(),
+                        option_b: (row['2)'] || '').toString().trim(),
+                        option_c: (row['3)'] || '').toString().trim(),
+                        option_d: (row['4)'] || '').toString().trim(),
                         correct_answer: correctAnswer
                     };
                 }).filter(q => q.process_id); // process_id가 없는 것은 제외
@@ -1274,11 +1274,11 @@ async function uploadQuizzes() {
                     
                     return {
                         process_id: parseInt(processId),
-                        question: row['질문'],
-                        option_a: row['1)'] || '',
-                        option_b: row['2)'] || '',
-                        option_c: row['3)'] || '',
-                        option_d: row['4)'] || '',
+                        question: (row['질문'] || '').toString().trim(),
+                        option_a: (row['1)'] || '').toString().trim(),
+                        option_b: (row['2)'] || '').toString().trim(),
+                        option_c: (row['3)'] || '').toString().trim(),
+                        option_d: (row['4)'] || '').toString().trim(),
                         correct_answer: correctAnswer
                     };
                 });
