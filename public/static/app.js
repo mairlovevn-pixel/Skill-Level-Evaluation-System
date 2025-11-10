@@ -2134,31 +2134,55 @@ async function uploadAssessmentItems() {
                 // 프로세스 이름 매핑 (대소문자 구분 없이)
                 const processMap = {};
                 processes.forEach(p => {
-                    processMap[p.name.toUpperCase().trim()] = p.id;
-                    // Material Handling 별칭 추가
-                    if (p.name === 'Material Handling') {
-                        processMap['MATERIAL HANDLING'] = p.id;
-                    }
+                    const normalizedName = p.name.toUpperCase().trim();
+                    processMap[normalizedName] = p.id;
+                    // 공백/언더스코어 변형도 추가
+                    processMap[normalizedName.replace(/\s+/g, '_')] = p.id;
+                    processMap[normalizedName.replace(/_/g, ' ')] = p.id;
                 });
                 
                 const rows = XLSX.utils.sheet_to_json(firstSheet);
                 
+                console.log(`📊 총 ${rows.length}개 행 발견`);
+                
+                let successCount = 0;
+                let skipCount = 0;
+                
                 for (const row of rows) {
-                    const processName = (row['프로세스'] || '').toString().trim().toUpperCase();
-                    const processId = processMap[processName];
+                    const rawProcessName = (row['프로세스'] || '').toString().trim();
+                    const processName = rawProcessName.toUpperCase();
+                    let processId = processMap[processName];
+                    
+                    // 공백/언더스코어 변형 시도
+                    if (!processId) {
+                        processId = processMap[processName.replace(/\s+/g, '_')] || processMap[processName.replace(/_/g, ' ')];
+                    }
                     
                     if (!processId) {
-                        console.warn(`프로세스를 찾을 수 없음: ${row['프로세스']}`);
+                        console.warn(`⚠️ 프로세스를 찾을 수 없음: "${rawProcessName}"`);
+                        skipCount++;
+                        continue;
+                    }
+                    
+                    const category = row['Lv 카테고리'] || row['Category'] || '';
+                    const itemName = row['평가항목'] || row['Item Name'] || '';
+                    
+                    if (!category || !itemName) {
+                        console.warn(`⚠️ 필수 필드 누락 - Category: "${category}", Item: "${itemName}"`);
+                        skipCount++;
                         continue;
                     }
                     
                     items.push({
                         process_id: processId,
-                        category: row['Lv 카테고리'] || row['Category'],
-                        item_name: row['평가항목'] || row['Item Name'],
+                        category: category,
+                        item_name: itemName,
                         description: row['설명'] || row['Description'] || ''
                     });
+                    successCount++;
                 }
+                
+                console.log(`✅ 성공: ${successCount}개, ⚠️ 건너뜀: ${skipCount}개`);
             }
             // 형식 2: Category, Item Name, Description (일반적인 형식)
             else if (sheetData[0] && sheetData[0].includes('Category')) {
