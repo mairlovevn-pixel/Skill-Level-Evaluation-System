@@ -653,9 +653,13 @@ function onAssessmentTeamChange() {
 }
 
 function updateDashboardStats() {
-    document.getElementById('total-workers').textContent = dashboardData.total_workers;
-    document.getElementById('test-takers').textContent = dashboardData.written_test_takers;
-    document.getElementById('test-passed').textContent = dashboardData.written_test_passed;
+    const totalWorkersEl = document.getElementById('total-workers');
+    const testTakersEl = document.getElementById('test-takers');
+    const testPassedEl = document.getElementById('test-passed');
+    
+    if (totalWorkersEl) totalWorkersEl.textContent = dashboardData.total_workers;
+    if (testTakersEl) testTakersEl.textContent = dashboardData.written_test_takers;
+    if (testPassedEl) testPassedEl.textContent = dashboardData.written_test_passed;
 }
 
 // 법인 필터 (전체 대시보드에 영향)
@@ -1179,13 +1183,80 @@ async function uploadQuizzes() {
                     correct_answer: row['Correct Answer']
                 }));
             }
-            // 형식 2: 번호, 질문, 1), 2), 3), 4), 정답
+            // 형식 2: 프로세스, 번호, 질문, 1), 2), 3), 4), 정답
+            else if (firstRow.hasOwnProperty('프로세스') && firstRow.hasOwnProperty('질문')) {
+                // 프로세스 이름 매핑 (축약형 -> 전체 이름)
+                const processNameMap = {
+                    'MATERIAL HANDLING': 'Material Handling',
+                    'CUTTING': 'Cutting',
+                    'BEVELING': 'Beveling',
+                    'BENDING': 'Bending',
+                    'LS WELDING': 'LS Welding',
+                    'FIT UP': 'Fit Up',
+                    'CS WELDING': 'CS Welding',
+                    'VTMT': 'VTMT',
+                    'BRACKET FU': 'Bracket FU',
+                    'BRK FU': 'Bracket FU',  // 축약형 지원
+                    'BRACKET WELD': 'Bracket Weld',
+                    'BRK WELD': 'Bracket Weld',  // 축약형 지원
+                    'UT REPAIR': 'UT repair',
+                    'DF FU': 'DF FU',
+                    'DF WELD': 'DF Weld',
+                    'FLATNESS': 'Flatness',
+                    'DRILLING': 'Drilling'
+                };
+                
+                // 프로세스 ID 매핑 생성
+                const processIdMap = {};
+                processes.forEach(p => {
+                    const upperName = p.name.toUpperCase();
+                    processIdMap[upperName] = p.id;
+                });
+                
+                quizzes = rows.map(row => {
+                    // 프로세스 이름 가져오기 및 정규화
+                    let processName = (row['프로세스'] || '').toString().trim().toUpperCase();
+                    
+                    // 매핑 테이블에서 전체 이름 찾기
+                    if (processNameMap[processName]) {
+                        processName = processNameMap[processName].toUpperCase();
+                    }
+                    
+                    const processId = processIdMap[processName];
+                    
+                    if (!processId) {
+                        console.warn(`프로세스를 찾을 수 없음: ${row['프로세스']}`);
+                    }
+                    
+                    // 정답 매핑: A/B/C/D 형식으로 변환
+                    let correctAnswer = row['정답'];
+                    if (correctAnswer && typeof correctAnswer === 'string') {
+                        correctAnswer = correctAnswer.trim().toUpperCase();
+                        // 만약 정답이 숫자면 변환 (1->A, 2->B, 3->C, 4->D)
+                        if (['1', '2', '3', '4'].includes(correctAnswer)) {
+                            const mapping = {'1': 'A', '2': 'B', '3': 'C', '4': 'D'};
+                            correctAnswer = mapping[correctAnswer];
+                        }
+                    }
+                    
+                    return {
+                        process_id: processId,
+                        question: row['질문'],
+                        option_a: row['1)'] || '',
+                        option_b: row['2)'] || '',
+                        option_c: row['3)'] || '',
+                        option_d: row['4)'] || '',
+                        correct_answer: correctAnswer
+                    };
+                }).filter(q => q.process_id); // process_id가 없는 것은 제외
+            }
+            // 형식 3: 번호, 질문, 1), 2), 3), 4), 정답 (프로세스 선택 필요)
             else if (firstRow.hasOwnProperty('번호') && firstRow.hasOwnProperty('질문')) {
                 const processSelect = document.getElementById('quiz-process-select');
                 const processId = processSelect.value;
                 
                 if (!processId) {
-                    alert('프로세스를 선택해주세요. (형식 2 사용 시 필수)');
+                    alert('프로세스를 선택해주세요. (형식 3 사용 시 필수)');
                     return;
                 }
                 
@@ -1212,7 +1283,7 @@ async function uploadQuizzes() {
                     };
                 });
             } else {
-                alert('지원하지 않는 엑셀 파일 형식입니다.\n\n지원 형식:\n1. Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer\n2. 번호, 질문, 1), 2), 3), 4), 정답');
+                alert('지원하지 않는 엑셀 파일 형식입니다.\n\n지원 형식:\n1. Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer\n2. 프로세스, 번호, 질문, 1), 2), 3), 4), 정답\n3. 번호, 질문, 1), 2), 3), 4), 정답 (프로세스 선택 필요)');
                 return;
             }
             
