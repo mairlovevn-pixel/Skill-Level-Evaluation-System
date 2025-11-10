@@ -222,6 +222,37 @@ async function loadProcesses() {
     try {
         const response = await axios.get('/api/processes');
         processes = response.data;
+        
+        // 지정된 순서대로 정렬
+        const order = [
+            'Material Handling',
+            'Cutting',
+            'Beveling',
+            'Bending',
+            'LS Welding',
+            'Fit Up',
+            'CS Welding',
+            'VTMT',
+            'Bracket FU',
+            'Bracket Weld',
+            'UT repair',
+            'DF FU',
+            'DF Weld',
+            'Flatness',
+            'Drilling'
+        ];
+        
+        processes.sort((a, b) => {
+            const indexA = order.indexOf(a.name);
+            const indexB = order.indexOf(b.name);
+            
+            // 순서에 없는 항목은 맨 뒤로
+            if (indexA === -1 && indexB === -1) return 0;
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            
+            return indexA - indexB;
+        });
     } catch (error) {
         console.error('프로세스 로드 실패:', error);
     }
@@ -364,10 +395,13 @@ async function loadDashboard() {
         allDashboardData = response.data;
         dashboardData = response.data;
         
-        // 팀 목록 및 팀-프로세스 매핑 가져오기
+        // 테스트 결과가 있는 팀 목록만 가져오기
+        const teamsResponse = await axios.get('/api/teams');
+        const teams = teamsResponse.data;
+        
+        // 팀-프로세스 매핑을 위해 작업자 정보 가져오기
         const workersResponse = await axios.get('/api/workers');
         const workers = workersResponse.data;
-        const teams = [...new Set(workers.map(w => w.team).filter(t => t))].sort();
         
         // 팀별로 사용하는 프로세스(position) 매핑 생성
         teamProcessMapping = {};
@@ -639,6 +673,18 @@ async function filterDashboardByEntity() {
         const response = await axios.get(url);
         dashboardData = response.data;
         
+        // 법인에 따른 팀 목록 업데이트
+        let teamsUrl = '/api/teams';
+        if (selectedEntity) {
+            teamsUrl += `?entity=${selectedEntity}`;
+        }
+        const teamsResponse = await axios.get(teamsUrl);
+        const teams = teamsResponse.data;
+        
+        // 팀 셀렉트 박스 업데이트
+        populateTeamSelect('avg-score-team-select', teams);
+        populateTeamSelect('assessment-team-select', teams);
+        
         // 차트가 이미 있으면 삭제
         if (currentTestStatusChart) {
             currentTestStatusChart.destroy();
@@ -907,11 +953,14 @@ function renderAssessmentChart() {
 // ==================== Quiz 등록 페이지 ====================
 
 async function loadQuizUploadPage() {
-    // 프로세스 목록 로드
+    // 프로세스 목록 로드 (Drilling 제외)
     const processSelect = document.getElementById('quiz-process-select');
     if (processSelect) {
         processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
         processes.forEach(process => {
+            // Drilling은 Quiz에서 제외
+            if (process.name === 'Drilling') return;
+            
             const option = document.createElement('option');
             option.value = process.id;
             option.textContent = process.name;
@@ -959,6 +1008,9 @@ async function loadQuizStatus() {
         `;
         
         processes.forEach(process => {
+            // Drilling은 Quiz에서 제외
+            if (process.name === 'Drilling') return;
+            
             const count = quizCounts[process.id] || 0;
             const latestDate = latestDates[process.id];
             const dateStr = latestDate ? latestDate.toLocaleDateString('ko-KR') : '-';
@@ -1816,8 +1868,43 @@ async function uploadAssessmentItems() {
             
             let items = [];
             
-            // 형식 1: Category, Item Name, Description (일반적인 형식)
-            if (sheetData[0] && sheetData[0].includes('Category')) {
+            // 형식 1: No., 팀, 프로세스, Lv 카테고리, 평가항목 (신규 형식)
+            if (sheetData[0] && (sheetData[0].includes('No.') || sheetData[0].includes('프로세스')) && sheetData[0].includes('Lv 카테고리')) {
+                // 먼저 프로세스 목록 가져오기
+                const processesResponse = await axios.get('/api/processes');
+                const processes = processesResponse.data;
+                
+                // 프로세스 이름 매핑 (대소문자 구분 없이)
+                const processMap = {};
+                processes.forEach(p => {
+                    processMap[p.name.toUpperCase().trim()] = p.id;
+                    // Material Handling 별칭 추가
+                    if (p.name === 'Material Handling') {
+                        processMap['MATERIAL HANDLING'] = p.id;
+                    }
+                });
+                
+                const rows = XLSX.utils.sheet_to_json(firstSheet);
+                
+                for (const row of rows) {
+                    const processName = (row['프로세스'] || '').toString().trim().toUpperCase();
+                    const processId = processMap[processName];
+                    
+                    if (!processId) {
+                        console.warn(`프로세스를 찾을 수 없음: ${row['프로세스']}`);
+                        continue;
+                    }
+                    
+                    items.push({
+                        process_id: processId,
+                        category: row['Lv 카테고리'] || row['Category'],
+                        item_name: row['평가항목'] || row['Item Name'],
+                        description: row['설명'] || row['Description'] || ''
+                    });
+                }
+            }
+            // 형식 2: Category, Item Name, Description (일반적인 형식)
+            else if (sheetData[0] && sheetData[0].includes('Category')) {
                 const rows = XLSX.utils.sheet_to_json(firstSheet);
                 items = rows.map(row => ({
                     process_id: null,
@@ -1826,13 +1913,13 @@ async function uploadAssessmentItems() {
                     description: row['Description'] || ''
                 }));
             }
-            // 형식 2: Level2, Level3, Level4 형식 (Cutting.xlsx)
+            // 형식 3: Level2, Level3, Level4 형식 (Cutting.xlsx)
             else if (sheetData[1] && (sheetData[1].includes('Level2') || sheetData[1].includes('Level3') || sheetData[1].includes('Level4'))) {
                 const processSelect = document.getElementById('assessment-process-select');
                 const processId = processSelect.value;
                 
                 if (!processId) {
-                    alert('프로세스를 선택해주세요. (형식 2 사용 시 필수)');
+                    alert('프로세스를 선택해주세요. (형식 3 사용 시 필수)');
                     return;
                 }
                 
@@ -1856,7 +1943,7 @@ async function uploadAssessmentItems() {
                     }
                 }
             } else {
-                alert('지원하지 않는 엑셀 파일 형식입니다.\n\n지원 형식:\n1. Category, Item Name, Description\n2. Level2, Level3, Level4 컬럼 형식 (Cutting.xlsx)');
+                alert('지원하지 않는 엑셀 파일 형식입니다.\n\n지원 형식:\n1. No., 팀, 프로세스, Lv 카테고리, 평가항목\n2. Category, Item Name, Description\n3. Level2, Level3, Level4 컬럼 형식');
                 return;
             }
             
@@ -1885,7 +1972,17 @@ async function uploadAssessmentItems() {
 // ==================== 작업자 등록 페이지 ====================
 
 async function loadWorkerUploadPage() {
-    // 등록된 작업자 현황 로드
+    // DB에서 최신 작업자 목록 조회
+    try {
+        const response = await axios.get('/api/workers');
+        workers = response.data; // 전역 workers 변수 갱신
+        console.log(`✅ 작업자 목록 로드 완료: ${workers.length}명`);
+    } catch (error) {
+        console.error('❌ 작업자 목록 로드 실패:', error);
+        workers = []; // 오류 시 빈 배열로 초기화
+    }
+    
+    // 등록된 작업자 현황 표시
     await loadWorkerStatus();
 }
 
@@ -1917,6 +2014,10 @@ async function loadWorkerStatus() {
             const entityWorkers = byEntity[entity];
             const entityId = entity.replace(/\s+/g, '-'); // 공백을 하이픈으로 변경하여 ID 생성
             
+            // 해당 법인의 고유한 팀/직책 목록 추출
+            const uniqueTeams = [...new Set(entityWorkers.map(w => w.team))].sort();
+            const uniquePositions = [...new Set(entityWorkers.map(w => w.position))].sort();
+            
             tableHTML += `
                 <div class="border border-gray-200 rounded-lg overflow-hidden">
                     <!-- 클릭 가능한 헤더 -->
@@ -1933,6 +2034,61 @@ async function loadWorkerStatus() {
                     
                     <!-- 접을 수 있는 테이블 컨텐츠 -->
                     <div id="entity-${entityId}" class="entity-content">
+                        <!-- 필터 영역 -->
+                        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                                <!-- 팀 필터 -->
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">팀</label>
+                                    <select id="filter-team-${entityId}" onchange="applyWorkerFilter('${entityId}')"
+                                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                        <option value="">전체</option>
+                                        ${uniqueTeams.map(team => `<option value="${team}">${team}</option>`).join('')}
+                                    </select>
+                                </div>
+                                
+                                <!-- 직책 필터 -->
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">직책</label>
+                                    <select id="filter-position-${entityId}" onchange="applyWorkerFilter('${entityId}')"
+                                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                        <option value="">전체</option>
+                                        ${uniquePositions.map(pos => `<option value="${pos}">${pos}</option>`).join('')}
+                                    </select>
+                                </div>
+                                
+                                <!-- 입사일 시작 -->
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">입사일 (시작)</label>
+                                    <input type="date" id="filter-date-start-${entityId}" onchange="applyWorkerFilter('${entityId}')"
+                                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                
+                                <!-- 입사일 종료 -->
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">입사일 (종료)</label>
+                                    <input type="date" id="filter-date-end-${entityId}" onchange="applyWorkerFilter('${entityId}')"
+                                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                
+                                <!-- 검색 -->
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">이름/사번 검색</label>
+                                    <input type="text" id="filter-search-${entityId}" oninput="applyWorkerFilter('${entityId}')"
+                                           placeholder="검색어 입력"
+                                           class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                            
+                            <!-- 필터 초기화 버튼 -->
+                            <div class="mt-3 text-right">
+                                <button onclick="resetWorkerFilter('${entityId}')" 
+                                        class="px-4 py-2 text-xs text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                                    <i class="fas fa-redo mr-1"></i>필터 초기화
+                                </button>
+                            </div>
+                        </div>
+                        
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
@@ -1957,7 +2113,13 @@ async function loadWorkerStatus() {
             entityWorkers.forEach(worker => {
                 const startDate = new Date(worker.start_to_work_date).toLocaleDateString('ko-KR');
                 tableHTML += `
-                    <tr>
+                    <tr class="worker-row" 
+                        data-entity-id="${entityId}"
+                        data-team="${worker.team}" 
+                        data-position="${worker.position}" 
+                        data-date="${worker.start_to_work_date}"
+                        data-name="${worker.name.toLowerCase()}"
+                        data-employee-id="${worker.employee_id.toLowerCase()}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${worker.name}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${worker.employee_id}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${worker.team}</td>
@@ -2009,6 +2171,71 @@ function toggleEntityList(entityId) {
         chevron.classList.remove('fa-chevron-down');
         chevron.classList.add('fa-chevron-right');
     }
+}
+
+// 작업자 필터 적용 함수
+function applyWorkerFilter(entityId) {
+    // 필터 값 가져오기
+    const teamFilter = document.getElementById(`filter-team-${entityId}`).value.toLowerCase();
+    const positionFilter = document.getElementById(`filter-position-${entityId}`).value.toLowerCase();
+    const dateStartFilter = document.getElementById(`filter-date-start-${entityId}`).value;
+    const dateEndFilter = document.getElementById(`filter-date-end-${entityId}`).value;
+    const searchFilter = document.getElementById(`filter-search-${entityId}`).value.toLowerCase();
+    
+    // 해당 법인의 모든 작업자 행 가져오기
+    const rows = document.querySelectorAll(`tr.worker-row[data-entity-id="${entityId}"]`);
+    
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const team = row.dataset.team.toLowerCase();
+        const position = row.dataset.position.toLowerCase();
+        const date = row.dataset.date;
+        const name = row.dataset.name;
+        const employeeId = row.dataset.employeeId;
+        
+        // 각 필터 조건 확인
+        const teamMatch = !teamFilter || team === teamFilter;
+        const positionMatch = !positionFilter || position === positionFilter;
+        const searchMatch = !searchFilter || name.includes(searchFilter) || employeeId.includes(searchFilter);
+        
+        // 날짜 범위 확인
+        let dateMatch = true;
+        if (dateStartFilter || dateEndFilter) {
+            const workerDate = new Date(date);
+            if (dateStartFilter) {
+                const startDate = new Date(dateStartFilter);
+                if (workerDate < startDate) dateMatch = false;
+            }
+            if (dateEndFilter) {
+                const endDate = new Date(dateEndFilter);
+                if (workerDate > endDate) dateMatch = false;
+            }
+        }
+        
+        // 모든 조건을 만족하면 표시, 아니면 숨김
+        if (teamMatch && positionMatch && dateMatch && searchMatch) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    console.log(`필터 적용 완료: ${visibleCount}명 표시 (법인: ${entityId})`);
+}
+
+// 작업자 필터 초기화 함수
+function resetWorkerFilter(entityId) {
+    // 필터 값 초기화
+    document.getElementById(`filter-team-${entityId}`).value = '';
+    document.getElementById(`filter-position-${entityId}`).value = '';
+    document.getElementById(`filter-date-start-${entityId}`).value = '';
+    document.getElementById(`filter-date-end-${entityId}`).value = '';
+    document.getElementById(`filter-search-${entityId}`).value = '';
+    
+    // 필터 적용 (모든 행 표시)
+    applyWorkerFilter(entityId);
 }
 
 // 작업자 수정 함수
@@ -3551,9 +3778,6 @@ function getTestPageHTML() {
                     <label class="block text-gray-700 font-semibold mb-2">법인 선택</label>
                     <select id="entity-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterWorkersByEntity()">
                         <option value="">법인을 선택하세요</option>
-                        <option value="CSVN">CSVN</option>
-                        <option value="CSCN">CSCN</option>
-                        <option value="CSTW">CSTW</option>
                     </select>
                 </div>
                 
@@ -3588,6 +3812,45 @@ function getTestPageHTML() {
                 </button>
             </div>
         </div>
+        
+        <!-- Written Test 결과 등록 섹션 -->
+        <div class="bg-white rounded-lg shadow-md p-8 mt-6">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                <i class="fas fa-file-excel mr-2"></i>
+                Written Test 결과 등록
+            </h2>
+            
+            <div class="mb-6">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                    <p class="text-sm text-blue-700 mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>엑셀 파일 형식:</strong> No., 사번, 이름, 법인, 팀, 직급, 프로세스, 문제, 선택답안, 정답, 정답여부, 시험일자
+                    </p>
+                    <p class="text-sm text-blue-700">
+                        <i class="fas fa-lightbulb mr-2"></i>
+                        기존에 진행한 Written Test 결과를 일괄 등록할 수 있습니다.
+                    </p>
+                </div>
+                
+                <label class="block text-gray-700 font-semibold mb-2">
+                    엑셀 파일 선택
+                </label>
+                <input type="file" id="test-result-file" accept=".xlsx,.xls" 
+                       class="block w-full text-sm text-gray-500
+                              file:mr-4 file:py-2 file:px-4
+                              file:rounded-lg file:border-0
+                              file:text-sm file:font-semibold
+                              file:bg-green-50 file:text-green-700
+                              hover:file:bg-green-100
+                              cursor-pointer">
+            </div>
+            
+            <button onclick="uploadTestResults()" 
+                    class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
+                <i class="fas fa-upload mr-2"></i>
+                결과 업로드
+            </button>
+        </div>
     `;
 }
 
@@ -3595,14 +3858,51 @@ let currentQuizzes = [];
 let selectedAnswers = {};
 
 async function loadTestPage() {
-    // 프로세스 목록 로드
+    // 법인 목록 로드 (작업자 DB에서 고유한 법인 추출)
+    const entitySelect = document.getElementById('entity-select');
+    if (entitySelect && workers.length > 0) {
+        // 고유한 법인 목록 추출 및 정렬
+        const uniqueEntities = [...new Set(workers.map(w => w.entity))].sort();
+        
+        uniqueEntities.forEach(entity => {
+            const option = document.createElement('option');
+            option.value = entity;
+            option.textContent = entity;
+            entitySelect.appendChild(option);
+        });
+    }
+    
+    // 프로세스 목록 로드 (Drilling 제외, Quiz가 있는 프로세스만)
     const processSelect = document.getElementById('process-select');
-    processes.forEach(process => {
-        const option = document.createElement('option');
-        option.value = process.id;
-        option.textContent = process.name;
-        processSelect.appendChild(option);
-    });
+    if (processSelect) {
+        // Quiz가 등록된 프로세스 확인
+        const processesWithQuiz = [];
+        
+        for (const process of processes) {
+            // Drilling 제외
+            if (process.name === 'Drilling') continue;
+            
+            try {
+                const response = await axios.get(`/api/quizzes/${process.id}`);
+                if (response.data.length > 0) {
+                    processesWithQuiz.push(process);
+                }
+            } catch (error) {
+                console.error(`프로세스 ${process.name} Quiz 확인 실패:`, error);
+            }
+        }
+        
+        processesWithQuiz.forEach(process => {
+            const option = document.createElement('option');
+            option.value = process.id;
+            option.textContent = process.name;
+            processSelect.appendChild(option);
+        });
+        
+        if (processesWithQuiz.length === 0) {
+            processSelect.innerHTML += '<option value="" disabled>등록된 Quiz가 없습니다</option>';
+        }
+    }
 }
 
 function filterWorkersByEntity() {
@@ -3766,6 +4066,101 @@ async function submitTest() {
         console.error('시험 결과 제출 실패:', error);
         alert('시험 결과 제출에 실패했습니다.');
     }
+}
+
+// Written Test 결과 일괄 업로드
+async function uploadTestResults() {
+    const fileInput = document.getElementById('test-result-file');
+    if (!fileInput.files.length) {
+        alert('파일을 선택해주세요.');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    
+    reader.onload = async (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(firstSheet);
+            
+            console.log('📊 업로드된 행 수:', rows.length);
+            console.log('📄 첫 번째 행:', rows[0]);
+            
+            if (rows.length === 0) {
+                alert('엑셀 파일에 데이터가 없습니다.');
+                return;
+            }
+            
+            // 프로세스 매핑 (대소문자 구분 없이)
+            const processesResponse = await axios.get('/api/processes');
+            const processMap = {};
+            processesResponse.data.forEach(p => {
+                processMap[p.name.toUpperCase().trim()] = p.id;
+            });
+            
+            // 작업자 매핑 (사번 기준)
+            const workersResponse = await axios.get('/api/workers');
+            const workerMap = {};
+            workersResponse.data.forEach(w => {
+                workerMap[w.employee_id.toString()] = w.id;
+            });
+            
+            // 결과 데이터 변환
+            const results = rows.map(row => {
+                const employeeId = row['사번']?.toString();
+                const processName = (row['프로세스'] || '').toString().trim().toUpperCase();
+                const workerId = workerMap[employeeId];
+                const processId = processMap[processName];
+                
+                if (!workerId) {
+                    console.warn(`작업자를 찾을 수 없음: 사번 ${employeeId}`);
+                }
+                if (!processId) {
+                    console.warn(`프로세스를 찾을 수 없음: ${row['프로세스']}`);
+                }
+                
+                return {
+                    worker_id: workerId,
+                    process_id: processId,
+                    question: row['문제'],
+                    selected_answer: row['선택답안'],
+                    correct_answer: row['정답'],
+                    is_correct: row['정답여부'] === 'O',
+                    test_date: row['시험일자'] ? new Date(row['시험일자']).toISOString() : new Date().toISOString()
+                };
+            }).filter(r => r.worker_id && r.process_id); // worker_id와 process_id가 있는 것만
+            
+            console.log('✅ 변환된 결과 수:', results.length);
+            
+            if (results.length === 0) {
+                alert('유효한 데이터가 없습니다.\n\n작업자 사번과 프로세스 이름을 확인해주세요.');
+                return;
+            }
+            
+            // 서버에 업로드
+            const response = await axios.post('/api/test-results/bulk', results);
+            
+            alert(`✅ ${response.data.count}건의 결과를 업로드했습니다.`);
+            fileInput.value = '';
+            
+        } catch (error) {
+            console.error('업로드 실패:', error);
+            let errorMessage = '결과 업로드에 실패했습니다.\n\n';
+            
+            if (error.response?.data?.error) {
+                errorMessage += `오류: ${error.response.data.error}`;
+            } else {
+                errorMessage += `오류: ${error.message}`;
+            }
+            
+            alert(errorMessage);
+        }
+    };
+    
+    reader.readAsArrayBuffer(file);
 }
 
 // ==================== Analysis Page ====================

@@ -320,6 +320,31 @@ app.get('/api/processes', errorHandler(async (c) => {
   return c.json(result.results)
 }))
 
+// 테스트 결과가 있는 팀 목록 조회
+app.get('/api/teams', errorHandler(async (c) => {
+  const db = c.env.DB
+  const entity = c.req.query('entity') // 법인 필터 (선택사항)
+  
+  let query = `
+    SELECT DISTINCT w.team
+    FROM written_test_results wtr
+    JOIN workers w ON wtr.worker_id = w.id
+    WHERE w.team IS NOT NULL
+  `
+  
+  const params: any[] = []
+  if (entity) {
+    query += ' AND w.entity = ?'
+    params.push(entity)
+  }
+  
+  query += ' ORDER BY w.team'
+  
+  const result = await db.prepare(query).bind(...params).all()
+  const teams = (result.results || []).map((row: any) => row.team)
+  return c.json(teams)
+}))
+
 // ==================== Written Test Quizzes CRUD ====================
 
 // 프로세스별 퀴즈 조회
@@ -609,6 +634,126 @@ app.post('/api/test-results', errorHandler(async (c) => {
   }
 
   return c.json({ success: true, id: resultId }, 201)
+}))
+
+// Written Test 결과 일괄 업로드
+app.post('/api/test-results/bulk', errorHandler(async (c) => {
+  const db = c.env.DB
+  const results: any[] = await c.req.json()
+  
+  if (!Array.isArray(results) || results.length === 0) {
+    return c.json({ error: 'Results array is required and must not be empty' }, 400)
+  }
+  
+  let successCount = 0
+  let errorCount = 0
+  
+  for (const result of results) {
+    try {
+      // 작업자별, 프로세스별로 기존 결과가 있는지 확인
+      const existing = await db.prepare(`
+        SELECT id FROM written_test_results 
+        WHERE worker_id = ? AND process_id = ?
+      `).bind(result.worker_id, result.process_id).first()
+      
+      let resultId
+      
+      if (existing) {
+        // 기존 결과 업데이트
+        await db.prepare(`
+          UPDATE written_test_results 
+          SET test_date = ?
+          WHERE id = ?
+        `).bind(
+          result.test_date || new Date().toISOString(),
+          existing.id
+        ).run()
+        
+        resultId = existing.id
+      } else {
+        // 새 결과 삽입 (점수와 합격 여부는 나중에 계산)
+        const insertResult = await db.prepare(`
+          INSERT INTO written_test_results (worker_id, process_id, score, passed, test_date)
+          VALUES (?, ?, 0, 0, ?)
+        `).bind(
+          result.worker_id,
+          result.process_id,
+          result.test_date || new Date().toISOString()
+        ).run()
+        
+        resultId = insertResult.meta.last_row_id
+      }
+      
+      // Quiz 찾기 (문제 내용으로 매칭)
+      const quiz = await db.prepare(`
+        SELECT id FROM written_test_quizzes 
+        WHERE process_id = ? AND question = ?
+      `).bind(result.process_id, result.question).first()
+      
+      if (quiz) {
+        // 답안 저장 (중복 체크)
+        const existingAnswer = await db.prepare(`
+          SELECT id FROM written_test_answers 
+          WHERE result_id = ? AND quiz_id = ?
+        `).bind(resultId, quiz.id).first()
+        
+        if (!existingAnswer) {
+          await db.prepare(`
+            INSERT INTO written_test_answers (result_id, quiz_id, selected_answer, is_correct)
+            VALUES (?, ?, ?, ?)
+          `).bind(
+            resultId,
+            quiz.id,
+            result.selected_answer,
+            result.is_correct ? 1 : 0
+          ).run()
+        }
+      }
+      
+      successCount++
+    } catch (error) {
+      console.error('결과 처리 실패:', error)
+      errorCount++
+    }
+  }
+  
+  // 각 result_id별로 점수와 합격 여부 재계산
+  const uniqueResultIds = await db.prepare(`
+    SELECT DISTINCT result_id FROM written_test_answers
+  `).all()
+  
+  for (const row of (uniqueResultIds.results || [])) {
+    const resultId = (row as any).result_id
+    
+    // 총 문제 수와 정답 수 계산
+    const stats = await db.prepare(`
+      SELECT 
+        COUNT(*) as total,
+        SUM(is_correct) as correct
+      FROM written_test_answers
+      WHERE result_id = ?
+    `).bind(resultId).first()
+    
+    if (stats && (stats as any).total > 0) {
+      const total = (stats as any).total
+      const correct = (stats as any).correct || 0
+      const score = (correct / total) * 100
+      const passed = score >= 60 ? 1 : 0
+      
+      await db.prepare(`
+        UPDATE written_test_results
+        SET score = ?, passed = ?
+        WHERE id = ?
+      `).bind(score, passed, resultId).run()
+    }
+  }
+  
+  return c.json({ 
+    success: true, 
+    count: results.length,
+    successCount,
+    errorCount
+  }, 201)
 }))
 
 // ==================== Analysis APIs ====================
