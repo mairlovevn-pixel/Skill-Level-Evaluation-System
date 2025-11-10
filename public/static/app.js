@@ -980,6 +980,13 @@ async function loadQuizStatus() {
     try {
         const statusDiv = document.getElementById('quiz-status-table');
         
+        // 팀별 프로세스 분류
+        const teamProcesses = {
+            'Black Tower': ['Material Handling', 'Cutting', 'Beveling', 'Bending', 'LS Welding', 'Fit Up', 'CS Welding', 'VTMT', 'Bracket FU', 'Bracket Weld', 'UT repair', 'DF FU', 'DF Weld', 'Flatness'],
+            'White Tower': ['Blasting', 'Metalizing', 'Paint'],
+            'Internal Mounting': ['Mechanical', 'Electrical']
+        };
+        
         // 프로세스별 Quiz 개수 조회
         const quizCounts = {};
         const latestDates = {};
@@ -996,68 +1003,115 @@ async function loadQuizStatus() {
             }
         }
         
-        // 테이블 생성
-        let tableHTML = `
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">프로세스</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">등록된 Quiz 수</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">최근 등록일</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-        `;
+        // 팀별 섹션 생성
+        let html = '<div class="space-y-4">';
         
-        processes.forEach(process => {
-            // Drilling은 Quiz에서 제외
-            if (process.name === 'Drilling') return;
+        Object.entries(teamProcesses).forEach(([teamName, processNames]) => {
+            const teamId = teamName.replace(/\s+/g, '-').toLowerCase();
             
-            const count = quizCounts[process.id] || 0;
-            const latestDate = latestDates[process.id];
-            const dateStr = latestDate ? latestDate.toLocaleDateString('ko-KR') : '-';
-            const statusBadge = count > 0 
-                ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">등록됨</span>'
-                : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">미등록</span>';
+            // 팀별 통계
+            const teamProcessList = processes.filter(p => processNames.includes(p.name));
+            const totalProcesses = teamProcessList.length;
+            const registeredCount = teamProcessList.filter(p => quizCounts[p.id] > 0).length;
             
-            const manageButtons = count > 0 
-                ? `
-                    <div class="flex gap-2">
-                        <button onclick="showQuizManagement(${process.id}, '${process.name}')" 
-                                class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">
-                            <i class="fas fa-cog mr-1"></i>관리
-                        </button>
-                        <button onclick="deleteAllQuizzesByProcess(${process.id}, '${process.name}', ${count})" 
-                                class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded">
-                            <i class="fas fa-trash-alt mr-1"></i>전체 삭제
-                        </button>
+            html += `
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <!-- 팀 헤더 (토글 버튼) -->
+                    <button onclick="toggleTeamSection('${teamId}')" 
+                            class="w-full px-6 py-4 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 flex items-center justify-between transition-colors">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-users text-blue-600"></i>
+                            <h4 class="text-lg font-bold text-gray-800">${teamName}</h4>
+                            <span class="text-sm text-gray-600">
+                                (${registeredCount}/${totalProcesses} 프로세스 등록)
+                            </span>
+                        </div>
+                        <i id="${teamId}-icon" class="fas fa-chevron-down text-blue-600 transition-transform"></i>
+                    </button>
+                    
+                    <!-- 팀 프로세스 목록 (토글 가능) -->
+                    <div id="${teamId}-content" class="overflow-hidden transition-all duration-300">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">프로세스</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">등록된 Quiz 수</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">최근 등록일</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+            `;
+            
+            teamProcessList.forEach(process => {
+                // Drilling은 Quiz에서 제외
+                if (process.name === 'Drilling') return;
+                
+                const count = quizCounts[process.id] || 0;
+                const latestDate = latestDates[process.id];
+                const dateStr = latestDate ? latestDate.toLocaleDateString('ko-KR') : '-';
+                const statusBadge = count > 0 
+                    ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">등록됨</span>'
+                    : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">미등록</span>';
+                
+                const manageButtons = count > 0 
+                    ? `
+                        <div class="flex gap-2">
+                            <button onclick="showQuizManagement(${process.id}, '${process.name}')" 
+                                    class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">
+                                <i class="fas fa-cog mr-1"></i>관리
+                            </button>
+                            <button onclick="deleteAllQuizzesByProcess(${process.id}, '${process.name}', ${count})" 
+                                    class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded">
+                                <i class="fas fa-trash-alt mr-1"></i>전체 삭제
+                            </button>
+                        </div>
+                      `
+                    : '-';
+                
+                html += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${process.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}개</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">${manageButtons}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                            </tbody>
+                        </table>
                     </div>
-                  `
-                : '-';
-            
-            tableHTML += `
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${process.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}개</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">${manageButtons}</td>
-                </tr>
+                </div>
             `;
         });
         
-        tableHTML += `
-                </tbody>
-            </table>
-        `;
+        html += '</div>';
         
-        statusDiv.innerHTML = tableHTML;
+        statusDiv.innerHTML = html;
     } catch (error) {
         console.error('Quiz 현황 로드 실패:', error);
         document.getElementById('quiz-status-table').innerHTML = 
             '<p class="text-red-500">현황을 불러오는데 실패했습니다.</p>';
+    }
+}
+
+// 팀 섹션 토글 함수
+function toggleTeamSection(teamId) {
+    const content = document.getElementById(`${teamId}-content`);
+    const icon = document.getElementById(`${teamId}-icon`);
+    
+    if (content.style.maxHeight && content.style.maxHeight !== '0px') {
+        // 닫기
+        content.style.maxHeight = '0px';
+        icon.style.transform = 'rotate(0deg)';
+    } else {
+        // 열기
+        content.style.maxHeight = content.scrollHeight + 'px';
+        icon.style.transform = 'rotate(180deg)';
     }
 }
 
