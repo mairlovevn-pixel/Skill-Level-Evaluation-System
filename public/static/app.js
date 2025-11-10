@@ -239,7 +239,12 @@ async function loadProcesses() {
             'DF FU',
             'DF Weld',
             'Flatness',
-            'Drilling'
+            'Drilling',
+            'Blasting',
+            'Metalizing',
+            'Paint',
+            'Mechanical',
+            'Electrical'
         ];
         
         processes.sort((a, b) => {
