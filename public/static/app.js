@@ -472,6 +472,8 @@ const POSITION_TO_PROCESS_MAP = [
  * Team-Process 매핑 테이블 (엑셀 데이터 기반)
  * 각 팀에서 사용 가능한 프로세스 목록
  */
+// Assessment 전용 프로세스 목록 (22개)
+// Quiz 전용 프로세스 제외: Blasting, Metalizing, Paint, Mechanical, Electrical
 const TEAM_PROCESS_MAP = {
     'black tower': [
         'Material Handling',
