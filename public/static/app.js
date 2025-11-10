@@ -1744,11 +1744,18 @@ async function loadAssessmentUploadPage() {
     const processSelect = document.getElementById('assessment-process-select');
     if (processSelect) {
         processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
+        
+        // Assessment 전용 프로세스 22개만 표시 (Quiz 전용 제외)
+        const quizOnlyProcesses = ['Blasting', 'Metalizing', 'Paint', 'Mechanical', 'Electrical'];
+        
         processes.forEach(process => {
-            const option = document.createElement('option');
-            option.value = process.id;
-            option.textContent = process.name;
-            processSelect.appendChild(option);
+            // Quiz 전용 프로세스는 제외
+            if (!quizOnlyProcesses.includes(process.name)) {
+                const option = document.createElement('option');
+                option.value = process.id;
+                option.textContent = process.name;
+                processSelect.appendChild(option);
+            }
         });
     }
     
@@ -1842,8 +1849,15 @@ async function loadAssessmentStatus() {
             `;
         }
         
-        // 프로세스별 항목
+        // 프로세스별 항목 (Quiz 전용 프로세스 제외)
+        const quizOnlyProcesses = ['Blasting', 'Metalizing', 'Paint', 'Mechanical', 'Electrical'];
+        
         processes.forEach(process => {
+            // Quiz 전용 프로세스는 제외
+            if (quizOnlyProcesses.includes(process.name)) {
+                return;
+            }
+            
             const count = itemCounts[process.id] || 0;
             const latestDate = latestDates[process.id];
             const dateStr = latestDate ? latestDate.toLocaleDateString('ko-KR') : '-';
