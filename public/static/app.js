@@ -4172,25 +4172,33 @@ async function uploadTestResults() {
                 processMap[p.name.toUpperCase().trim()] = p.id;
             });
             
-            // 작업자 매핑 (사번 기준)
+            // 작업자 매핑 (법인 + 사번 기준)
             const workersResponse = await axios.get('/api/workers');
             const workerMap = {};
             workersResponse.data.forEach(w => {
-                workerMap[w.employee_id.toString()] = w.id;
+                // 법인 + 사번을 키로 사용
+                const key = `${w.entity}-${w.employee_id.toString()}`;
+                workerMap[key] = w.id;
             });
+            
+            console.log('👥 작업자 매핑 샘플:', Object.keys(workerMap).slice(0, 5));
             
             // 결과 데이터 변환
             const results = rows.map(row => {
                 const employeeId = row['사번']?.toString();
+                const entity = row['법인']?.toString().trim();
                 const processName = (row['프로세스'] || '').toString().trim().toUpperCase();
-                const workerId = workerMap[employeeId];
+                
+                // 법인 + 사번으로 작업자 찾기
+                const workerKey = `${entity}-${employeeId}`;
+                const workerId = workerMap[workerKey];
                 const processId = processMap[processName];
                 
                 if (!workerId) {
-                    console.warn(`작업자를 찾을 수 없음: 사번 ${employeeId}`);
+                    console.warn(`❌ 작업자를 찾을 수 없음: ${entity} - 사번 ${employeeId}`);
                 }
                 if (!processId) {
-                    console.warn(`프로세스를 찾을 수 없음: ${row['프로세스']}`);
+                    console.warn(`❌ 프로세스를 찾을 수 없음: ${row['프로세스']}`);
                 }
                 
                 return {
