@@ -244,7 +244,14 @@ async function loadProcesses() {
             'Metalizing',
             'Paint',
             'Mechanical',
-            'Electrical'
+            'Electrical',
+            'Paint ring',
+            'Material Handler_IM',
+            'EHS',
+            'IM_Mounting Final (QIF)',
+            'WH_Kitset',
+            'TRANSPORTATION',
+            'MAINTENANCE'
         ];
         
         processes.sort((a, b) => {
@@ -491,13 +498,13 @@ const TEAM_PROCESS_MAP = {
         'DF Weld',
         'Flatness',
         'Drilling',
-        'WT',
-        'IM',
-        'Lean',
-        'QM',
-        'WH',
-        'TR',
-        'MT'
+        'Paint ring',
+        'Material Handler_IM',
+        'EHS',
+        'IM_Mounting Final (QIF)',
+        'WH_Kitset',
+        'TRANSPORTATION',
+        'MAINTENANCE'
     ],
     'white tower': [
         'Material Handling',
@@ -515,13 +522,13 @@ const TEAM_PROCESS_MAP = {
         'DF Weld',
         'Flatness',
         'Drilling',
-        'WT',
-        'IM',
-        'Lean',
-        'QM',
-        'WH',
-        'TR',
-        'MT'
+        'Paint ring',
+        'Material Handler_IM',
+        'EHS',
+        'IM_Mounting Final (QIF)',
+        'WH_Kitset',
+        'TRANSPORTATION',
+        'MAINTENANCE'
     ],
     'internal mounting': [
         'Material Handling',
@@ -539,13 +546,13 @@ const TEAM_PROCESS_MAP = {
         'DF Weld',
         'Flatness',
         'Drilling',
-        'WT',
-        'IM',
-        'Lean',
-        'QM',
-        'WH',
-        'TR',
-        'MT'
+        'Paint ring',
+        'Material Handler_IM',
+        'EHS',
+        'IM_Mounting Final (QIF)',
+        'WH_Kitset',
+        'TRANSPORTATION',
+        'MAINTENANCE'
     ],
     'mt': [
         'Material Handling',
@@ -563,13 +570,13 @@ const TEAM_PROCESS_MAP = {
         'DF Weld',
         'Flatness',
         'Drilling',
-        'WT',
-        'IM',
-        'Lean',
-        'QM',
-        'WH',
-        'TR',
-        'MT'
+        'Paint ring',
+        'Material Handler_IM',
+        'EHS',
+        'IM_Mounting Final (QIF)',
+        'WH_Kitset',
+        'TRANSPORTATION',
+        'MAINTENANCE'
     ],
     'transporation': [
         'Material Handling',
@@ -587,13 +594,13 @@ const TEAM_PROCESS_MAP = {
         'DF Weld',
         'Flatness',
         'Drilling',
-        'WT',
-        'IM',
-        'Lean',
-        'QM',
-        'WH',
-        'TR',
-        'MT'
+        'Paint ring',
+        'Material Handler_IM',
+        'EHS',
+        'IM_Mounting Final (QIF)',
+        'WH_Kitset',
+        'TRANSPORTATION',
+        'MAINTENANCE'
     ],
     'im qc': [
         'Material Handling',
@@ -611,13 +618,13 @@ const TEAM_PROCESS_MAP = {
         'DF Weld',
         'Flatness',
         'Drilling',
-        'WT',
-        'IM',
-        'Lean',
-        'QM',
-        'WH',
-        'TR',
-        'MT'
+        'Paint ring',
+        'Material Handler_IM',
+        'EHS',
+        'IM_Mounting Final (QIF)',
+        'WH_Kitset',
+        'TRANSPORTATION',
+        'MAINTENANCE'
     ],
     'warehouse': [
         'Material Handling',
@@ -635,13 +642,13 @@ const TEAM_PROCESS_MAP = {
         'DF Weld',
         'Flatness',
         'Drilling',
-        'WT',
-        'IM',
-        'Lean',
-        'QM',
-        'WH',
-        'TR',
-        'MT'
+        'Paint ring',
+        'Material Handler_IM',
+        'EHS',
+        'IM_Mounting Final (QIF)',
+        'WH_Kitset',
+        'TRANSPORTATION',
+        'MAINTENANCE'
     ]
 };
 
