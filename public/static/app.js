@@ -2112,6 +2112,8 @@ async function uploadAssessmentItems() {
     }
     
     const file = fileInput.files[0];
+    console.log(`📁 선택된 파일: ${file.name}, 크기: ${file.size} bytes`);
+    
     const reader = new FileReader();
     
     reader.onload = async (e) => {
@@ -2265,7 +2267,12 @@ async function uploadAssessmentItems() {
             
             const response = await axios.post('/api/assessment-items/bulk', items);
             alert(`${response.data.count}개의 평가 항목이 성공적으로 등록되었습니다.`);
+            
+            // 파일 input 강제 초기화
             fileInput.value = '';
+            fileInput.type = '';
+            fileInput.type = 'file';
+            
             if (document.getElementById('assessment-process-select')) {
                 document.getElementById('assessment-process-select').value = '';
             }
