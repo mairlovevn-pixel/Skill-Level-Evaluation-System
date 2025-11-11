@@ -2147,7 +2147,11 @@ async function uploadAssessmentItems() {
                     // 공백/언더스코어 변형도 추가
                     processMap[normalizedName.replace(/\s+/g, '_')] = p.id;
                     processMap[normalizedName.replace(/_/g, ' ')] = p.id;
+                    // 괄호 제거 변형도 추가
+                    processMap[normalizedName.replace(/\([^)]*\)/g, '').trim()] = p.id;
                 });
+                
+                console.log('📋 프로세스 매핑 테이블:', processMap);
                 
                 const rows = XLSX.utils.sheet_to_json(firstSheet);
                 
@@ -2176,8 +2180,14 @@ async function uploadAssessmentItems() {
                         processId = processMap[processName.replace(/\s+/g, '_')] || processMap[processName.replace(/_/g, ' ')];
                     }
                     
+                    // 괄호 제거 시도
                     if (!processId) {
-                        console.warn(`⚠️ 프로세스를 찾을 수 없음: "${rawProcessName}"`);
+                        processId = processMap[processName.replace(/\([^)]*\)/g, '').trim()];
+                    }
+                    
+                    if (!processId) {
+                        console.warn(`⚠️ 프로세스를 찾을 수 없음: "${rawProcessName}" (정규화: "${processName}")`);
+                        console.warn('   사용 가능한 프로세스:', Object.keys(processMap));
                         skipCount++;
                         continue;
                     }
