@@ -533,13 +533,27 @@ function normalizeTeamName(team) {
 }
 
 /**
+ * 팀 이름을 보기 좋게 표시 (각 단어 첫 글자 대문자)
+ * @param {string} team - 팀 이름
+ * @returns {string} 포맷된 팀 이름
+ */
+function formatTeamName(team) {
+    if (!team) return '';
+    return team.split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+}
+
+/**
  * 특정 팀에서 사용 가능한 프로세스 목록 반환
  * @param {string} team - 팀 이름
  * @returns {string[]} 프로세스 목록
  */
 function getProcessesForTeam(team) {
     const normalizedTeam = normalizeTeamName(team);
-    return TEAM_PROCESS_MAP[normalizedTeam] || [];
+    const processes = TEAM_PROCESS_MAP[normalizedTeam] || [];
+    console.log(`🔍 getProcessesForTeam("${team}") → normalized: "${normalizedTeam}" → processes: ${processes.length}개`, processes);
+    return processes;
 }
 
 /**
@@ -2994,8 +3008,8 @@ function onSAEntityChange() {
     const sortedTeams = Array.from(availableTeams).sort();
     sortedTeams.forEach(team => {
         const option = document.createElement('option');
-        option.value = team;
-        option.textContent = team;
+        option.value = team; // DB 값 (소문자)
+        option.textContent = formatTeamName(team); // 표시 값 (보기 좋게)
         teamSelect.appendChild(option);
     });
     
@@ -3046,7 +3060,7 @@ function onSATeamChange() {
     // 프로세스 선택 활성화
     processSelect.disabled = false;
     
-    console.log(`팀 "${selectedTeam}" 선택 완료. 사용 가능한 프로세스: ${sortedProcesses.length}개`);
+    console.log(`팀 "${selectedTeam}" 선택 완료. 사용 가능한 프로세스: ${availableProcesses.length}개`);
 }
 
 // 3단계: 프로세스 선택 시 - 작업자 필터링

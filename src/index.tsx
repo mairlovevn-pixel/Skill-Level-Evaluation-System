@@ -1197,7 +1197,7 @@ app.get('/', (c) => {
             <!-- Pages will be loaded here -->
         </div>
 
-        <script src="/static/app.js"></script>
+        <script src="/static/app.js?v=${Date.now()}"></script>
     </body>
     </html>
   `)
