@@ -2153,6 +2153,16 @@ async function uploadAssessmentItems() {
                 
                 console.log(`📊 총 ${rows.length}개 행 발견`);
                 
+                // 첫 번째 행의 모든 필드 확인
+                if (rows.length > 0) {
+                    console.log('🔍 첫 번째 행 전체 데이터:', rows[0]);
+                    console.log('   - No.:', rows[0]['No.']);
+                    console.log('   - 팀:', rows[0]['팀']);
+                    console.log('   - 프로세스:', rows[0]['프로세스']);
+                    console.log('   - Lv 카테고리:', rows[0]['Lv 카테고리']);
+                    console.log('   - 평가항목:', rows[0]['평가항목']);
+                }
+                
                 let successCount = 0;
                 let skipCount = 0;
                 
