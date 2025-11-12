@@ -481,6 +481,67 @@ const POSITION_TO_PROCESS_MAP = [
  */
 // Assessment 전용 프로세스 목록 (대문자 표준화)
 // Quiz 전용 프로세스 제외: Blasting, Metalizing, Paint, Mechanical, Electrical
+// Complete Position Order (48 positions for all operations)
+const COMPLETE_POSITION_ORDER = [
+    // BLACK TOWER (15)
+    'MATERIAL HANDLING',
+    'CUTTING',
+    'BEVELING',
+    'BENDING',
+    'LS WELDING',
+    'FIT UP',
+    'CS WELDING',
+    'VTMT',
+    'BRACKET FU',
+    'BRACKET WELD',
+    'UT REPAIR',
+    'DOOR FRAME FU',
+    'DOOR FRAME WELD',
+    'FLATNESS',
+    'DRILLING & TAPPING',
+    // WHITE TOWER (5)
+    'BLASTING',
+    'METALIZING',
+    'PAINTING',
+    'PAINTING REPAIR',
+    'FITTING PAINT RING',
+    // INTERNAL MOUNTING (6)
+    'PRE ASSEMBLY',
+    'ASSEMBLY',
+    'IM CABLE',
+    'GT CLEANING',
+    'MATERIAL HANDLER-IM',
+    'PAINT TOUCH UP',
+    // QM (13)
+    'QC INSPECTOR - BT MT/PT(QBP)',
+    'QC INSPECTOR - BT UT/PAUT(QBU)',
+    'QC INSPECTOR - BT VT(QBV)',
+    'QC INSPECTOR - DELIVERY INSPECTOR(QDI)',
+    'QC INSPECTOR-IM FINAL (QIF)',
+    'QC INSPECTOR-IM INCOMING(QII)',
+    'QC INSPECTOR - WT MATELIZING(QMI)',
+    'QC INSPECTOR - WT WASHING&BLASTING(QWM)',
+    'QC INSPECTOR - WT PAINTING(QWP)',
+    'QC INSPECTOR-BT FITUP&WELDING(QBF)',
+    'QC INSPECTOR-BT DIMENSION(QBD)',
+    'QC INSPECTOR-BT INCOMING TO BENDING',
+    'QC INSPECTOR-BT INCOMING(QBI)',
+    // TRANSPORTATION (3)
+    'TRANSPORTATION',
+    'STORAGE FIT INSTALLATION',
+    'H-FRAME INSTALLATION',
+    // MAINTENANCE (1)
+    'ELECTRICIAN/MECHANIC',
+    // WAREHOUSE (3)
+    'WAREHOUSE-KITSET',
+    'WAREHOUSE BT/WT',
+    'WAREHOUSE-IM',
+    // LEAN (2)
+    'KAIZEN',
+    'EHS'
+];
+
+// Complete Team-Position mapping for Assessment (48 positions across 7 teams)
 const TEAM_PROCESS_MAP = {
     'BLACK TOWER': [
         'MATERIAL HANDLING',
@@ -497,28 +558,54 @@ const TEAM_PROCESS_MAP = {
         'DOOR FRAME FU',
         'DOOR FRAME WELD',
         'FLATNESS',
-        'DRILLING'
+        'DRILLING & TAPPING'
     ],
     'WHITE TOWER': [
-        'PAINT RING'
+        'BLASTING',
+        'METALIZING',
+        'PAINTING',
+        'PAINTING REPAIR',
+        'FITTING PAINT RING'
     ],
     'INTERNAL MOUNTING': [
-        'MATERIAL HANDLER-IM'
-    ],
-    'LEAN': [
-        'EHS'
+        'PRE ASSEMBLY',
+        'ASSEMBLY',
+        'IM CABLE',
+        'GT CLEANING',
+        'MATERIAL HANDLER-IM',
+        'PAINT TOUCH UP'
     ],
     'QM': [
-        'QC INSPECTOR-IM FINAL (QIF)'
-    ],
-    'WAREHOUSE': [
-        'WAREHOUSE-KITSET'
+        'QC INSPECTOR - BT MT/PT(QBP)',
+        'QC INSPECTOR - BT UT/PAUT(QBU)',
+        'QC INSPECTOR - BT VT(QBV)',
+        'QC INSPECTOR - DELIVERY INSPECTOR(QDI)',
+        'QC INSPECTOR-IM FINAL (QIF)',
+        'QC INSPECTOR-IM INCOMING(QII)',
+        'QC INSPECTOR - WT MATELIZING(QMI)',
+        'QC INSPECTOR - WT WASHING&BLASTING(QWM)',
+        'QC INSPECTOR - WT PAINTING(QWP)',
+        'QC INSPECTOR-BT FITUP&WELDING(QBF)',
+        'QC INSPECTOR-BT DIMENSION(QBD)',
+        'QC INSPECTOR-BT INCOMING TO BENDING',
+        'QC INSPECTOR-BT INCOMING(QBI)'
     ],
     'TRANSPORTATION': [
-        'TRANSPORTATION'
+        'TRANSPORTATION',
+        'STORAGE FIT INSTALLATION',
+        'H-FRAME INSTALLATION'
     ],
     'MAINTENANCE': [
-        'MAINTENANCE'
+        'ELECTRICIAN/MECHANIC'
+    ],
+    'WAREHOUSE': [
+        'WAREHOUSE-KITSET',
+        'WAREHOUSE BT/WT',
+        'WAREHOUSE-IM'
+    ],
+    'LEAN': [
+        'KAIZEN',
+        'EHS'
     ]
 };
 
@@ -1761,26 +1848,48 @@ async function saveQuizEdit(event, quizId) {
 // ==================== Assessment 등록 페이지 ====================
 
 async function loadAssessmentUploadPage() {
-    // 프로세스 목록 로드
+    // Load positions from API first if not loaded
+    if (!positions || positions.length === 0) {
+        try {
+            const response = await axios.get('/api/positions');
+            positions = response.data;
+            AppState.setProcesses(positions);
+        } catch (error) {
+            console.error('Failed to load positions:', error);
+            return;
+        }
+    }
+    
+    // Load position dropdown in TEAM_PROCESS_MAP order (58 positions)
     const processSelect = document.getElementById('assessment-position-select');
     if (processSelect) {
-        processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
+        processSelect.innerHTML = '<option value="">Select Position</option>';
         
-        // Assessment 전용 프로세스 22개만 표시 (Quiz 전용 제외)
-        const quizOnlyProcesses = ['Blasting', 'Metalizing', 'Paint', 'Mechanical', 'Electrical'];
-        
-        positions.forEach(position => {
-            // Quiz 전용 프로세스는 제외
-            if (!quizOnlyProcesses.includes(position.name)) {
-                const option = document.createElement('option');
-                option.value = position.id;
-                option.textContent = position.name;
-                processSelect.appendChild(option);
-            }
+        // Iterate through teams in standard order
+        STANDARD_TEAM_ORDER.forEach(teamName => {
+            const positionNames = TEAM_PROCESS_MAP[teamName];
+            if (!positionNames) return;
+            
+            // Add team separator (optgroup)
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = teamName;
+            
+            // Add positions for this team
+            positionNames.forEach(positionName => {
+                const position = positions.find(p => p.name === positionName);
+                if (position) {
+                    const option = document.createElement('option');
+                    option.value = position.id;
+                    option.textContent = position.name;
+                    optgroup.appendChild(option);
+                }
+            });
+            
+            processSelect.appendChild(optgroup);
         });
     }
     
-    // 등록된 Assessment 항목 현황 로드
+    // Load registered Assessment items status
     await loadAssessmentStatus();
 }
 
@@ -1870,58 +1979,107 @@ async function loadAssessmentStatus() {
             `;
         }
         
-        // 프로세스별 항목 (Quiz 전용 프로세스 제외)
-        const quizOnlyProcesses = ['Blasting', 'Metalizing', 'Paint', 'Mechanical', 'Electrical'];
+        // Team-based grouped display (59 positions across 8 teams)
+        tableHTML += '</tbody></table>';
         
-        positions.forEach(position => {
-            // Quiz 전용 프로세스는 제외
-            if (quizOnlyProcesses.includes(position.name)) {
-                return;
-            }
+        // Generate team sections
+        let teamHTML = '<div class="space-y-4">';
+        
+        STANDARD_TEAM_ORDER.forEach(teamName => {
+            const positionNames = TEAM_PROCESS_MAP[teamName];
+            if (!positionNames) return;
             
-            const count = itemCounts[position.id] || 0;
-            const latestDate = latestDates[position.id];
-            const dateStr = latestDate ? latestDate.toLocaleDateString('ko-KR') : '-';
-            const categories = categoryBreakdown[position.id] 
-                ? Object.entries(categoryBreakdown[position.id])
-                    .map(([cat, cnt]) => `${cat}(${cnt})`)
-                    .join(', ')
-                : '-';
-            const statusBadge = count > 0 
-                ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">등록됨</span>'
-                : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">미등록</span>';
+            const teamId = teamName.replace(/\s+/g, '-').toLowerCase();
             
-            const manageButtons = count > 0 
-                ? `
-                    <div class="flex gap-2">
-                        <button onclick="showAssessmentManagement(${position.id}, '${position.name}')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">
-                            <i class="fas fa-cog mr-1"></i>관리
-                        </button>
-                        <button onclick="deleteAllAssessmentsByProcess(${position.id}, '${position.name}', ${count})" class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded">
-                            <i class="fas fa-trash-alt mr-1"></i>전체 삭제
-                        </button>
+            // Calculate team statistics
+            const teamPositionList = positions.filter(p => positionNames.includes(p.name));
+            const totalPositions = teamPositionList.length;
+            const registeredCount = teamPositionList.filter(p => (itemCounts[p.id] || 0) > 0).length;
+            
+            teamHTML += `
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <!-- Team Header (Toggle Button) -->
+                    <button onclick="toggleTeamSection('assessment-${teamId}')" 
+                            class="w-full px-6 py-4 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 flex items-center justify-between transition-colors">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-users text-blue-600"></i>
+                            <h4 class="text-lg font-bold text-gray-800">${teamName}</h4>
+                            <span class="text-sm text-gray-600">
+                                (${registeredCount}/${totalPositions} Positions Registered)
+                            </span>
+                        </div>
+                        <i id="assessment-${teamId}-icon" class="fas fa-chevron-down text-blue-600 transition-transform"></i>
+                    </button>
+                    
+                    <!-- Team Position List (Toggleable) -->
+                    <div id="assessment-${teamId}-content" class="overflow-hidden transition-all duration-300">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">POSITION</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ITEMS</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CATEGORIES</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LAST REGISTERED</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+            `;
+            
+            // Iterate in the order defined in TEAM_PROCESS_MAP
+            positionNames.forEach(positionName => {
+                const position = positions.find(p => p.name === positionName);
+                if (!position) return;
+                
+                const count = itemCounts[position.id] || 0;
+                const latestDate = latestDates[position.id];
+                const dateStr = latestDate ? latestDate.toLocaleDateString('en-US') : '-';
+                const categories = categoryBreakdown[position.id] 
+                    ? Object.entries(categoryBreakdown[position.id])
+                        .map(([cat, cnt]) => `${cat}(${cnt})`)
+                        .join(', ')
+                    : '-';
+                const statusBadge = count > 0 
+                    ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Registered</span>'
+                    : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Not Registered</span>';
+                
+                const manageButtons = count > 0 
+                    ? `
+                        <div class="flex gap-2">
+                            <button onclick="showAssessmentManagement(${position.id}, '${position.name}')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">
+                                <i class="fas fa-cog mr-1"></i>Manage
+                            </button>
+                            <button onclick="deleteAllAssessmentsByProcess(${position.id}, '${position.name}', ${count})" class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded">
+                                <i class="fas fa-trash-alt mr-1"></i>Delete All
+                            </button>
+                        </div>
+                      `
+                    : '-';
+                
+                teamHTML += `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${position.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500">${categories}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">${manageButtons}</td>
+                    </tr>
+                `;
+            });
+            
+            teamHTML += `
+                            </tbody>
+                        </table>
                     </div>
-                  `
-                : '-';
-            
-            tableHTML += `
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${position.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}개</td>
-                    <td class="px-6 py-4 text-sm text-gray-500">${categories}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">${manageButtons}</td>
-                </tr>
+                </div>
             `;
         });
         
-        tableHTML += `
-                </tbody>
-            </table>
-        `;
+        teamHTML += '</div>';
         
-        statusDiv.innerHTML = tableHTML;
+        statusDiv.innerHTML = tableHTML + teamHTML;
     } catch (error) {
         console.error('Assessment 현황 로드 실패:', error);
         document.getElementById('assessment-status-table').innerHTML = 
@@ -2052,32 +2210,36 @@ function getAssessmentUploadHTML() {
             <div class="bg-white rounded-lg shadow-md p-8">
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">
                     <i class="fas fa-clipboard-check mr-2"></i>
-                    Supervisor Assessment 항목 등록
+                    Supervisor Assessment Item Registration
                 </h2>
                 
                 <div class="mb-6">
                     <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
                         <p class="text-sm text-blue-700 mb-2">
                             <i class="fas fa-info-circle mr-2"></i>
-                            <strong>지원 형식 1:</strong> Category, Item Name, Description
+                            <strong>Supported Format 1:</strong> No., TEAM, POSITION, LV CATEGORY, Assessment Item
+                        </p>
+                        <p class="text-sm text-blue-700 mb-2">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <strong>Supported Format 2:</strong> Category, Item Name, Description (common items, no position)
                         </p>
                         <p class="text-sm text-blue-700">
                             <i class="fas fa-info-circle mr-2"></i>
-                            <strong>지원 형식 2:</strong> Level2, Level3, Level4 컬럼 (Cutting.xlsx 형식, 자동 변환됨)
+                            <strong>Supported Format 3:</strong> Level2, Level3, Level4 columns (auto-converted, position selection required)
                         </p>
                     </div>
                     
                     <div class="mb-4">
                         <label class="block text-gray-700 font-semibold mb-2">
-                            프로세스 선택 (형식 2 사용 시 필수)
+                            Position Selection (Required for Format 3)
                         </label>
                         <select id="assessment-position-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <option value="">프로세스를 선택하세요</option>
+                            <option value="">Select Position</option>
                         </select>
                     </div>
                     
                     <label class="block text-gray-700 font-semibold mb-2">
-                        엑셀 파일 선택
+                        Select Excel File
                     </label>
                     <input type="file" id="assessment-file" accept=".xlsx,.xls" 
                            class="block w-full text-sm text-gray-500
@@ -2093,14 +2255,14 @@ function getAssessmentUploadHTML() {
                     <button onclick="downloadAssessmentTemplate()" 
                             class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition">
                         <i class="fas fa-download mr-2"></i>
-                        템플릿 다운로드
+                        Download Template
                     </button>
                 </div>
                 
                 <button onclick="uploadAssessmentItems()" 
                         class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
                     <i class="fas fa-upload mr-2"></i>
-                    평가 항목 업로드
+                    Upload Assessment Items
                 </button>
             </div>
         </div>
@@ -2109,12 +2271,23 @@ function getAssessmentUploadHTML() {
 
 function downloadAssessmentTemplate() {
     const wb = XLSX.utils.book_new();
-    const ws_data = [
-        ['Category', 'Item Name', 'Description'],
-        ['기술 능력', '작업 숙련도', '작업 과정의 숙련 정도']
+    
+    // Format 1: Position-specific template
+    const ws1_data = [
+        ['No.', 'TEAM', 'POSITION', 'LV CATEGORY', 'Assessment Item', 'Description'],
+        [1, 'BLACK TOWER', 'BEVELING', 'Level2', 'Can She/He verify the preparation of WIP?', 'Check work in progress preparation']
     ];
-    const ws = XLSX.utils.aoa_to_sheet(ws_data);
-    XLSX.utils.book_append_sheet(wb, ws, 'Assessment Items');
+    const ws1 = XLSX.utils.aoa_to_sheet(ws1_data);
+    XLSX.utils.book_append_sheet(wb, ws1, 'Format1-Position');
+    
+    // Format 2: Common items template
+    const ws2_data = [
+        ['Category', 'Item Name', 'Description'],
+        ['Technical Ability', 'Work Proficiency', 'Level of proficiency in work process']
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(ws2_data);
+    XLSX.utils.book_append_sheet(wb, ws2, 'Format2-Common');
+    
     XLSX.writeFile(wb, 'assessment_template.xlsx');
 }
 
@@ -2144,89 +2317,89 @@ async function uploadAssessmentItems() {
             
             let items = [];
             
-            // 형식 1: No., 팀, 프로세스, Lv 카테고리, 평가항목 (신규 형식)
-            const hasNoOrProcess = sheetData[0] && (sheetData[0].includes('No.') || sheetData[0].includes('프로세스'));
-            const hasLvCategory = sheetData[0] && sheetData[0].includes('Lv 카테고리');
-            console.log('🔍 형식 1 조건:', { hasNoOrProcess, hasLvCategory });
+            // Format 1: No., TEAM, POSITION, LV CATEGORY, Assessment Item
+            const hasNoOrPosition = sheetData[0] && (sheetData[0].includes('No.') || sheetData[0].includes('POSITION'));
+            const hasLvCategory = sheetData[0] && sheetData[0].includes('LV CATEGORY');
+            console.log('🔍 Format 1 check:', { hasNoOrPosition, hasLvCategory });
             
-            if (hasNoOrProcess && hasLvCategory) {
-                console.log('✅ 형식 1 감지: 프로세스 포함 형식');
-                // 먼저 프로세스 목록 가져오기
-                const processesResponse = await axios.get('/api/positions');
-                const positions = processesResponse.data;
+            if (hasNoOrPosition && hasLvCategory) {
+                console.log('✅ Format 1 detected: Position-specific format');
+                // Load positions list
+                const positionsResponse = await axios.get('/api/positions');
+                const positions = positionsResponse.data;
                 
-                // 프로세스 이름 매핑 (대소문자 구분 없이)
-                const processMap = {};
+                // Position name mapping (case-insensitive)
+                const positionMap = {};
                 positions.forEach(p => {
                     const normalizedName = p.name.toUpperCase().trim();
-                    processMap[normalizedName] = p.id;
-                    // 공백/언더스코어 변형도 추가
-                    processMap[normalizedName.replace(/\s+/g, '_')] = p.id;
-                    processMap[normalizedName.replace(/_/g, ' ')] = p.id;
-                    // 괄호 제거 변형도 추가
-                    processMap[normalizedName.replace(/\([^)]*\)/g, '').trim()] = p.id;
+                    positionMap[normalizedName] = p.id;
+                    // Add space/underscore variations
+                    positionMap[normalizedName.replace(/\s+/g, '_')] = p.id;
+                    positionMap[normalizedName.replace(/_/g, ' ')] = p.id;
+                    // Add variations without parentheses
+                    positionMap[normalizedName.replace(/\([^)]*\)/g, '').trim()] = p.id;
                 });
                 
-                console.log('📋 프로세스 매핑 테이블:', processMap);
+                console.log('📋 Position mapping table:', positionMap);
                 
                 const rows = XLSX.utils.sheet_to_json(firstSheet);
                 
-                console.log(`📊 총 ${rows.length}개 행 발견`);
+                console.log(`📊 Total ${rows.length} rows found`);
                 
-                // 첫 번째 행의 모든 필드 확인
+                // Check first row fields
                 if (rows.length > 0) {
-                    console.log('🔍 첫 번째 행 전체 데이터:', rows[0]);
+                    console.log('🔍 First row data:', rows[0]);
                     console.log('   - No.:', rows[0]['No.']);
-                    console.log('   - 팀:', rows[0]['팀']);
-                    console.log('   - 프로세스:', rows[0]['프로세스']);
-                    console.log('   - Lv 카테고리:', rows[0]['Lv 카테고리']);
-                    console.log('   - 평가항목:', rows[0]['평가항목']);
+                    console.log('   - TEAM:', rows[0]['TEAM']);
+                    console.log('   - POSITION:', rows[0]['POSITION']);
+                    console.log('   - LV CATEGORY:', rows[0]['LV CATEGORY']);
+                    console.log('   - Assessment Item:', rows[0]['Assessment Item']);
                 }
                 
                 let successCount = 0;
                 let skipCount = 0;
                 
                 for (const row of rows) {
-                    const rawProcessName = (row['프로세스'] || '').toString().trim();
-                    const processName = rawProcessName.toUpperCase();
-                    let processId = processMap[processName];
+                    const rawPositionName = (row['POSITION'] || '').toString().trim();
+                    const positionName = rawPositionName.toUpperCase();
+                    let positionId = positionMap[positionName];
                     
-                    // 공백/언더스코어 변형 시도
-                    if (!processId) {
-                        processId = processMap[processName.replace(/\s+/g, '_')] || processMap[processName.replace(/_/g, ' ')];
+                    // Try space/underscore variations
+                    if (!positionId) {
+                        positionId = positionMap[positionName.replace(/\s+/g, '_')] || positionMap[positionName.replace(/_/g, ' ')];
                     }
                     
-                    // 괄호 제거 시도
-                    if (!processId) {
-                        processId = processMap[processName.replace(/\([^)]*\)/g, '').trim()];
+                    // Try without parentheses
+                    if (!positionId) {
+                        positionId = positionMap[positionName.replace(/\([^)]*\)/g, '').trim()];
                     }
                     
-                    if (!processId) {
-                        console.warn(`⚠️ 프로세스를 찾을 수 없음: "${rawProcessName}" (정규화: "${processName}")`);
-                        console.warn('   사용 가능한 프로세스:', Object.keys(processMap));
+                    if (!positionId) {
+                        console.warn(`⚠️ Position not found: "${rawPositionName}" (normalized: "${positionName}")`);
+                        console.warn('   Available positions:', Object.keys(positionMap));
                         skipCount++;
                         continue;
                     }
                     
-                    const category = row['Lv 카테고리'] || row['Category'] || '';
-                    const itemName = row['평가항목'] || row['Item Name'] || '';
+                    const category = row['LV CATEGORY'] || row['Category'] || '';
+                    const itemName = row['Assessment Item'] || row['Item Name'] || '';
                     
                     if (!category || !itemName) {
-                        console.warn(`⚠️ 필수 필드 누락 - Category: "${category}", Item: "${itemName}"`);
+                        console.warn(`⚠️ Missing required fields - Category: "${category}", Item: "${itemName}"`);
                         skipCount++;
                         continue;
                     }
                     
                     items.push({
-                        process_id: processId,
+                        process_id: positionId,
                         category: category,
                         item_name: itemName,
-                        description: row['설명'] || row['Description'] || ''
+                        description: row['Description'] || ''
                     });
                     successCount++;
                 }
                 
-                console.log(`✅ 성공: ${successCount}개, ⚠️ 건너뜀: ${skipCount}개`);
+                console.log(`✅ Success: ${successCount} items, ⚠️ Skipped: ${skipCount} items`);
             }
             // 형식 2: Category, Item Name, Description (일반적인 형식)
             else if (sheetData[0] && sheetData[0].includes('Category')) {
@@ -2976,90 +3149,90 @@ function getSupervisorAssessmentHTML() {
         <div class="bg-white rounded-lg shadow-md p-8">
             <h2 class="text-3xl font-bold text-gray-800 mb-6">
                 <i class="fas fa-user-check mr-2"></i>
-                Supervisor Assessment 시행
+                Supervisor Assessment Execution
             </h2>
             
             <div id="assessment-selection" class="space-y-6">
-                <!-- 1단계: 법인 선택 -->
+                <!-- Step 1: Select Entity -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <span class="bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs mr-2">1</span>
-                        법인 선택
+                        ENTITY
                     </label>
                     <select id="sa-entity-select" onchange="onSAEntityChange()" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="">법인을 선택하세요</option>
+                        <option value="">Select Entity</option>
                         <option value="CSVN">CSVN</option>
                         <option value="CSCN">CSCN</option>
                         <option value="CSTW">CSTW</option>
                     </select>
                 </div>
                 
-                <!-- 2단계: 팀 선택 -->
+                <!-- Step 2: Select Team -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <span class="bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs mr-2">2</span>
-                        팀 선택
+                        TEAM
                     </label>
                     <select id="sa-team-select" onchange="onSATeamChange()" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
-                        <option value="">먼저 법인을 선택하세요</option>
+                        <option value="">Select Entity first</option>
                     </select>
                 </div>
                 
-                <!-- 3단계: 프로세스 선택 -->
+                <!-- Step 3: Select Position -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <span class="bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs mr-2">3</span>
-                        프로세스 선택
+                        POSITION
                     </label>
                     <select id="sa-position-select" onchange="onSAProcessChange()" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
-                        <option value="">먼저 팀을 선택하세요</option>
+                        <option value="">Select Team first</option>
                     </select>
                 </div>
                 
-                <!-- 4단계: 작업자 선택 -->
+                <!-- Step 4: Select Worker -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <span class="bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs mr-2">4</span>
-                        작업자 선택
+                        WORKER
                     </label>
                     <select id="sa-worker-select" onchange="onSAWorkerChange()"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
-                        <option value="">먼저 프로세스를 선택하세요</option>
+                        <option value="">Select Position first</option>
                     </select>
                 </div>
                 
-                <!-- 이전 평가 이력 표시 -->
+                <!-- Previous Assessment History Display -->
                 <div id="sa-history-container" class="hidden">
                     <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
                         <div class="flex items-start">
                             <i class="fas fa-history text-yellow-600 mt-1 mr-3"></i>
                             <div class="flex-1">
                                 <h4 class="text-sm font-semibold text-yellow-800 mb-2">
-                                    이전 평가 이력
+                                    Previous Assessment History
                                 </h4>
                                 <div id="sa-history-content" class="text-sm text-yellow-700">
-                                    <!-- 평가 이력이 여기에 표시됩니다 -->
+                                    <!-- Assessment history will be displayed here -->
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 평가 시작 버튼 -->
+                <!-- Start Assessment Button -->
                 <button onclick="startAssessment()" 
                         class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">
-                    <i class="fas fa-play mr-2"></i>평가 시작
+                    <i class="fas fa-play mr-2"></i>Start Assessment
                 </button>
             </div>
             
-            <!-- 평가 진행 영역 -->
+            <!-- Assessment Progress Area -->
             <div id="assessment-progress" class="hidden">
                 <div class="mb-6">
                     <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm font-medium text-gray-700">진행률</span>
+                        <span class="text-sm font-medium text-gray-700">Progress</span>
                         <span id="progress-text" class="text-sm font-medium text-blue-600">0 / 0</span>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-3">
@@ -3068,60 +3241,60 @@ function getSupervisorAssessmentHTML() {
                 </div>
                 
                 <div id="assessment-item-container" class="bg-gray-50 rounded-lg p-6 mb-6">
-                    <!-- 평가 항목이 여기에 표시됩니다 -->
+                    <!-- Assessment items will be displayed here -->
                 </div>
                 
                 <div class="flex gap-4">
                     <button onclick="markAsSatisfied()" 
                             class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition">
-                        <i class="fas fa-check mr-2"></i>만족
+                        <i class="fas fa-check mr-2"></i>Satisfactory
                     </button>
                     <button onclick="markAsUnsatisfied()" 
                             class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition">
-                        <i class="fas fa-times mr-2"></i>불만족
+                        <i class="fas fa-times mr-2"></i>Unsatisfactory
                     </button>
                 </div>
             </div>
             
-            <!-- 평가 완료 영역 -->
+            <!-- Assessment Complete Area -->
             <div id="assessment-complete" class="hidden">
                 <div class="bg-green-50 border-2 border-green-500 rounded-lg p-6 mb-6">
                     <h3 class="text-2xl font-bold text-green-800 mb-4">
-                        <i class="fas fa-check-circle mr-2"></i>평가 완료!
+                        <i class="fas fa-check-circle mr-2"></i>Assessment Complete!
                     </h3>
                     <div id="assessment-summary" class="space-y-3">
-                        <!-- 평가 결과 요약이 여기에 표시됩니다 -->
+                        <!-- Assessment result summary will be displayed here -->
                     </div>
                 </div>
                 
                 <button onclick="showPage('supervisor-assessment')" 
                         class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">
-                    <i class="fas fa-redo mr-2"></i>새로운 평가 시작
+                    <i class="fas fa-redo mr-2"></i>Start New Assessment
                 </button>
             </div>
         </div>
         
-        <!-- Supervisor Assessment 결과 등록 섹션 -->
+        <!-- Supervisor Assessment Result Upload Section -->
         <div class="bg-white rounded-lg shadow-md p-8 mt-6">
             <h2 class="text-3xl font-bold text-gray-800 mb-6">
                 <i class="fas fa-file-excel mr-2"></i>
-                Supervisor Assessment 결과 등록
+                Supervisor Assessment Result Upload
             </h2>
             
             <div class="mb-6">
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
                     <p class="text-sm text-blue-700 mb-2">
                         <i class="fas fa-info-circle mr-2"></i>
-                        <strong>엑셀 파일 형식:</strong> No., 사번, 이름, 법인, 팀, 프로세스, Lv 카테고리, 평가항목, 평가 결과, 평가일자
+                        <strong>Excel File Format:</strong> No., Employee ID, Name, Entity, Team, Position, LV Category, Assessment Item, Result, Assessment Date
                     </p>
                     <p class="text-sm text-blue-700">
                         <i class="fas fa-lightbulb mr-2"></i>
-                        기존에 진행한 Supervisor Assessment 결과를 일괄 등록할 수 있습니다.
+                        You can bulk upload previously conducted Supervisor Assessment results.
                     </p>
                 </div>
                 
                 <label class="block text-gray-700 font-semibold mb-2">
-                    엑셀 파일 선택
+                    Select Excel File
                 </label>
                 <input type="file" id="assessment-result-file" accept=".xlsx,.xls" 
                        class="block w-full text-sm text-gray-500
@@ -3136,29 +3309,29 @@ function getSupervisorAssessmentHTML() {
             <button onclick="uploadAssessmentResults()" 
                     class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
                 <i class="fas fa-upload mr-2"></i>
-                결과 업로드
+                Upload Results
             </button>
         </div>
     `;
 }
 
 async function loadSupervisorAssessmentPage() {
-    // 작업자 데이터가 없으면 로드
+    // Load worker data if not available
     if (!workers || workers.length === 0) {
         try {
             const response = await axios.get('/api/workers');
             workers = response.data;
         } catch (error) {
-            console.error('작업자 데이터 로드 실패:', error);
-            alert('작업자 데이터를 불러오는데 실패했습니다.');
+            console.error('Worker data loading failed:', error);
+            alert('Failed to load worker data.');
             return;
         }
     }
     
-    console.log(`작업자 데이터 로드 완료: ${workers.length}명`);
+    console.log(`Worker data loaded: ${workers.length} workers`);
 }
 
-// 1단계: 법인 선택 시 - 팀 필터링
+// Step 1: Entity selection - Filter teams
 function onSAEntityChange() {
     const entitySelect = document.getElementById('sa-entity-select');
     const teamSelect = document.getElementById('sa-team-select');
@@ -3166,45 +3339,40 @@ function onSAEntityChange() {
     const workerSelect = document.getElementById('sa-worker-select');
     const selectedEntity = entitySelect.value;
     
-    // 팀, 프로세스, 작업자 선택 초기화
-    teamSelect.innerHTML = '<option value="">팀을 선택하세요</option>';
-    processSelect.innerHTML = '<option value="">먼저 팀을 선택하세요</option>';
-    workerSelect.innerHTML = '<option value="">먼저 프로세스를 선택하세요</option>';
+    // Reset team, position, worker selections
+    teamSelect.innerHTML = '<option value="">Select Team</option>';
+    processSelect.innerHTML = '<option value="">Select Team first</option>';
+    workerSelect.innerHTML = '<option value="">Select Position first</option>';
     processSelect.disabled = true;
     workerSelect.disabled = true;
     
     if (!selectedEntity) {
         teamSelect.disabled = true;
-        teamSelect.innerHTML = '<option value="">먼저 법인을 선택하세요</option>';
+        teamSelect.innerHTML = '<option value="">Select Entity first</option>';
         return;
     }
     
-    // 선택된 법인의 팀 목록 추출
+    // Extract team list for selected entity
     const entityWorkers = workers.filter(w => w.entity === selectedEntity);
-    const availableTeams = new Set();
+    const workerTeams = new Set(entityWorkers.map(w => w.team).filter(t => t));
     
-    entityWorkers.forEach(worker => {
-        if (worker.team) {
-            availableTeams.add(worker.team);
-        }
-    });
+    // Filter and sort teams by STANDARD_TEAM_ORDER
+    const sortedTeams = STANDARD_TEAM_ORDER.filter(team => workerTeams.has(team));
     
-    // 팀 드롭다운 채우기 (알파벳 순 정렬)
-    const sortedTeams = Array.from(availableTeams).sort();
     sortedTeams.forEach(team => {
         const option = document.createElement('option');
-        option.value = team; // DB 값 (소문자)
-        option.textContent = formatTeamName(team); // 표시 값 (보기 좋게)
+        option.value = team;
+        option.textContent = team; // Display in UPPERCASE (as defined in STANDARD_TEAM_ORDER)
         teamSelect.appendChild(option);
     });
     
-    // 팀 선택 활성화
+    // Enable team selection
     teamSelect.disabled = false;
     
-    console.log(`법인 "${selectedEntity}" 선택 완료. 사용 가능한 팀: ${sortedTeams.length}개`);
+    console.log(`Entity "${selectedEntity}" selected. Available teams: ${sortedTeams.length}`);
 }
 
-// 2단계: 팀 선택 시 - 프로세스 필터링 (Team-Process 매핑 테이블 사용)
+// Step 2: Team selection - Filter positions (using Team-Position mapping table)
 function onSATeamChange() {
     const entitySelect = document.getElementById('sa-entity-select');
     const teamSelect = document.getElementById('sa-team-select');
@@ -3213,28 +3381,28 @@ function onSATeamChange() {
     const selectedEntity = entitySelect.value;
     const selectedTeam = teamSelect.value;
     
-    // 프로세스와 작업자 선택 초기화
-    processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
-    workerSelect.innerHTML = '<option value="">먼저 프로세스를 선택하세요</option>';
+    // Reset position and worker selections
+    processSelect.innerHTML = '<option value="">Select Position</option>';
+    workerSelect.innerHTML = '<option value="">Select Position first</option>';
     workerSelect.disabled = true;
     
     if (!selectedTeam) {
         processSelect.disabled = true;
-        processSelect.innerHTML = '<option value="">먼저 팀을 선택하세요</option>';
+        processSelect.innerHTML = '<option value="">Select Team first</option>';
         return;
     }
     
-    // Team-Process 매핑 테이블에서 해당 팀의 프로세스 가져오기
+    // Get positions for the team from Team-Position mapping table
     const availableProcesses = getProcessesForTeam(selectedTeam);
     
     if (availableProcesses.length === 0) {
-        processSelect.innerHTML = '<option value="">해당 팀에 등록된 프로세스가 없습니다</option>';
+        processSelect.innerHTML = '<option value="">No positions registered for this team</option>';
         processSelect.disabled = true;
-        console.warn(`팀 "${selectedTeam}"에 등록된 프로세스가 없습니다.`);
+        console.warn(`No positions registered for team "${selectedTeam}"`);
         return;
     }
     
-    // 프로세스 드롭다운 채우기 (정의된 순서대로)
+    // Fill position dropdown (in defined order)
     availableProcesses.forEach(processName => {
         const option = document.createElement('option');
         option.value = processName;
@@ -3242,13 +3410,13 @@ function onSATeamChange() {
         processSelect.appendChild(option);
     });
     
-    // 프로세스 선택 활성화
+    // Enable position selection
     processSelect.disabled = false;
     
-    console.log(`팀 "${selectedTeam}" 선택 완료. 사용 가능한 프로세스: ${availableProcesses.length}개`);
+    console.log(`Team "${selectedTeam}" selected. Available positions: ${availableProcesses.length}`);
 }
 
-// 3단계: 프로세스 선택 시 - 작업자 필터링
+// Step 3: Position selection - Filter workers
 function onSAProcessChange() {
     const entitySelect = document.getElementById('sa-entity-select');
     const teamSelect = document.getElementById('sa-team-select');
@@ -3258,26 +3426,24 @@ function onSAProcessChange() {
     const selectedTeam = teamSelect.value;
     const selectedProcess = processSelect.value;
     
-    // 작업자 선택 초기화
-    workerSelect.innerHTML = '<option value="">작업자를 선택하세요</option>';
+    // Reset worker selection
+    workerSelect.innerHTML = '<option value="">Select Worker</option>';
     
     if (!selectedProcess) {
         workerSelect.disabled = true;
-        workerSelect.innerHTML = '<option value="">먼저 프로세스를 선택하세요</option>';
+        workerSelect.innerHTML = '<option value="">Select Position first</option>';
         return;
     }
     
-    // 선택된 법인 + 팀에 속한 모든 작업자 표시
-    // (프로세스는 팀에서 정의되므로, 팀의 작업자는 모두 해당 프로세스를 수행할 수 있음)
+    // Filter workers by Entity + Team + Position (triple filter)
     const filteredWorkers = workers.filter(worker => {
         if (worker.entity !== selectedEntity) return false;
         if (worker.team !== selectedTeam) return false;
-        // 선택된 팀에 속한 모든 작업자를 표시
-        // position 필드와 프로세스 매칭은 선택 사항으로 처리
+        if (worker.position !== selectedProcess) return false; // Position filter added!
         return true;
     });
     
-    // 작업자 이름순 정렬
+    // Sort workers by name
     filteredWorkers.sort((a, b) => a.name.localeCompare(b.name));
     
     filteredWorkers.forEach(worker => {
@@ -3287,14 +3453,14 @@ function onSAProcessChange() {
         workerSelect.appendChild(option);
     });
     
-    // 작업자 선택 활성화
+    // Enable worker selection
     workerSelect.disabled = false;
     
     if (filteredWorkers.length === 0) {
-        workerSelect.innerHTML += '<option value="" disabled>해당 프로세스에 등록된 작업자가 없습니다</option>';
+        workerSelect.innerHTML += '<option value="" disabled>No workers registered for this position</option>';
     }
     
-    console.log(`프로세스 "${selectedProcess}" 선택 완료. 필터링된 작업자: ${filteredWorkers.length}명`);
+    console.log(`Position "${selectedProcess}" selected. Filtered workers: ${filteredWorkers.length}`);
 }
 
 // 4단계: 작업자 선택 시 - 이전 평가 이력 표시
@@ -3325,12 +3491,12 @@ async function onSAWorkerChange() {
         const history = response.data;
         
         if (history.length === 0) {
-            historyContent.innerHTML = '<p>이전 평가 이력이 없습니다. 첫 번째 평가를 진행하세요.</p>';
+            historyContent.innerHTML = '<p>No previous assessment history. Please proceed with the first assessment.</p>';
             historyContainer.classList.remove('hidden');
         } else {
-            // 최신 평가 정보 표시
+            // Display latest assessment information
             const latest = history[0];
-            const assessmentDate = new Date(latest.assessment_date).toLocaleDateString('ko-KR', {
+            const assessmentDate = new Date(latest.assessment_date).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
@@ -3338,20 +3504,20 @@ async function onSAWorkerChange() {
             
             historyContent.innerHTML = `
                 <div class="space-y-2">
-                    <p><strong>총 평가 횟수:</strong> ${history.length}회</p>
-                    <p><strong>최근 평가일:</strong> ${assessmentDate}</p>
-                    <p><strong>최근 평가 항목 수:</strong> ${latest.total_items}개</p>
-                    <p><strong>최근 평균 레벨:</strong> ${parseFloat(latest.average_level).toFixed(2)}</p>
+                    <p><strong>Total Assessments:</strong> ${history.length} times</p>
+                    <p><strong>Latest Assessment Date:</strong> ${assessmentDate}</p>
+                    <p><strong>Latest Assessment Items:</strong> ${latest.total_items} items</p>
+                    <p><strong>Latest Average Level:</strong> ${parseFloat(latest.average_level).toFixed(2)}</p>
                     <p class="mt-3 text-xs text-yellow-600">
                         <i class="fas fa-info-circle mr-1"></i>
-                        새로운 평가를 진행하면 이전 이력은 보존되고 새 평가가 추가됩니다.
+                        Previous history will be preserved and the new assessment will be added.
                     </p>
                 </div>
             `;
             historyContainer.classList.remove('hidden');
         }
     } catch (error) {
-        console.error('평가 이력 조회 실패:', error);
+        console.error('Failed to retrieve assessment history:', error);
         historyContainer.classList.add('hidden');
     }
 }
@@ -3361,14 +3527,14 @@ async function startAssessment() {
     const processName = document.getElementById('sa-position-select').value;
     
     if (!workerId || !processName) {
-        alert('작업자와 프로세스를 선택해주세요.');
+        alert('Please select a worker and position.');
         return;
     }
     
-    // 프로세스 이름으로 프로세스 ID 찾기
+    // Find position ID by position name
     const position = positions.find(p => p.name === processName);
     if (!position) {
-        alert('선택한 프로세스를 찾을 수 없습니다.');
+        alert('Selected position not found.');
         return;
     }
     const processId = position.id;
@@ -3629,17 +3795,17 @@ function getResultManagementHTML() {
                                 </select>
                                 
                                 <select id="test-position-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                    <option value="">전체 프로세스</option>
+                                    <option value="">All Positions</option>
                                 </select>
                                 
                                 <select id="test-download-type" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                    <option value="summary">요약 (카테고리/평가항목/만족여부)</option>
-                                    <option value="detailed">상세 (개별 문제별 답변)</option>
+                                    <option value="summary">Summary (Category/Item/Pass)</option>
+                                    <option value="detailed">Detailed (Individual Questions)</option>
                                 </select>
                                 
                                 <button onclick="downloadWrittenTestResults()" 
                                         class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
-                                    <i class="fas fa-file-download mr-2"></i>엑셀 다운로드
+                                    <i class="fas fa-file-download mr-2"></i>Download Excel
                                 </button>
                             </div>
                         </div>
@@ -3647,7 +3813,7 @@ function getResultManagementHTML() {
                         <!-- 업로드 섹션 -->
                         <div class="bg-green-50 p-4 rounded-lg">
                             <h4 class="font-semibold text-gray-700 mb-3">
-                                <i class="fas fa-upload mr-2"></i>결과 업로드
+                                <i class="fas fa-upload mr-2"></i>Upload Results
                             </h4>
                             
                             <div class="space-y-2">
@@ -3658,47 +3824,47 @@ function getResultManagementHTML() {
                                 
                                 <button onclick="uploadWrittenTestResults()" 
                                         class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition">
-                                    <i class="fas fa-file-upload mr-2"></i>엑셀 업로드
+                                    <i class="fas fa-file-upload mr-2"></i>Upload Excel
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Assessment 결과 관리 -->
+                <!-- Assessment Results Management -->
                 <div class="border border-gray-200 rounded-lg p-6">
                     <h3 class="text-xl font-bold text-gray-800 mb-4">
                         <i class="fas fa-clipboard-check mr-2"></i>
-                        Supervisor Assessment 결과
+                        Supervisor Assessment Results
                     </h3>
                     
                     <div class="space-y-4">
-                        <!-- 다운로드 섹션 -->
+                        <!-- Download Section -->
                         <div class="bg-purple-50 p-4 rounded-lg">
                             <h4 class="font-semibold text-gray-700 mb-3">
-                                <i class="fas fa-download mr-2"></i>결과 다운로드
+                                <i class="fas fa-download mr-2"></i>Download Results
                             </h4>
                             
                             <div class="space-y-2">
                                 <select id="assessment-entity-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                    <option value="">전체 법인</option>
+                                    <option value="">All Entities</option>
                                     <option value="CSVN">CSVN</option>
                                     <option value="CSCN">CSCN</option>
                                     <option value="CSTW">CSTW</option>
                                 </select>
                                 
                                 <select id="assessment-position-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                    <option value="">전체 프로세스</option>
+                                    <option value="">All Positions</option>
                                 </select>
                                 
                                 <select id="assessment-download-type" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                    <option value="summary">요약 (카테고리별 평균)</option>
-                                    <option value="detailed">상세 (개별 평가 항목별)</option>
+                                    <option value="summary">Summary (Category Average)</option>
+                                    <option value="detailed">Detailed (Individual Items)</option>
                                 </select>
                                 
                                 <button onclick="downloadAssessmentResults()" 
                                         class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition">
-                                    <i class="fas fa-file-download mr-2"></i>엑셀 다운로드
+                                    <i class="fas fa-file-download mr-2"></i>Download Excel
                                 </button>
                             </div>
                         </div>
@@ -3706,7 +3872,7 @@ function getResultManagementHTML() {
                         <!-- 업로드 섹션 -->
                         <div class="bg-green-50 p-4 rounded-lg">
                             <h4 class="font-semibold text-gray-700 mb-3">
-                                <i class="fas fa-upload mr-2"></i>결과 업로드
+                                <i class="fas fa-upload mr-2"></i>Upload Results
                             </h4>
                             
                             <div class="space-y-2">
@@ -3717,7 +3883,7 @@ function getResultManagementHTML() {
                                 
                                 <button onclick="uploadAssessmentResults()" 
                                         class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition">
-                                    <i class="fas fa-file-upload mr-2"></i>엑셀 업로드
+                                    <i class="fas fa-file-upload mr-2"></i>Upload Excel
                                 </button>
                             </div>
                         </div>
@@ -3725,16 +3891,16 @@ function getResultManagementHTML() {
                 </div>
             </div>
             
-            <!-- 안내 메시지 -->
+            <!-- User Guide -->
             <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <h4 class="font-semibold text-yellow-800 mb-2">
-                    <i class="fas fa-info-circle mr-2"></i>사용 안내
+                    <i class="fas fa-info-circle mr-2"></i>User Guide
                 </h4>
                 <ul class="text-sm text-yellow-700 space-y-1">
-                    <li>• 다운로드: 법인과 프로세스를 선택하여 필터링된 결과를 엑셀로 다운로드할 수 있습니다.</li>
-                    <li>• 업로드: 다운로드한 엑셀 파일과 동일한 양식으로 작성하여 업로드하면 결과가 일괄 등록됩니다.</li>
-                    <li>• Written Test: 사번, 이름, 법인, 팀, 직급, 프로세스명, 점수, 합격여부, 시험일자</li>
-                    <li>• Assessment: 사번, 이름, 법인, 팀, 직급, 카테고리, 평가항목, 레벨, 평가일자</li>
+                    <li>• Download: Select entity and position to download filtered results as Excel</li>
+                    <li>• Upload: Upload Excel file in the same format as downloaded to bulk register results</li>
+                    <li>• Written Test: Employee ID, Name, Entity, Team, Position, Position Name, Score, Pass/Fail, Test Date</li>
+                    <li>• Assessment: Employee ID, Name, Entity, Team, Position, Category, Assessment Item, Level, Assessment Date</li>
                 </ul>
             </div>
         </div>
@@ -4225,35 +4391,42 @@ function getTestPageHTML() {
         <div class="bg-white rounded-lg shadow-md p-8">
             <h2 class="text-3xl font-bold text-gray-800 mb-6">
                 <i class="fas fa-pencil-alt mr-2"></i>
-                Written Test 응시
+                Written Test Execution
             </h2>
             
             <div id="test-selection" class="space-y-4">
                 <div>
-                    <label class="block text-gray-700 font-semibold mb-2">법인 선택</label>
-                    <select id="entity-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterWorkersByEntity()">
-                        <option value="">법인을 선택하세요</option>
+                    <label class="block text-gray-700 font-semibold mb-2">ENTITY</label>
+                    <select id="entity-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterTeamsByEntity()">
+                        <option value="">Select Entity</option>
                     </select>
                 </div>
                 
                 <div>
-                    <label class="block text-gray-700 font-semibold mb-2">작업자 선택</label>
+                    <label class="block text-gray-700 font-semibold mb-2">TEAM</label>
+                    <select id="team-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterPositionsByTeam()">
+                        <option value="">Select Team</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">POSITION</label>
+                    <select id="position-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterWorkersByFilters()">
+                        <option value="">Select Position</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">WORKER</label>
                     <select id="worker-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="">작업자를 선택하세요</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-gray-700 font-semibold mb-2">프로세스 선택</label>
-                    <select id="position-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="">프로세스를 선택하세요</option>
+                        <option value="">Select Worker</option>
                     </select>
                 </div>
                 
                 <button onclick="startTest()" 
                         class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
                     <i class="fas fa-play mr-2"></i>
-                    시험 시작
+                    Start Test
                 </button>
             </div>
             
@@ -4303,7 +4476,7 @@ function getTestPageHTML() {
             <button onclick="uploadTestResults()" 
                     class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
                 <i class="fas fa-upload mr-2"></i>
-                결과 업로드
+                Upload Results
             </button>
         </div>
     `;
@@ -4313,10 +4486,9 @@ let currentQuizzes = [];
 let selectedAnswers = {};
 
 async function loadTestPage() {
-    // 법인 목록 로드 (작업자 DB에서 고유한 법인 추출)
+    // Load entity list (extract unique entities from workers DB)
     const entitySelect = document.getElementById('entity-select');
     if (entitySelect && workers.length > 0) {
-        // 고유한 법인 목록 추출 및 정렬
         const uniqueEntities = [...new Set(workers.map(w => w.entity))].sort();
         
         uniqueEntities.forEach(entity => {
@@ -4326,54 +4498,130 @@ async function loadTestPage() {
             entitySelect.appendChild(option);
         });
     }
-    
-    // 프로세스 목록 로드 (Drilling 제외, Quiz가 있는 프로세스만)
-    const processSelect = document.getElementById('position-select');
-    if (processSelect) {
-        // Quiz가 등록된 프로세스 확인
-        const processesWithQuiz = [];
-        
-        for (const position of positions) {
-            // Drilling 제외
-            if (position.name === 'Drilling') continue;
-            
-            try {
-                const response = await axios.get(`/api/quizzes/${position.id}`);
-                if (response.data.length > 0) {
-                    processesWithQuiz.push(position);
-                }
-            } catch (error) {
-                console.error(`프로세스 ${position.name} Quiz 확인 실패:`, error);
-            }
-        }
-        
-        processesWithQuiz.forEach(position => {
-            const option = document.createElement('option');
-            option.value = position.id;
-            option.textContent = position.name;
-            processSelect.appendChild(option);
-        });
-        
-        if (processesWithQuiz.length === 0) {
-            processSelect.innerHTML += '<option value="" disabled>등록된 Quiz가 없습니다</option>';
-        }
-    }
 }
 
-function filterWorkersByEntity() {
+function filterTeamsByEntity() {
     const entitySelect = document.getElementById('entity-select');
+    const teamSelect = document.getElementById('team-select');
+    const positionSelect = document.getElementById('position-select');
     const workerSelect = document.getElementById('worker-select');
     const selectedEntity = entitySelect.value;
     
-    // 작업자 선택 초기화
-    workerSelect.innerHTML = '<option value="">작업자를 선택하세요</option>';
+    // Reset team, position, and worker selections
+    teamSelect.innerHTML = '<option value="">Select Team</option>';
+    positionSelect.innerHTML = '<option value="">Select Position</option>';
+    workerSelect.innerHTML = '<option value="">Select Worker</option>';
     
     if (!selectedEntity) {
         return;
     }
     
-    // 선택된 법인의 작업자만 필터링
-    const filteredWorkers = workers.filter(worker => worker.entity === selectedEntity);
+    // Get unique teams for this entity's workers (in STANDARD_TEAM_ORDER)
+    const entityWorkers = workers.filter(w => w.entity === selectedEntity);
+    const workerTeams = new Set(entityWorkers.map(w => w.team));
+    
+    // Filter and sort teams by STANDARD_TEAM_ORDER
+    const availableTeams = STANDARD_TEAM_ORDER.filter(team => workerTeams.has(team));
+    
+    availableTeams.forEach(team => {
+        const option = document.createElement('option');
+        option.value = team;
+        option.textContent = team;
+        teamSelect.appendChild(option);
+    });
+    
+    if (availableTeams.length === 0) {
+        teamSelect.innerHTML += '<option value="" disabled>No teams available</option>';
+    }
+}
+
+async function filterPositionsByTeam() {
+    const entitySelect = document.getElementById('entity-select');
+    const teamSelect = document.getElementById('team-select');
+    const positionSelect = document.getElementById('position-select');
+    const workerSelect = document.getElementById('worker-select');
+    const selectedEntity = entitySelect.value;
+    const selectedTeam = teamSelect.value;
+    
+    // Reset position and worker selections
+    positionSelect.innerHTML = '<option value="">Select Position</option>';
+    workerSelect.innerHTML = '<option value="">Select Worker</option>';
+    
+    if (!selectedEntity || !selectedTeam) {
+        return;
+    }
+    
+    // Get positions for this team from TEAM_PROCESS_MAP
+    const teamPositionNames = TEAM_PROCESS_MAP[selectedTeam] || [];
+    
+    // Filter by entity + team workers' positions
+    const filteredWorkers = workers.filter(w => 
+        w.entity === selectedEntity && 
+        w.team === selectedTeam
+    );
+    const workerPositions = new Set(filteredWorkers.map(w => w.position));
+    
+    // Check which positions have quizzes
+    const positionsWithQuiz = [];
+    
+    for (const positionName of teamPositionNames) {
+        if (!workerPositions.has(positionName)) continue;
+        
+        const position = positions.find(p => p.name === positionName);
+        if (!position) continue;
+        
+        try {
+            const response = await axios.get(`/api/quizzes/${position.id}`);
+            if (response.data.length > 0) {
+                positionsWithQuiz.push(position);
+            }
+        } catch (error) {
+            console.error(`Position ${position.name} Quiz check failed:`, error);
+        }
+    }
+    
+    positionsWithQuiz.forEach(position => {
+        const option = document.createElement('option');
+        option.value = position.id;
+        option.textContent = position.name;
+        positionSelect.appendChild(option);
+    });
+    
+    if (positionsWithQuiz.length === 0) {
+        positionSelect.innerHTML += '<option value="" disabled>No Quiz registered</option>';
+    }
+}
+
+function filterWorkersByFilters() {
+    const entitySelect = document.getElementById('entity-select');
+    const teamSelect = document.getElementById('team-select');
+    const positionSelect = document.getElementById('position-select');
+    const workerSelect = document.getElementById('worker-select');
+    
+    const selectedEntity = entitySelect.value;
+    const selectedTeam = teamSelect.value;
+    const selectedPositionId = positionSelect.value;
+    
+    // Reset worker selection
+    workerSelect.innerHTML = '<option value="">Select Worker</option>';
+    
+    if (!selectedEntity || !selectedTeam || !selectedPositionId) {
+        return;
+    }
+    
+    // Find selected position name
+    const selectedPosition = positions.find(p => p.id == selectedPositionId);
+    if (!selectedPosition) return;
+    
+    // Filter workers by entity + team + position
+    const filteredWorkers = workers.filter(worker => 
+        worker.entity === selectedEntity && 
+        worker.team === selectedTeam &&
+        worker.position === selectedPosition.name
+    );
+    
+    // Sort workers by name
+    filteredWorkers.sort((a, b) => a.name.localeCompare(b.name));
     
     filteredWorkers.forEach(worker => {
         const option = document.createElement('option');
@@ -4383,7 +4631,7 @@ function filterWorkersByEntity() {
     });
     
     if (filteredWorkers.length === 0) {
-        workerSelect.innerHTML += '<option value="" disabled>해당 법인에 등록된 작업자가 없습니다</option>';
+        workerSelect.innerHTML += '<option value="" disabled>No workers match the selected filters</option>';
     }
 }
 
