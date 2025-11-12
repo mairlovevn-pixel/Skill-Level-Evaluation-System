@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-pages'
-import type { Bindings, DashboardStats, Worker, WrittenTestQuiz, SupervisorAssessmentItem, Process, WrittenTestResult } from './types'
+import type { Bindings, DashboardStats, Worker, WrittenTestQuiz, SupervisorAssessmentItem, Position, WrittenTestResult } from './types'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -78,7 +78,7 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
           p.name as process_name,
           COUNT(DISTINCT wtr.worker_id) as takers,
           COUNT(DISTINCT CASE WHEN wtr.passed = 1 THEN wtr.worker_id END) as passed
-        FROM processes p
+        FROM positions p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
         LEFT JOIN workers w ON wtr.worker_id = w.id
         WHERE w.entity = ? OR w.entity IS NULL
@@ -91,7 +91,7 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
           p.name as process_name,
           COUNT(DISTINCT wtr.worker_id) as takers,
           COUNT(DISTINCT CASE WHEN wtr.passed = 1 THEN wtr.worker_id END) as passed
-        FROM processes p
+        FROM positions p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
         GROUP BY p.id, p.name
         ORDER BY p.id
@@ -112,7 +112,7 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
         p.name as process_name,
         w.entity,
         COALESCE(AVG(wtr.score), 0) as avg_score
-      FROM processes p
+      FROM positions p
       LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
       LEFT JOIN workers w ON wtr.worker_id = w.id
       WHERE 1=1
@@ -230,6 +230,17 @@ app.post('/api/workers/bulk', errorHandler(async (c) => {
   let updatedCount = 0
   
   for (const worker of workers) {
+    // 워딩 표준화: team, position, entity를 대문자로 변환
+    const normalizedEntity = worker.entity.trim().toUpperCase()
+    const normalizedTeam = worker.team.trim().toUpperCase()
+    const normalizedPosition = worker.position.trim().toUpperCase()
+    
+    // Entity 표준화: VN -> CSVN, CN -> CSCN, TW -> CSTW
+    let standardEntity = normalizedEntity
+    if (normalizedEntity === 'VN') standardEntity = 'CSVN'
+    else if (normalizedEntity === 'CN') standardEntity = 'CSCN'
+    else if (normalizedEntity === 'TW') standardEntity = 'CSTW'
+    
     // 기존 작업자 확인 (employee_id로 검색)
     const existing = await db.prepare('SELECT id FROM workers WHERE employee_id = ?')
       .bind(worker.employee_id).first()
@@ -242,9 +253,9 @@ app.post('/api/workers/bulk', errorHandler(async (c) => {
         WHERE employee_id = ?
       `).bind(
         worker.name,
-        worker.entity,
-        worker.team,
-        worker.position,
+        standardEntity,
+        normalizedTeam,
+        normalizedPosition,
         worker.start_to_work_date,
         worker.employee_id
       ).run()
@@ -257,9 +268,9 @@ app.post('/api/workers/bulk', errorHandler(async (c) => {
       `).bind(
         worker.employee_id,
         worker.name,
-        worker.entity,
-        worker.team,
-        worker.position,
+        standardEntity,
+        normalizedTeam,
+        normalizedPosition,
         worker.start_to_work_date
       ).run()
       insertedCount++
@@ -314,9 +325,9 @@ app.delete('/api/workers/:id', errorHandler(async (c) => {
 // ==================== Processes CRUD ====================
 
 // 모든 프로세스 조회
-app.get('/api/processes', errorHandler(async (c) => {
+app.get('/api/positions', errorHandler(async (c) => {
   const db = c.env.DB
-  const result = await db.prepare('SELECT * FROM processes ORDER BY id').all()
+  const result = await db.prepare('SELECT * FROM positions ORDER BY id').all()
   return c.json(result.results)
 }))
 
@@ -433,7 +444,7 @@ app.delete('/api/quizzes/:id', errorHandler(async (c) => {
 }))
 
 // 프로세스별 Quiz 일괄 삭제
-app.delete('/api/quizzes/process/:processId', errorHandler(async (c) => {
+app.delete('/api/quizzes/position/:processId', errorHandler(async (c) => {
   const db = c.env.DB
   const processId = c.req.param('processId')
   
@@ -496,7 +507,7 @@ app.delete('/api/assessment-items/:id', errorHandler(async (c) => {
 }))
 
 // Assessment Item 프로세스별 일괄 삭제
-app.delete('/api/assessment-items/process/:processId', errorHandler(async (c) => {
+app.delete('/api/assessment-items/position/:processId', errorHandler(async (c) => {
   const db = c.env.DB
   const processId = c.req.param('processId')
   
@@ -807,7 +818,7 @@ app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
       p.name as process_name,
       p.id as process_id
     FROM written_test_results wtr
-    JOIN processes p ON wtr.process_id = p.id
+    JOIN positions p ON wtr.process_id = p.id
     WHERE wtr.worker_id = ?
     ORDER BY wtr.test_date DESC
   `).bind(workerId).all()
@@ -832,9 +843,9 @@ app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
   if (assessments.results && assessments.results.length > 0) {
     const firstAssessment = assessments.results[0] as any
     if (firstAssessment.process_id) {
-      const process = await db.prepare('SELECT * FROM processes WHERE id = ?')
+      const position = await db.prepare('SELECT * FROM positions WHERE id = ?')
         .bind(firstAssessment.process_id).first()
-      processInfo = process
+      processInfo = position
     }
   }
   
@@ -942,7 +953,7 @@ app.get('/api/results/written-test', errorHandler(async (c) => {
       wtr.test_date
     FROM written_test_results wtr
     JOIN workers w ON wtr.worker_id = w.id
-    JOIN processes p ON wtr.process_id = p.id
+    JOIN positions p ON wtr.process_id = p.id
     WHERE 1=1
   `
   
@@ -987,7 +998,7 @@ app.get('/api/results/written-test/detailed', errorHandler(async (c) => {
     JOIN written_test_results wtr ON wta.result_id = wtr.id
     JOIN written_test_quizzes q ON wta.quiz_id = q.id
     JOIN workers w ON wtr.worker_id = w.id
-    JOIN processes p ON wtr.process_id = p.id
+    JOIN positions p ON wtr.process_id = p.id
     WHERE 1=1
   `
   
@@ -1066,11 +1077,11 @@ app.post('/api/results/written-test/bulk', errorHandler(async (c) => {
     }
     
     // 프로세스 찾기
-    const process = await db.prepare('SELECT id FROM processes WHERE name = ?')
+    const position = await db.prepare('SELECT id FROM positions WHERE name = ?')
       .bind(result.process_name).first()
     
-    if (!process) {
-      console.log(`Process not found: ${result.process_name}`)
+    if (!position) {
+      console.log(`Position not found: ${result.process_name}`)
       continue
     }
     
@@ -1080,7 +1091,7 @@ app.post('/api/results/written-test/bulk', errorHandler(async (c) => {
       VALUES (?, ?, ?, ?, ?)
     `).bind(
       worker.id,
-      process.id,
+      position.id,
       result.score,
       result.passed ? 1 : 0,
       result.test_date || new Date().toISOString()
@@ -1165,28 +1176,28 @@ app.get('/', (c) => {
                 </h1>
                 <div class="space-x-4">
                     <button onclick="showPage('worker-upload')" class="hover:underline">
-                        <i class="fas fa-users mr-1"></i>작업자 등록
+                        <i class="fas fa-users mr-1"></i>Worker Registration
                     </button>
                     <button onclick="showPage('dashboard')" class="hover:underline">
-                        <i class="fas fa-home mr-1"></i>대시보드
+                        <i class="fas fa-home mr-1"></i>Dashboard
                     </button>
                     <button onclick="showPage('quiz-upload')" class="hover:underline">
-                        <i class="fas fa-question-circle mr-1"></i>Quiz 등록
+                        <i class="fas fa-question-circle mr-1"></i>Quiz Registration
                     </button>
                     <button onclick="showPage('assessment-upload')" class="hover:underline">
-                        <i class="fas fa-clipboard-check mr-1"></i>Assessment 등록
+                        <i class="fas fa-clipboard-check mr-1"></i>Assessment Registration
                     </button>
                     <button onclick="showPage('supervisor-assessment')" class="hover:underline">
-                        <i class="fas fa-user-check mr-1"></i>Supervisor Assessment 시행
+                        <i class="fas fa-user-check mr-1"></i>Supervisor Assessment
                     </button>
                     <button onclick="showPage('test-page')" class="hover:underline">
-                        <i class="fas fa-pencil-alt mr-1"></i>Written Test 응시
+                        <i class="fas fa-pencil-alt mr-1"></i>Written Test
                     </button>
                     <button onclick="showPage('analysis-page')" class="hover:underline">
-                        <i class="fas fa-chart-line mr-1"></i>평가 결과 분석
+                        <i class="fas fa-chart-line mr-1"></i>Result Analysis
                     </button>
                     <button onclick="showPage('result-management')" class="hover:underline">
-                        <i class="fas fa-file-excel mr-1"></i>결과 관리
+                        <i class="fas fa-file-excel mr-1"></i>Result Management
                     </button>
                 </div>
             </div>
@@ -1202,5 +1213,102 @@ app.get('/', (c) => {
     </html>
   `)
 })
+
+// Supervisor Assessment 결과 일괄 업로드
+app.post('/api/supervisor-assessment-results/bulk', errorHandler(async (c) => {
+  const db = c.env.DB
+  const body = await c.req.json()
+  const results = body as Array<{
+    employee_id: string
+    process_name: string
+    category: string
+    item_name: string
+    is_satisfied: number
+    assessment_date: string
+  }>
+  
+  let successCount = 0
+  let skippedCount = 0
+  const errors: string[] = []
+  
+  for (const result of results) {
+    try {
+      // 1. 작업자 찾기
+      const workerResult = await db.prepare(
+        'SELECT id FROM workers WHERE employee_id = ?'
+      ).bind(result.employee_id).first()
+      
+      if (!workerResult) {
+        skippedCount++
+        errors.push(`작업자 ${result.employee_id} 없음`)
+        continue
+      }
+      const workerId = workerResult.id as number
+      
+      // 2. 프로세스 찾기 (대소문자 무시, 공백/특수문자 정규화)
+      const normalizedProcessName = result.process_name.trim().toUpperCase()
+      const processResult = await db.prepare(
+        'SELECT id FROM positions WHERE UPPER(name) = ?'
+      ).bind(normalizedProcessName).first()
+      
+      if (!processResult) {
+        skippedCount++
+        errors.push(`프로세스 "${result.process_name}" 없음`)
+        continue
+      }
+      const processId = processResult.id as number
+      
+      // 3. Assessment 항목 찾기
+      const itemResult = await db.prepare(
+        'SELECT id FROM supervisor_assessment_items WHERE item_name = ? AND category = ? AND process_id = ?'
+      ).bind(result.item_name, result.category, processId).first()
+      
+      if (!itemResult) {
+        skippedCount++
+        errors.push(`항목 "${result.item_name}" (${result.category}) 없음`)
+        continue
+      }
+      const itemId = itemResult.id as number
+      
+      // 4. 중복 체크 (동일 작업자, 항목, 날짜)
+      const existingResult = await db.prepare(
+        'SELECT id FROM supervisor_assessments WHERE worker_id = ? AND item_id = ? AND DATE(assessment_date) = DATE(?)'
+      ).bind(workerId, itemId, result.assessment_date).first()
+      
+      if (existingResult) {
+        // 기존 데이터 업데이트
+        await db.prepare(
+          'UPDATE supervisor_assessments SET is_satisfied = ?, process_id = ? WHERE id = ?'
+        ).bind(result.is_satisfied, processId, existingResult.id).run()
+      } else {
+        // 새로운 데이터 삽입
+        await db.prepare(
+          'INSERT INTO supervisor_assessments (worker_id, item_id, level, assessed_by, assessment_date, is_satisfied, process_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).bind(
+          workerId,
+          itemId,
+          0, // level은 나중에 계산
+          'System',
+          result.assessment_date,
+          result.is_satisfied,
+          processId
+        ).run()
+      }
+      
+      successCount++
+    } catch (error: any) {
+      skippedCount++
+      errors.push(`행 처리 실패: ${error.message}`)
+      console.error('Error processing row:', result, error)
+    }
+  }
+  
+  return c.json({
+    success: successCount,
+    skipped: skippedCount,
+    total: results.length,
+    message: errors.length > 0 ? errors.slice(0, 5).join('\n') : '모든 데이터 처리 완료'
+  })
+}))
 
 export default app

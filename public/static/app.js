@@ -2,7 +2,7 @@
 const AppState = {
     currentPage: 'dashboard',
     dashboardData: null,
-    processes: [],
+    positions: [],
     workers: [],
     teamProcessMapping: {},
     charts: {
@@ -15,7 +15,7 @@ const AppState = {
     reset() {
         this.currentPage = 'dashboard';
         this.dashboardData = null;
-        this.processes = [];
+        this.positions = [];
         this.workers = [];
         this.teamProcessMapping = {};
         this.charts = {
@@ -28,7 +28,7 @@ const AppState = {
     // Getter 메서드
     getCurrentPage() { return this.currentPage; },
     getDashboardData() { return this.dashboardData; },
-    getProcesses() { return this.processes; },
+    getProcesses() { return this.positions; },
     getWorkers() { return this.workers; },
     getTeamProcessMapping() { return this.teamProcessMapping; },
     getChart(name) { return this.charts[name]; },
@@ -36,7 +36,7 @@ const AppState = {
     // Setter 메서드
     setCurrentPage(page) { this.currentPage = page; },
     setDashboardData(data) { this.dashboardData = data; },
-    setProcesses(processes) { this.processes = processes; },
+    setProcesses(positions) { this.positions = positions; },
     setWorkers(workers) { this.workers = workers; },
     setTeamProcessMapping(mapping) { this.teamProcessMapping = mapping; },
     setChart(name, chart) { this.charts[name] = chart; }
@@ -45,7 +45,7 @@ const AppState = {
 // 하위 호환성을 위한 전역 변수 (점진적 마이그레이션용)
 let currentPage = AppState.currentPage;
 let dashboardData = AppState.dashboardData;
-let processes = AppState.processes;
+let positions = AppState.positions;
 let workers = AppState.workers;
 
 // 유틸리티 함수: Excel 날짜를 ISO 형식으로 변환
@@ -220,8 +220,8 @@ function showPage(pageName) {
 // 프로세스 목록 로드
 async function loadProcesses() {
     try {
-        const response = await axios.get('/api/processes');
-        processes = response.data;
+        const response = await axios.get('/api/positions');
+        positions = response.data;
         
         // 지정된 순서대로 정렬
         const order = [
@@ -254,7 +254,7 @@ async function loadProcesses() {
             'MAINTENANCE'
         ];
         
-        processes.sort((a, b) => {
+        positions.sort((a, b) => {
             const indexA = order.indexOf(a.name);
             const indexB = order.indexOf(b.name);
             
@@ -358,8 +358,8 @@ function getDashboardHTML() {
                                 </select>
                             </div>
                             <div class="w-36">
-                                <select id="avg-score-process-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="filterAvgScoreChart()">
-                                    <option value="">전체 프로세스</option>
+                                <select id="avg-score-position-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="filterAvgScoreChart()">
+                                    <option value="">All Positions</option>
                                 </select>
                             </div>
                         </div>
@@ -382,8 +382,8 @@ function getDashboardHTML() {
                             </select>
                         </div>
                         <div class="w-36">
-                            <select id="assessment-process-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="filterAssessmentChart()">
-                                <option value="">전체 프로세스</option>
+                            <select id="assessment-position-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="filterAssessmentChart()">
+                                <option value="">All Positions</option>
                             </select>
                         </div>
                     </div>
@@ -460,76 +460,177 @@ async function loadDashboard() {
 
 // Position → Process 매핑 테이블 (확장 용이)
 const POSITION_TO_PROCESS_MAP = [
-    { keywords: ['cutting', 'cnc'], process: 'Cutting' },
-    { keywords: ['bevel'], process: 'Beveling' },
-    { keywords: ['bend'], process: 'Bending' },
-    { keywords: ['ls', 'weld'], process: 'LS Welding', requireAll: true },
-    { keywords: ['fit', 'up'], process: 'Fit Up', requireAll: true },
-    { keywords: ['cs', 'weld'], process: 'CS Welding', requireAll: true },
-    { keywords: ['vtmt'], process: 'VTMT' },
-    { keywords: ['bracket', 'fu'], process: 'Bracket FU', requireAll: true },
-    { keywords: ['bracket', 'weld'], process: 'Bracket Weld', requireAll: true },
-    { keywords: ['ut', 'repair'], process: 'UT repair', requireAll: true },
-    { keywords: ['df', 'fu'], process: 'DF FU', requireAll: true },
-    { keywords: ['df', 'weld'], process: 'DF Weld', requireAll: true },
-    { keywords: ['flatness'], process: 'Flatness' }
+    { keywords: ['cutting', 'cnc'], position: 'CUTTING' },
+    { keywords: ['bevel'], position: 'BEVELING' },
+    { keywords: ['bend'], position: 'BENDING' },
+    { keywords: ['ls', 'weld'], position: 'LS WELDING', requireAll: true },
+    { keywords: ['fit', 'up'], position: 'FIT UP', requireAll: true },
+    { keywords: ['cs', 'weld'], position: 'CS WELDING', requireAll: true },
+    { keywords: ['vtmt'], position: 'VTMT' },
+    { keywords: ['bracket', 'fu'], position: 'BRACKET FU', requireAll: true },
+    { keywords: ['bracket', 'weld'], position: 'BRACKET WELD', requireAll: true },
+    { keywords: ['ut', 'repair'], position: 'UT REPAIR', requireAll: true },
+    { keywords: ['df', 'fu'], position: 'DOOR FRAME FU', requireAll: true },
+    { keywords: ['df', 'weld'], position: 'DOOR FRAME WELD', requireAll: true },
+    { keywords: ['flatness'], position: 'FLATNESS' }
 ];
 
 /**
  * Team-Process 매핑 테이블 (엑셀 데이터 기반)
  * 각 팀에서 사용 가능한 프로세스 목록
  */
-// Assessment 전용 프로세스 목록 (22개)
+// Assessment 전용 프로세스 목록 (대문자 표준화)
 // Quiz 전용 프로세스 제외: Blasting, Metalizing, Paint, Mechanical, Electrical
 const TEAM_PROCESS_MAP = {
-    'black tower': [
-        'Material Handling',
-        'Cutting',
-        'Beveling',
-        'Bending',
-        'LS Welding',
-        'Fit Up',
-        'CS Welding',
+    'BLACK TOWER': [
+        'MATERIAL HANDLING',
+        'CUTTING',
+        'BEVELING',
+        'BENDING',
+        'LS WELDING',
+        'FIT UP',
+        'CS WELDING',
         'VTMT',
-        'Bracket FU',
-        'Bracket Weld',
-        'UT repair',
-        'DF FU',
-        'DF Weld',
-        'Flatness',
-        'Drilling'
+        'BRACKET FU',
+        'BRACKET WELD',
+        'UT REPAIR',
+        'DOOR FRAME FU',
+        'DOOR FRAME WELD',
+        'FLATNESS',
+        'DRILLING'
     ],
-    'white tower': [
-        'Paint ring'
+    'WHITE TOWER': [
+        'PAINT RING'
     ],
-    'internal mounting': [
-        'Material Handler_IM'
+    'INTERNAL MOUNTING': [
+        'MATERIAL HANDLER-IM'
     ],
-    'lean': [
+    'LEAN': [
         'EHS'
     ],
-    'qm': [
-        'IM_Mounting Final (QIF)'
+    'QM': [
+        'QC INSPECTOR-IM FINAL (QIF)'
     ],
-    'warehouse': [
-        'WH_Kitset'
+    'WAREHOUSE': [
+        'WAREHOUSE-KITSET'
     ],
-    'transportation': [
+    'TRANSPORTATION': [
         'TRANSPORTATION'
     ],
-    'maintenance': [
+    'MAINTENANCE': [
         'MAINTENANCE'
     ]
 };
 
 /**
- * 팀 이름 정규화 (소문자 + 공백 처리)
+ * 표준 TEAM 순서
+ */
+const STANDARD_TEAM_ORDER = [
+    'BLACK TOWER',
+    'WHITE TOWER',
+    'INTERNAL MOUNTING',
+    'QM',
+    'TRANSPORTATION',
+    'MAINTENANCE',
+    'WAREHOUSE',
+    'LEAN'
+];
+
+/**
+ * 표준 POSITION 순서 (팀별)
+ */
+const STANDARD_POSITION_ORDER = [
+    // BLACK TOWER
+    'MATERIAL HANDLING',
+    'CUTTING',
+    'BEVELING',
+    'BENDING',
+    'LS WELDING',
+    'FIT UP',
+    'CS WELDING',
+    'VTMT',
+    'BRACKET FU',
+    'BRACKET WELD',
+    'UT REPAIR',
+    'DOOR FRAME FU',
+    'DOOR FRAME WELD',
+    'FLATNESS',
+    'DRILLING & TAPPING',
+    // WHITE TOWER
+    'BLASTING',
+    'METALIZING',
+    'PAINTING',
+    'PAINTING REPAIR',
+    'FITTING PAINT RING',
+    // INTERNAL MOUNTING
+    'ASSEMBLY',
+    'IM CABLE',
+    'GT CLEANING',
+    'MATERIAL HANDLER-IM',
+    'PAINT TOUCH UP',
+    // QM
+    'QC INSPECTOR - BT MT/PT(QBP)',
+    'QC INSPECTOR - BT UT/PAUT(QBU)',
+    'QC INSPECTOR - BT VT(QBV)',
+    'QC INSPECTOR - DELIVERY INSPECTOR(QDI)',
+    'QC INSPECTOR-IM FINAL (QIF)',
+    'QC INSPECTOR-IM INCOMING(QII)',
+    'QC INSPECTOR - WT MATELIZING(QMI)',
+    'QC INSPECTOR - WT WASHING&BLASTING(QWM)',
+    'QC INSPECTOR - WT PAINTING(QWP)',
+    'QC INSPECTOR-BT FITUP&WELDING(QBF)',
+    'QC INSPECTOR-BT DIMENSION(QBD)',
+    'QC INSPECTOR-BT INCOMING TO BENDING',
+    'QC INSPECTOR-BT INCOMING(QBI)',
+    'QC INSPECTOR - BT MT/PT(QBLACK TOWER)',
+    // TRANSPORTATION
+    'TRANSPORTATION',
+    'STORAGE FIT INSTALLATION',
+    'H-FRAME INSTALLATION',
+    'TEQ',
+    // MAINTENANCE
+    'ELECTRICIAN/MECHANIC',
+    // WAREHOUSE
+    'WAREHOUSE-KITSET',
+    'WAREHOUSE BT/WT',
+    'WAREHOUSE-IM',
+    // LEAN
+    'KAIZEN',
+    'EHS'
+];
+
+/**
+ * Quiz용 POSITION 순서 (18개만)
+ */
+const QUIZ_POSITION_ORDER = [
+    'CUTTING',
+    'BEVELING',
+    'BENDING',
+    'LS WELDING',
+    'FIT UP',
+    'CS WELDING',
+    'VTMT',
+    'BRACKET FU',
+    'BRACKET WELD',
+    'UT REPAIR',
+    'DOOR FRAME FU',
+    'DOOR FRAME WELD',
+    'FLATNESS',
+    'BLASTING',
+    'METALIZING',
+    'PAINTING',
+    'ASSEMBLY',
+    'IM CABLE'
+];
+
+/**
+ * 팀 이름 정규화 (대문자 + 공백 처리)
  * @param {string} team - 팀 이름
  * @returns {string} 정규화된 팀 이름
  */
 function normalizeTeamName(team) {
     if (!team) return '';
-    return team.toLowerCase().trim();
+    return team.toUpperCase().trim();
 }
 
 /**
@@ -551,9 +652,9 @@ function formatTeamName(team) {
  */
 function getProcessesForTeam(team) {
     const normalizedTeam = normalizeTeamName(team);
-    const processes = TEAM_PROCESS_MAP[normalizedTeam] || [];
-    console.log(`🔍 getProcessesForTeam("${team}") → normalized: "${normalizedTeam}" → processes: ${processes.length}개`, processes);
-    return processes;
+    const positions = TEAM_PROCESS_MAP[normalizedTeam] || [];
+    console.log(`🔍 getProcessesForTeam("${team}") → normalized: "${normalizedTeam}" → positions: ${positions.length}개`, positions);
+    return positions;
 }
 
 /**
@@ -567,14 +668,14 @@ function mapPositionToProcess(position) {
     const positionLower = position.toLowerCase().trim();
     
     for (const mapping of POSITION_TO_PROCESS_MAP) {
-        const { keywords, process, requireAll = false } = mapping;
+        const { keywords, position, requireAll = false } = mapping;
         
         const matchFn = requireAll
             ? keywords.every(kw => positionLower.includes(kw))
             : keywords.some(kw => positionLower.includes(kw));
         
         if (matchFn) {
-            return process;
+            return position;
         }
     }
     
@@ -601,7 +702,7 @@ function populateTeamSelect(selectId, teams) {
 
 // 팀 선택에 따라 프로세스 셀렉트 업데이트
 function updateProcessSelectForTeam(chartType, selectedTeam) {
-    const processSelectId = chartType === 'avg-score' ? 'avg-score-process-select' : 'assessment-process-select';
+    const processSelectId = chartType === 'avg-score' ? 'avg-score-position-select' : 'assessment-position-select';
     const processSelect = document.getElementById(processSelectId);
     
     if (!processSelect) return;
@@ -611,20 +712,20 @@ function updateProcessSelectForTeam(chartType, selectedTeam) {
     if (selectedTeam && teamProcessMapping[selectedTeam]) {
         // 선택된 팀의 프로세스만 표시
         const teamProcesses = teamProcessMapping[selectedTeam];
-        processes.forEach(process => {
-            if (teamProcesses.includes(process.name)) {
+        positions.forEach(position => {
+            if (teamProcesses.includes(position.name)) {
                 const option = document.createElement('option');
-                option.value = process.id;
-                option.textContent = process.name;
+                option.value = position.id;
+                option.textContent = position.name;
                 processSelect.appendChild(option);
             }
         });
     } else {
         // 전체 프로세스 표시
-        processes.forEach(process => {
+        positions.forEach(position => {
             const option = document.createElement('option');
-            option.value = process.id;
-            option.textContent = process.name;
+            option.value = position.id;
+            option.textContent = position.name;
             processSelect.appendChild(option);
         });
     }
@@ -719,7 +820,7 @@ async function filterDashboardByEntity() {
 async function filterAvgScoreChart() {
     const entitySelect = document.getElementById('dashboard-entity-select');
     const teamSelect = document.getElementById('avg-score-team-select');
-    const processSelect = document.getElementById('avg-score-process-select');
+    const processSelect = document.getElementById('avg-score-position-select');
     const selectedEntity = entitySelect.value;
     const selectedTeam = teamSelect.value;
     const selectedProcess = processSelect.value;
@@ -762,7 +863,7 @@ async function filterAvgScoreChart() {
 // Assessment 차트 프로세스/팀 필터
 async function filterAssessmentChart() {
     const entitySelect = document.getElementById('dashboard-entity-select');
-    const processSelect = document.getElementById('assessment-process-select');
+    const processSelect = document.getElementById('assessment-position-select');
     const teamSelect = document.getElementById('assessment-team-select');
     const selectedEntity = entitySelect.value;
     const selectedProcess = processSelect.value;
@@ -959,22 +1060,36 @@ function renderAssessmentChart() {
 // ==================== Quiz 등록 페이지 ====================
 
 async function loadQuizUploadPage() {
-    // 프로세스 목록 로드 (Drilling 제외)
-    const processSelect = document.getElementById('quiz-process-select');
+    // Load positions from API first
+    if (!positions || positions.length === 0) {
+        try {
+            const response = await axios.get('/api/positions');
+            positions = response.data;
+            AppState.setProcesses(positions);
+        } catch (error) {
+            console.error('Failed to load positions:', error);
+            return;
+        }
+    }
+    
+    // Load position list for quiz (only 18 positions in specified order)
+    const processSelect = document.getElementById('quiz-position-select');
     if (processSelect) {
-        processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
-        processes.forEach(process => {
-            // Drilling은 Quiz에서 제외
-            if (process.name === 'Drilling') return;
-            
-            const option = document.createElement('option');
-            option.value = process.id;
-            option.textContent = process.name;
-            processSelect.appendChild(option);
+        processSelect.innerHTML = '<option value="">Select Position</option>';
+        
+        // Filter and sort positions according to QUIZ_POSITION_ORDER
+        QUIZ_POSITION_ORDER.forEach(positionName => {
+            const position = positions.find(p => p.name === positionName);
+            if (position) {
+                const option = document.createElement('option');
+                option.value = position.id;
+                option.textContent = position.name;
+                processSelect.appendChild(option);
+            }
         });
     }
     
-    // 등록된 Quiz 현황 로드
+    // Load Registered Quiz Status
     await loadQuizStatus();
 }
 
@@ -982,39 +1097,39 @@ async function loadQuizStatus() {
     try {
         const statusDiv = document.getElementById('quiz-status-table');
         
-        // 팀별 프로세스 분류
-        const teamProcesses = {
-            'Black Tower': ['Material Handling', 'Cutting', 'Beveling', 'Bending', 'LS Welding', 'Fit Up', 'CS Welding', 'VTMT', 'Bracket FU', 'Bracket Weld', 'UT repair', 'DF FU', 'DF Weld', 'Flatness'],
-            'White Tower': ['Blasting', 'Metalizing', 'Paint'],
-            'Internal Mounting': ['Mechanical', 'Electrical']
+        // Team-Position mapping (using QUIZ_POSITION_ORDER for consistency)
+        const teamPositions = {
+            'BLACK TOWER': ['CUTTING', 'BEVELING', 'BENDING', 'LS WELDING', 'FIT UP', 'CS WELDING', 'VTMT', 'BRACKET FU', 'BRACKET WELD', 'UT REPAIR', 'DOOR FRAME FU', 'DOOR FRAME WELD', 'FLATNESS'],
+            'WHITE TOWER': ['BLASTING', 'METALIZING', 'PAINTING'],
+            'INTERNAL MOUNTING': ['ASSEMBLY', 'IM CABLE']
         };
         
         // 프로세스별 Quiz 개수 조회
         const quizCounts = {};
         const latestDates = {};
         
-        for (const process of processes) {
-            const response = await axios.get(`/api/quizzes/${process.id}`);
+        for (const position of positions) {
+            const response = await axios.get(`/api/quizzes/${position.id}`);
             const quizzes = response.data;
-            quizCounts[process.id] = quizzes.length;
+            quizCounts[position.id] = quizzes.length;
             
             if (quizzes.length > 0) {
                 // 가장 최근 등록일 찾기
                 const dates = quizzes.map(q => new Date(q.created_at));
-                latestDates[process.id] = new Date(Math.max(...dates));
+                latestDates[position.id] = new Date(Math.max(...dates));
             }
         }
         
         // 팀별 섹션 생성
         let html = '<div class="space-y-4">';
         
-        Object.entries(teamProcesses).forEach(([teamName, processNames]) => {
+        Object.entries(teamPositions).forEach(([teamName, positionNames]) => {
             const teamId = teamName.replace(/\s+/g, '-').toLowerCase();
             
             // 팀별 통계
-            const teamProcessList = processes.filter(p => processNames.includes(p.name));
-            const totalProcesses = teamProcessList.length;
-            const registeredCount = teamProcessList.filter(p => quizCounts[p.id] > 0).length;
+            const teamPositionList = positions.filter(p => positionNames.includes(p.name));
+            const totalPositions = teamPositionList.length;
+            const registeredCount = teamPositionList.filter(p => quizCounts[p.id] > 0).length;
             
             html += `
                 <div class="border border-gray-200 rounded-lg overflow-hidden">
@@ -1025,48 +1140,49 @@ async function loadQuizStatus() {
                             <i class="fas fa-users text-blue-600"></i>
                             <h4 class="text-lg font-bold text-gray-800">${teamName}</h4>
                             <span class="text-sm text-gray-600">
-                                (${registeredCount}/${totalProcesses} 프로세스 등록)
+                                (${registeredCount}/${totalPositions} Positions Registered)
                             </span>
                         </div>
                         <i id="${teamId}-icon" class="fas fa-chevron-down text-blue-600 transition-transform"></i>
                     </button>
                     
-                    <!-- 팀 프로세스 목록 (토글 가능) -->
+                    <!-- Team Process List (Toggleable) -->
                     <div id="${teamId}-content" class="overflow-hidden transition-all duration-300">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">프로세스</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">등록된 Quiz 수</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">최근 등록일</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">POSITION</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">QUIZ COUNT</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LAST REGISTERED</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STATUS</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
             `;
             
-            teamProcessList.forEach(process => {
-                // Drilling은 Quiz에서 제외
-                if (process.name === 'Drilling') return;
+            // Iterate in the order defined in positionNames array
+            positionNames.forEach(positionName => {
+                const position = positions.find(p => p.name === positionName);
+                if (!position) return;
                 
-                const count = quizCounts[process.id] || 0;
-                const latestDate = latestDates[process.id];
-                const dateStr = latestDate ? latestDate.toLocaleDateString('ko-KR') : '-';
+                const count = quizCounts[position.id] || 0;
+                const latestDate = latestDates[position.id];
+                const dateStr = latestDate ? latestDate.toLocaleDateString('en-US') : '-';
                 const statusBadge = count > 0 
-                    ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">등록됨</span>'
-                    : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">미등록</span>';
+                    ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Registered</span>'
+                    : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Not Registered</span>';
                 
                 const manageButtons = count > 0 
                     ? `
                         <div class="flex gap-2">
-                            <button onclick="showQuizManagement(${process.id}, '${process.name}')" 
+                            <button onclick="showQuizManagement(${position.id}, '${position.name}')" 
                                     class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">
-                                <i class="fas fa-cog mr-1"></i>관리
+                                <i class="fas fa-cog mr-1"></i>Manage
                             </button>
-                            <button onclick="deleteAllQuizzesByProcess(${process.id}, '${process.name}', ${count})" 
+                            <button onclick="deleteAllQuizzesByProcess(${position.id}, '${position.name}', ${count})" 
                                     class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded">
-                                <i class="fas fa-trash-alt mr-1"></i>전체 삭제
+                                <i class="fas fa-trash-alt mr-1"></i>Delete All
                             </button>
                         </div>
                       `
@@ -1074,8 +1190,8 @@ async function loadQuizStatus() {
                 
                 html += `
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${process.name}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}개</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${position.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">${statusBadge}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">${manageButtons}</td>
@@ -1095,9 +1211,9 @@ async function loadQuizStatus() {
         
         statusDiv.innerHTML = html;
     } catch (error) {
-        console.error('Quiz 현황 로드 실패:', error);
+        console.error('Failed to load quiz status:', error);
         document.getElementById('quiz-status-table').innerHTML = 
-            '<p class="text-red-500">현황을 불러오는데 실패했습니다.</p>';
+            '<p class="text-red-500">Failed to load quiz status.</p>';
     }
 }
 
@@ -1120,47 +1236,47 @@ function toggleTeamSection(teamId) {
 function getQuizUploadHTML() {
     return `
         <div class="space-y-6">
-            <!-- 등록된 프로세스 현황 -->
+            <!-- Registered Quiz Status -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h3 class="text-xl font-bold text-gray-800 mb-4">
                     <i class="fas fa-list-check mr-2"></i>
-                    등록된 Quiz 현황
+                    Registered Quiz Status
                 </h3>
                 <div id="quiz-status-table" class="overflow-x-auto">
-                    <p class="text-gray-500">로딩 중...</p>
+                    <p class="text-gray-500">Loading...</p>
                 </div>
             </div>
             
-            <!-- 업로드 섹션 -->
+            <!-- Upload Section -->
             <div class="bg-white rounded-lg shadow-md p-8">
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">
                     <i class="fas fa-question-circle mr-2"></i>
-                    Written Test Quiz 등록
+                    Written Test Quiz Registration
                 </h2>
                 
                 <div class="mb-6">
                     <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
                         <p class="text-sm text-blue-700 mb-2">
                             <i class="fas fa-info-circle mr-2"></i>
-                            <strong>지원 형식 1:</strong> Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer
+                            <strong>Supported Format 1:</strong> POSITION, NO, QUESTION, 1), 2), 3), 4), ANSWER, SCORE
                         </p>
                         <p class="text-sm text-blue-700">
                             <i class="fas fa-info-circle mr-2"></i>
-                            <strong>지원 형식 2:</strong> 번호, 질문, 1), 2), 3), 4), 정답 (자동 변환됨)
+                            <strong>Supported Format 2:</strong> NO, QUESTION, 1), 2), 3), 4), ANSWER, SCORE (POSITION selection required)
                         </p>
                     </div>
                     
                     <div class="mb-4">
                         <label class="block text-gray-700 font-semibold mb-2">
-                            프로세스 선택 (형식 2 사용 시 필수)
+                            Select Position (Required for Format 2)
                         </label>
-                        <select id="quiz-process-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <option value="">프로세스를 선택하세요</option>
+                        <select id="quiz-position-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="">Select Position</option>
                         </select>
                     </div>
                     
                     <label class="block text-gray-700 font-semibold mb-2">
-                        엑셀 파일 선택
+                        Select Excel File
                     </label>
                     <input type="file" id="quiz-file" accept=".xlsx,.xls" 
                            class="block w-full text-sm text-gray-500
@@ -1227,17 +1343,36 @@ async function uploadQuizzes() {
             const firstRow = rows[0];
             let quizzes = [];
             
-            // 형식 1: Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer
-            if (firstRow.hasOwnProperty('Process ID') && firstRow.hasOwnProperty('Question')) {
-                quizzes = rows.map(row => ({
-                    process_id: row['Process ID'],
-                    question: (row['Question'] || '').toString().trim(),
-                    option_a: (row['Option A'] || '').toString().trim(),
-                    option_b: (row['Option B'] || '').toString().trim(),
-                    option_c: (row['Option C'] || '').toString().trim(),
-                    option_d: (row['Option D'] || '').toString().trim(),
-                    correct_answer: (row['Correct Answer'] || '').toString().trim().toUpperCase()
-                }));
+            // 형식 1: POSITION, NO, QUESTION, 1), 2), 3), 4), ANSWER, SCORE
+            if (firstRow.hasOwnProperty('POSITION') && firstRow.hasOwnProperty('QUESTION')) {
+                // POSITION name to ID mapping
+                const positionIdMap = {};
+                positions.forEach(p => {
+                    const upperName = p.name.toUpperCase();
+                    positionIdMap[upperName] = p.id;
+                });
+                
+                quizzes = rows.map(row => {
+                    // Get position name and convert to ID
+                    const positionName = (row['POSITION'] || '').toString().trim().toUpperCase();
+                    const positionId = positionIdMap[positionName];
+                    
+                    // Convert answer number to letter (1->A, 2->B, 3->C, 4->D)
+                    let correctAnswer = (row['ANSWER'] || '').toString().trim();
+                    if (['1', '2', '3', '4'].includes(correctAnswer)) {
+                        correctAnswer = String.fromCharCode(64 + parseInt(correctAnswer)); // 1->A, 2->B, etc.
+                    }
+                    
+                    return {
+                        process_id: positionId,
+                        question: (row['QUESTION'] || '').toString().trim(),
+                        option_a: (row['1)'] || '').toString().trim(),
+                        option_b: (row['2)'] || '').toString().trim(),
+                        option_c: (row['3)'] || '').toString().trim(),
+                        option_d: (row['4)'] || '').toString().trim(),
+                        correct_answer: correctAnswer.toUpperCase()
+                    };
+                });
             }
             // 형식 2: 프로세스, 번호, 질문, 1), 2), 3), 4), 정답
             else if (firstRow.hasOwnProperty('프로세스') && firstRow.hasOwnProperty('질문')) {
@@ -1264,7 +1399,7 @@ async function uploadQuizzes() {
                 
                 // 프로세스 ID 매핑 생성
                 const processIdMap = {};
-                processes.forEach(p => {
+                positions.forEach(p => {
                     const upperName = p.name.toUpperCase();
                     processIdMap[upperName] = p.id;
                 });
@@ -1306,40 +1441,35 @@ async function uploadQuizzes() {
                     };
                 }).filter(q => q.process_id); // process_id가 없는 것은 제외
             }
-            // 형식 3: 번호, 질문, 1), 2), 3), 4), 정답 (프로세스 선택 필요)
-            else if (firstRow.hasOwnProperty('번호') && firstRow.hasOwnProperty('질문')) {
-                const processSelect = document.getElementById('quiz-process-select');
+            // 형식 2: NO, QUESTION, 1), 2), 3), 4), ANSWER, SCORE (POSITION selection required)
+            else if (firstRow.hasOwnProperty('NO') && firstRow.hasOwnProperty('QUESTION')) {
+                const processSelect = document.getElementById('quiz-position-select');
                 const processId = processSelect.value;
                 
                 if (!processId) {
-                    alert('프로세스를 선택해주세요. (형식 3 사용 시 필수)');
+                    alert('Please select a POSITION first. (Required for Format 2)');
                     return;
                 }
                 
                 quizzes = rows.map(row => {
-                    // 정답 매핑: A/B/C/D 형식으로 변환
-                    let correctAnswer = row['정답'];
-                    if (correctAnswer && typeof correctAnswer === 'string') {
-                        correctAnswer = correctAnswer.trim().toUpperCase();
-                        // 만약 정답이 숫자면 변환 (1->A, 2->B, 3->C, 4->D)
-                        if (['1', '2', '3', '4'].includes(correctAnswer)) {
-                            const mapping = {'1': 'A', '2': 'B', '3': 'C', '4': 'D'};
-                            correctAnswer = mapping[correctAnswer];
-                        }
+                    // Convert answer number to letter (1->A, 2->B, 3->C, 4->D)
+                    let correctAnswer = (row['ANSWER'] || '').toString().trim();
+                    if (['1', '2', '3', '4'].includes(correctAnswer)) {
+                        correctAnswer = String.fromCharCode(64 + parseInt(correctAnswer)); // 1->A, 2->B, etc.
                     }
                     
                     return {
                         process_id: parseInt(processId),
-                        question: (row['질문'] || '').toString().trim(),
+                        question: (row['QUESTION'] || '').toString().trim(),
                         option_a: (row['1)'] || '').toString().trim(),
                         option_b: (row['2)'] || '').toString().trim(),
                         option_c: (row['3)'] || '').toString().trim(),
                         option_d: (row['4)'] || '').toString().trim(),
-                        correct_answer: correctAnswer
+                        correct_answer: correctAnswer.toUpperCase()
                     };
                 });
             } else {
-                alert('지원하지 않는 엑셀 파일 형식입니다.\n\n지원 형식:\n1. Process ID, Question, Option A, Option B, Option C, Option D, Correct Answer\n2. 프로세스, 번호, 질문, 1), 2), 3), 4), 정답\n3. 번호, 질문, 1), 2), 3), 4), 정답 (프로세스 선택 필요)');
+                alert('Unsupported Excel file format.\n\nSupported formats:\n1. POSITION, NO, QUESTION, 1), 2), 3), 4), ANSWER, SCORE\n2. NO, QUESTION, 1), 2), 3), 4), ANSWER, SCORE (POSITION selection required)\n3. POSITION, QUESTION, 1), 2), 3), 4), ANSWER (legacy format)');
                 return;
             }
             
@@ -1359,8 +1489,8 @@ async function uploadQuizzes() {
             const response = await axios.post('/api/quizzes/bulk', quizzes);
             alert(`${response.data.count}개의 퀴즈가 성공적으로 등록되었습니다.`);
             fileInput.value = '';
-            if (document.getElementById('quiz-process-select')) {
-                document.getElementById('quiz-process-select').value = '';
+            if (document.getElementById('quiz-position-select')) {
+                document.getElementById('quiz-position-select').value = '';
             }
             // 현황 새로고침
             await loadQuizStatus();
@@ -1475,7 +1605,7 @@ async function deleteAllQuizzesByProcess(processId, processName, count) {
     if (!confirm(`정말로 ${processName}의 ${count}개 Quiz를 모두 삭제하시겠습니까?`)) return;
     
     try {
-        const response = await axios.delete(`/api/quizzes/process/${processId}`);
+        const response = await axios.delete(`/api/quizzes/position/${processId}`);
         alert(`${processName}의 ${response.data.deletedCount}개 Quiz가 삭제되었습니다.`);
         await loadQuizStatus();
     } catch (error) {
@@ -1548,7 +1678,7 @@ async function editQuiz(quizId) {
                                 </select>
                             </div>
                             
-                            <input type="hidden" id="edit-process-id">
+                            <input type="hidden" id="edit-position-id">
                             
                             <div class="flex space-x-3">
                                 <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg">
@@ -1583,7 +1713,7 @@ async function editQuiz(quizId) {
             document.getElementById('edit-option-d').value = currentQuiz.option_d || '';
             document.getElementById('edit-option-d-image').value = currentQuiz.option_d_image_url || '';
             document.getElementById('edit-correct-answer').value = currentQuiz.correct_answer;
-            document.getElementById('edit-process-id').value = currentQuiz.process_id;
+            document.getElementById('edit-position-id').value = currentQuiz.process_id;
         }
     } catch (error) {
         console.error('Quiz 수정 폼 로드 실패:', error);
@@ -1603,7 +1733,7 @@ async function saveQuizEdit(event, quizId) {
     
     try {
         const updatedQuiz = {
-            process_id: parseInt(document.getElementById('edit-process-id').value),
+            process_id: parseInt(document.getElementById('edit-position-id').value),
             question: document.getElementById('edit-question').value,
             question_image_url: document.getElementById('edit-question-image').value || null,
             option_a: document.getElementById('edit-option-a').value,
@@ -1632,19 +1762,19 @@ async function saveQuizEdit(event, quizId) {
 
 async function loadAssessmentUploadPage() {
     // 프로세스 목록 로드
-    const processSelect = document.getElementById('assessment-process-select');
+    const processSelect = document.getElementById('assessment-position-select');
     if (processSelect) {
         processSelect.innerHTML = '<option value="">프로세스를 선택하세요</option>';
         
         // Assessment 전용 프로세스 22개만 표시 (Quiz 전용 제외)
         const quizOnlyProcesses = ['Blasting', 'Metalizing', 'Paint', 'Mechanical', 'Electrical'];
         
-        processes.forEach(process => {
+        positions.forEach(position => {
             // Quiz 전용 프로세스는 제외
-            if (!quizOnlyProcesses.includes(process.name)) {
+            if (!quizOnlyProcesses.includes(position.name)) {
                 const option = document.createElement('option');
-                option.value = process.id;
-                option.textContent = process.name;
+                option.value = position.id;
+                option.textContent = position.name;
                 processSelect.appendChild(option);
             }
         });
@@ -1743,17 +1873,17 @@ async function loadAssessmentStatus() {
         // 프로세스별 항목 (Quiz 전용 프로세스 제외)
         const quizOnlyProcesses = ['Blasting', 'Metalizing', 'Paint', 'Mechanical', 'Electrical'];
         
-        processes.forEach(process => {
+        positions.forEach(position => {
             // Quiz 전용 프로세스는 제외
-            if (quizOnlyProcesses.includes(process.name)) {
+            if (quizOnlyProcesses.includes(position.name)) {
                 return;
             }
             
-            const count = itemCounts[process.id] || 0;
-            const latestDate = latestDates[process.id];
+            const count = itemCounts[position.id] || 0;
+            const latestDate = latestDates[position.id];
             const dateStr = latestDate ? latestDate.toLocaleDateString('ko-KR') : '-';
-            const categories = categoryBreakdown[process.id] 
-                ? Object.entries(categoryBreakdown[process.id])
+            const categories = categoryBreakdown[position.id] 
+                ? Object.entries(categoryBreakdown[position.id])
                     .map(([cat, cnt]) => `${cat}(${cnt})`)
                     .join(', ')
                 : '-';
@@ -1764,10 +1894,10 @@ async function loadAssessmentStatus() {
             const manageButtons = count > 0 
                 ? `
                     <div class="flex gap-2">
-                        <button onclick="showAssessmentManagement(${process.id}, '${process.name}')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">
+                        <button onclick="showAssessmentManagement(${position.id}, '${position.name}')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">
                             <i class="fas fa-cog mr-1"></i>관리
                         </button>
-                        <button onclick="deleteAllAssessmentsByProcess(${process.id}, '${process.name}', ${count})" class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded">
+                        <button onclick="deleteAllAssessmentsByProcess(${position.id}, '${position.name}', ${count})" class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded">
                             <i class="fas fa-trash-alt mr-1"></i>전체 삭제
                         </button>
                     </div>
@@ -1776,7 +1906,7 @@ async function loadAssessmentStatus() {
             
             tableHTML += `
                 <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${process.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${position.name}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}개</td>
                     <td class="px-6 py-4 text-sm text-gray-500">${categories}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
@@ -1895,7 +2025,7 @@ async function deleteAllAssessmentsByProcess(processId, processName, count) {
     try {
         // processId가 null이면 'null' 문자열로 전송
         const processParam = processId === null ? 'null' : processId;
-        const response = await axios.delete(`/api/assessment-items/process/${processParam}`);
+        const response = await axios.delete(`/api/assessment-items/position/${processParam}`);
         alert(`${processName}의 ${response.data.deletedCount}개 Assessment 항목이 삭제되었습니다.`);
         await loadAssessmentStatus();
     } catch (error) {
@@ -1941,7 +2071,7 @@ function getAssessmentUploadHTML() {
                         <label class="block text-gray-700 font-semibold mb-2">
                             프로세스 선택 (형식 2 사용 시 필수)
                         </label>
-                        <select id="assessment-process-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <select id="assessment-position-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                             <option value="">프로세스를 선택하세요</option>
                         </select>
                     </div>
@@ -2022,12 +2152,12 @@ async function uploadAssessmentItems() {
             if (hasNoOrProcess && hasLvCategory) {
                 console.log('✅ 형식 1 감지: 프로세스 포함 형식');
                 // 먼저 프로세스 목록 가져오기
-                const processesResponse = await axios.get('/api/processes');
-                const processes = processesResponse.data;
+                const processesResponse = await axios.get('/api/positions');
+                const positions = processesResponse.data;
                 
                 // 프로세스 이름 매핑 (대소문자 구분 없이)
                 const processMap = {};
-                processes.forEach(p => {
+                positions.forEach(p => {
                     const normalizedName = p.name.toUpperCase().trim();
                     processMap[normalizedName] = p.id;
                     // 공백/언더스코어 변형도 추가
@@ -2112,7 +2242,7 @@ async function uploadAssessmentItems() {
             // 형식 3: Level2, Level3, Level4 형식 (Cutting.xlsx)
             else if (sheetData[1] && (sheetData[1].includes('Level2') || sheetData[1].includes('Level3') || sheetData[1].includes('Level4'))) {
                 console.log('✅ 형식 3 감지: Level 컬럼 형식');
-                const processSelect = document.getElementById('assessment-process-select');
+                const processSelect = document.getElementById('assessment-position-select');
                 const processId = processSelect.value;
                 
                 if (!processId) {
@@ -2157,8 +2287,8 @@ async function uploadAssessmentItems() {
             fileInput.type = '';
             fileInput.type = 'file';
             
-            if (document.getElementById('assessment-process-select')) {
-                document.getElementById('assessment-process-select').value = '';
+            if (document.getElementById('assessment-position-select')) {
+                document.getElementById('assessment-position-select').value = '';
             }
             // 현황 새로고침
             await loadAssessmentStatus();
@@ -2217,8 +2347,12 @@ async function loadWorkerStatus() {
             const entityId = entity.replace(/\s+/g, '-'); // 공백을 하이픈으로 변경하여 ID 생성
             
             // 해당 법인의 고유한 팀/직책 목록 추출
-            const uniqueTeams = [...new Set(entityWorkers.map(w => w.team))].sort();
-            const uniquePositions = [...new Set(entityWorkers.map(w => w.position))].sort();
+            const workerTeams = [...new Set(entityWorkers.map(w => w.team))];
+            const workerPositions = [...new Set(entityWorkers.map(w => w.position))];
+            
+            // 표준 순서에 따라 정렬 (존재하는 것만)
+            const uniqueTeams = STANDARD_TEAM_ORDER.filter(team => workerTeams.includes(team));
+            const uniquePositions = STANDARD_POSITION_ORDER.filter(pos => workerPositions.includes(pos));
             
             tableHTML += `
                 <div class="border border-gray-200 rounded-lg overflow-hidden">
@@ -2239,54 +2373,54 @@ async function loadWorkerStatus() {
                         <!-- 필터 영역 -->
                         <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                                <!-- 팀 필터 -->
+                                <!-- Team Filter -->
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">팀</label>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">TEAM</label>
                                     <select id="filter-team-${entityId}" onchange="applyWorkerFilter('${entityId}')"
                                             class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                                        <option value="">전체</option>
+                                        <option value="">All</option>
                                         ${uniqueTeams.map(team => `<option value="${team}">${team}</option>`).join('')}
                                     </select>
                                 </div>
                                 
-                                <!-- 직책 필터 -->
+                                <!-- Position Filter -->
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">직책</label>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">POSITION</label>
                                     <select id="filter-position-${entityId}" onchange="applyWorkerFilter('${entityId}')"
                                             class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                                        <option value="">전체</option>
+                                        <option value="">All</option>
                                         ${uniquePositions.map(pos => `<option value="${pos}">${pos}</option>`).join('')}
                                     </select>
                                 </div>
                                 
-                                <!-- 입사일 시작 -->
+                                <!-- Start Date -->
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">입사일 (시작)</label>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">START DATE (From)</label>
                                     <input type="date" id="filter-date-start-${entityId}" onchange="applyWorkerFilter('${entityId}')"
                                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
                                 
-                                <!-- 입사일 종료 -->
+                                <!-- End Date -->
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">입사일 (종료)</label>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">START DATE (To)</label>
                                     <input type="date" id="filter-date-end-${entityId}" onchange="applyWorkerFilter('${entityId}')"
                                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
                                 
-                                <!-- 검색 -->
+                                <!-- Search -->
                                 <div>
-                                    <label class="block text-xs font-medium text-gray-700 mb-1">이름/사번 검색</label>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">NAME/EMPLOYEE ID</label>
                                     <input type="text" id="filter-search-${entityId}" oninput="applyWorkerFilter('${entityId}')"
-                                           placeholder="검색어 입력"
+                                           placeholder="Search"
                                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
                             </div>
                             
-                            <!-- 필터 초기화 버튼 -->
+                            <!-- Reset Filter Button -->
                             <div class="mt-3 text-right">
                                 <button onclick="resetWorkerFilter('${entityId}')" 
                                         class="px-4 py-2 text-xs text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                                    <i class="fas fa-redo mr-1"></i>필터 초기화
+                                    <i class="fas fa-redo mr-1"></i>Reset Filters
                                 </button>
                             </div>
                         </div>
@@ -2294,12 +2428,12 @@ async function loadWorkerStatus() {
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">사번</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">팀</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">직책</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">입사일</th>
-                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NAME</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">EMPLOYEE ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TEAM</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">POSITION</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">START DATE</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">ACTIONS</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
@@ -2621,27 +2755,27 @@ function getWorkerUploadHTML() {
                 </div>
             </div>
             
-            <!-- 업로드 섹션 -->
+            <!-- Upload Section -->
             <div class="bg-white rounded-lg shadow-md p-8">
             <h2 class="text-3xl font-bold text-gray-800 mb-6">
                 <i class="fas fa-users mr-2"></i>
-                작업자 현황 등록
+                Worker Registration
             </h2>
             
             <div class="mb-6">
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
                     <p class="text-sm text-blue-700 mb-2">
                         <i class="fas fa-info-circle mr-2"></i>
-                        <strong>지원 형식 1:</strong> No, Entity, Name, Employee ID, Team, Position, Start to work date
+                        <strong>Supported Format 1:</strong> No, Entity, Name, Employee ID, Team, Position, Start to work date
                     </p>
                     <p class="text-sm text-blue-700">
                         <i class="fas fa-info-circle mr-2"></i>
-                        <strong>지원 형식 2:</strong> Name, Employee ID, Company, Department, Position, start to work (자동 변환됨)
+                        <strong>Supported Format 2:</strong> Name, Employee ID, Company, Department, Position, start to work (auto-converted)
                     </p>
                 </div>
                 
                 <label class="block text-gray-700 font-semibold mb-2">
-                    엑셀 파일 선택
+                    Select Excel File
                 </label>
                 <input type="file" id="worker-file" accept=".xlsx,.xls" 
                        class="block w-full text-sm text-gray-500
@@ -2657,14 +2791,14 @@ function getWorkerUploadHTML() {
                 <button onclick="downloadWorkerTemplate()" 
                         class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-6 rounded-lg shadow-md transition">
                     <i class="fas fa-download mr-2"></i>
-                    템플릿 다운로드
+                    Download Template
                 </button>
             </div>
             
             <button onclick="uploadWorkers()" 
                     class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
                 <i class="fas fa-upload mr-2"></i>
-                작업자 업로드
+                Upload Workers
             </button>
         </div>
     `;
@@ -2711,19 +2845,31 @@ async function uploadWorkers() {
             console.log('🔍 첫 번째 행 컬럼:', Object.keys(firstRow));
             console.log('🔍 첫 번째 데이터 샘플:', firstRow);
             
+            // 컬럼명을 대소문자 무시하고 찾는 헬퍼 함수
+            const findColumn = (row, ...possibleNames) => {
+                for (const name of possibleNames) {
+                    const key = Object.keys(row).find(k => k.toUpperCase() === name.toUpperCase());
+                    if (key) return row[key];
+                }
+                return null;
+            };
+            
             let workers = [];
             
             // 형식 1: No, Entity, Name, Employee ID, Team, Position, Start to work date
-            if (firstRow.hasOwnProperty('Entity') && firstRow.hasOwnProperty('Team')) {
+            const hasEntity = findColumn(firstRow, 'Entity') !== null;
+            const hasTeam = findColumn(firstRow, 'Team') !== null;
+            
+            if (hasEntity && hasTeam) {
                 console.log('✅ 형식 1 감지 (Entity, Team 컬럼 존재)');
                 workers = rows.map((row, idx) => {
                     const worker = {
-                        employee_id: String(row['Employee ID'] || '').trim(),
-                        name: String(row['Name'] || '').trim(),
-                        entity: String(row['Entity'] || '').trim(),
-                        team: String(row['Team'] || '').trim().toLowerCase(),
-                        position: String(row['Position'] || '').trim(),
-                        start_to_work_date: convertExcelDate(row['Start to work date'])
+                        employee_id: String(findColumn(row, 'Employee ID') || '').trim(),
+                        name: String(findColumn(row, 'Name') || '').trim(),
+                        entity: String(findColumn(row, 'Entity') || '').trim(),
+                        team: String(findColumn(row, 'Team') || '').trim(),
+                        position: String(findColumn(row, 'Position') || '').trim(),
+                        start_to_work_date: convertExcelDate(findColumn(row, 'Start to work date', 'Start to work', 'Start Date'))
                     };
                     
                     // 처음 3개 데이터 디버깅
@@ -2735,16 +2881,16 @@ async function uploadWorkers() {
                 });
             }
             // 형식 2: Name, Employee ID, Company, Department, Position, start to work
-            else if (firstRow.hasOwnProperty('Company') && firstRow.hasOwnProperty('Department')) {
+            else if (findColumn(firstRow, 'Company') !== null && findColumn(firstRow, 'Department') !== null) {
                 console.log('✅ 형식 2 감지 (Company, Department 컬럼 존재)');
                 workers = rows.map((row, idx) => {
                     const worker = {
-                        employee_id: String(row['Employee ID'] || '').trim(),
-                        name: String(row['Name'] || '').trim(),
-                        entity: String(row['Company'] || '').trim(),
-                        team: String(row['Department'] || '').trim().toLowerCase(),
-                        position: String(row['Position'] || '').trim(),
-                        start_to_work_date: convertExcelDate(row['start to work'])
+                        employee_id: String(findColumn(row, 'Employee ID') || '').trim(),
+                        name: String(findColumn(row, 'Name') || '').trim(),
+                        entity: String(findColumn(row, 'Company') || '').trim(),
+                        team: String(findColumn(row, 'Department') || '').trim(),
+                        position: String(findColumn(row, 'Position') || '').trim(),
+                        start_to_work_date: convertExcelDate(findColumn(row, 'start to work', 'Start Date'))
                     };
                     
                     if (idx < 3) {
@@ -2867,7 +3013,7 @@ function getSupervisorAssessmentHTML() {
                         <span class="bg-blue-500 text-white rounded-full px-2 py-0.5 text-xs mr-2">3</span>
                         프로세스 선택
                     </label>
-                    <select id="sa-process-select" onchange="onSAProcessChange()" 
+                    <select id="sa-position-select" onchange="onSAProcessChange()" 
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" disabled>
                         <option value="">먼저 팀을 선택하세요</option>
                     </select>
@@ -2954,6 +3100,45 @@ function getSupervisorAssessmentHTML() {
                 </button>
             </div>
         </div>
+        
+        <!-- Supervisor Assessment 결과 등록 섹션 -->
+        <div class="bg-white rounded-lg shadow-md p-8 mt-6">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">
+                <i class="fas fa-file-excel mr-2"></i>
+                Supervisor Assessment 결과 등록
+            </h2>
+            
+            <div class="mb-6">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                    <p class="text-sm text-blue-700 mb-2">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>엑셀 파일 형식:</strong> No., 사번, 이름, 법인, 팀, 프로세스, Lv 카테고리, 평가항목, 평가 결과, 평가일자
+                    </p>
+                    <p class="text-sm text-blue-700">
+                        <i class="fas fa-lightbulb mr-2"></i>
+                        기존에 진행한 Supervisor Assessment 결과를 일괄 등록할 수 있습니다.
+                    </p>
+                </div>
+                
+                <label class="block text-gray-700 font-semibold mb-2">
+                    엑셀 파일 선택
+                </label>
+                <input type="file" id="assessment-result-file" accept=".xlsx,.xls" 
+                       class="block w-full text-sm text-gray-500
+                              file:mr-4 file:py-2 file:px-4
+                              file:rounded-lg file:border-0
+                              file:text-sm file:font-semibold
+                              file:bg-green-50 file:text-green-700
+                              hover:file:bg-green-100
+                              cursor-pointer">
+            </div>
+            
+            <button onclick="uploadAssessmentResults()" 
+                    class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
+                <i class="fas fa-upload mr-2"></i>
+                결과 업로드
+            </button>
+        </div>
     `;
 }
 
@@ -2977,7 +3162,7 @@ async function loadSupervisorAssessmentPage() {
 function onSAEntityChange() {
     const entitySelect = document.getElementById('sa-entity-select');
     const teamSelect = document.getElementById('sa-team-select');
-    const processSelect = document.getElementById('sa-process-select');
+    const processSelect = document.getElementById('sa-position-select');
     const workerSelect = document.getElementById('sa-worker-select');
     const selectedEntity = entitySelect.value;
     
@@ -3023,7 +3208,7 @@ function onSAEntityChange() {
 function onSATeamChange() {
     const entitySelect = document.getElementById('sa-entity-select');
     const teamSelect = document.getElementById('sa-team-select');
-    const processSelect = document.getElementById('sa-process-select');
+    const processSelect = document.getElementById('sa-position-select');
     const workerSelect = document.getElementById('sa-worker-select');
     const selectedEntity = entitySelect.value;
     const selectedTeam = teamSelect.value;
@@ -3067,7 +3252,7 @@ function onSATeamChange() {
 function onSAProcessChange() {
     const entitySelect = document.getElementById('sa-entity-select');
     const teamSelect = document.getElementById('sa-team-select');
-    const processSelect = document.getElementById('sa-process-select');
+    const processSelect = document.getElementById('sa-position-select');
     const workerSelect = document.getElementById('sa-worker-select');
     const selectedEntity = entitySelect.value;
     const selectedTeam = teamSelect.value;
@@ -3115,7 +3300,7 @@ function onSAProcessChange() {
 // 4단계: 작업자 선택 시 - 이전 평가 이력 표시
 async function onSAWorkerChange() {
     const workerSelect = document.getElementById('sa-worker-select');
-    const processSelect = document.getElementById('sa-process-select');
+    const processSelect = document.getElementById('sa-position-select');
     const historyContainer = document.getElementById('sa-history-container');
     const historyContent = document.getElementById('sa-history-content');
     
@@ -3128,15 +3313,15 @@ async function onSAWorkerChange() {
     }
     
     // 프로세스 이름으로 프로세스 ID 찾기
-    const process = processes.find(p => p.name === processName);
-    if (!process) {
+    const position = positions.find(p => p.name === processName);
+    if (!position) {
         historyContainer.classList.add('hidden');
         return;
     }
     
     try {
         // 이전 평가 이력 조회
-        const response = await axios.get(`/api/supervisor-assessment-history/${workerId}/${process.id}`);
+        const response = await axios.get(`/api/supervisor-assessment-history/${workerId}/${position.id}`);
         const history = response.data;
         
         if (history.length === 0) {
@@ -3173,7 +3358,7 @@ async function onSAWorkerChange() {
 
 async function startAssessment() {
     const workerId = document.getElementById('sa-worker-select').value;
-    const processName = document.getElementById('sa-process-select').value;
+    const processName = document.getElementById('sa-position-select').value;
     
     if (!workerId || !processName) {
         alert('작업자와 프로세스를 선택해주세요.');
@@ -3181,12 +3366,12 @@ async function startAssessment() {
     }
     
     // 프로세스 이름으로 프로세스 ID 찾기
-    const process = processes.find(p => p.name === processName);
-    if (!process) {
+    const position = positions.find(p => p.name === processName);
+    if (!position) {
         alert('선택한 프로세스를 찾을 수 없습니다.');
         return;
     }
-    const processId = process.id;
+    const processId = position.id;
     
     try {
         // 해당 프로세스의 모든 assessment 항목 로드
@@ -3294,7 +3479,7 @@ function recordAssessment(satisfied) {
 
 async function completeAssessment() {
     const workerId = document.getElementById('sa-worker-select').value;
-    const processId = document.getElementById('sa-process-select').value;
+    const processId = document.getElementById('sa-position-select').value;
     
     // Level별로 결과 집계
     const levelResults = {};
@@ -3443,7 +3628,7 @@ function getResultManagementHTML() {
                                     <option value="CSTW">CSTW</option>
                                 </select>
                                 
-                                <select id="test-process-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <select id="test-position-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                                     <option value="">전체 프로세스</option>
                                 </select>
                                 
@@ -3502,7 +3687,7 @@ function getResultManagementHTML() {
                                     <option value="CSTW">CSTW</option>
                                 </select>
                                 
-                                <select id="assessment-process-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <select id="assessment-position-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                                     <option value="">전체 프로세스</option>
                                 </select>
                                 
@@ -3558,19 +3743,19 @@ function getResultManagementHTML() {
 
 async function loadResultManagementPage() {
     // 프로세스 목록 로드
-    const testProcessFilter = document.getElementById('test-process-filter');
-    const assessmentProcessFilter = document.getElementById('assessment-process-filter');
+    const testProcessFilter = document.getElementById('test-position-filter');
+    const assessmentProcessFilter = document.getElementById('assessment-position-filter');
     
     if (testProcessFilter && assessmentProcessFilter) {
-        processes.forEach(process => {
+        positions.forEach(position => {
             const option1 = document.createElement('option');
-            option1.value = process.id;
-            option1.textContent = process.name;
+            option1.value = position.id;
+            option1.textContent = position.name;
             testProcessFilter.appendChild(option1);
             
             const option2 = document.createElement('option');
-            option2.value = process.id;
-            option2.textContent = process.name;
+            option2.value = position.id;
+            option2.textContent = position.name;
             assessmentProcessFilter.appendChild(option2);
         });
     }
@@ -3580,7 +3765,7 @@ async function loadResultManagementPage() {
 async function downloadWrittenTestResults() {
     try {
         const entity = document.getElementById('test-entity-filter').value;
-        const processId = document.getElementById('test-process-filter').value;
+        const processId = document.getElementById('test-position-filter').value;
         const downloadType = document.getElementById('test-download-type').value;
         
         let url = downloadType === 'detailed' 
@@ -3708,7 +3893,7 @@ async function downloadWrittenTestResults() {
 async function downloadAssessmentResults() {
     try {
         const entity = document.getElementById('assessment-entity-filter').value;
-        const processId = document.getElementById('assessment-process-filter').value;
+        const processId = document.getElementById('assessment-position-filter').value;
         const downloadType = document.getElementById('assessment-download-type').value;
         
         let url = '/api/results/assessment?';
@@ -3942,23 +4127,91 @@ async function uploadAssessmentResults() {
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsonData = XLSX.utils.sheet_to_json(worksheet);
             
+            console.log(`📁 엑셀 파일 읽기 완료: ${jsonData.length}행`);
+            console.log('📋 첫 번째 행:', jsonData[0]);
+            console.log('📅 평가일자 원본 값:', jsonData[0]['평가일자'], '타입:', typeof jsonData[0]['평가일자']);
+            
             // 데이터 변환
-            const results = jsonData.map(row => ({
-                employee_id: row['사번'],
-                category: row['카테고리'],
-                item_name: row['평가항목'],
-                level: parseInt(row['레벨']),
-                assessment_date: row['평가일자'] ? new Date(row['평가일자']).toISOString() : new Date().toISOString()
-            }));
+            const results = jsonData.map((row, index) => {
+                // 평가일자 파싱 (안전한 파싱)
+                let assessmentDate = new Date().toISOString().split('T')[0]; // 기본값: 오늘
+                const dateStr = row['평가일자'];
+                
+                if (dateStr) {
+                    try {
+                        // Excel에서 날짜가 숫자로 올 경우 (예: 45600)
+                        if (typeof dateStr === 'number') {
+                            console.log(`📅 숫자 날짜 감지 (행 ${index + 2}):`, dateStr);
+                            // Excel 날짜 형식을 JavaScript Date로 변환
+                            const excelEpoch = new Date(1900, 0, 1);
+                            const daysOffset = dateStr - 2;
+                            const jsDate = new Date(excelEpoch.getTime() + daysOffset * 24 * 60 * 60 * 1000);
+                            
+                            // 유효성 검사 후 변환
+                            if (!isNaN(jsDate.getTime())) {
+                                assessmentDate = jsDate.toISOString().split('T')[0];
+                                console.log(`✅ 변환 완료:`, assessmentDate);
+                            } else {
+                                console.warn(`⚠️ 숫자 날짜 변환 실패 (행 ${index + 2}):`, dateStr);
+                            }
+                        } else {
+                            // 문자열로 온 경우
+                            console.log(`📅 문자열 날짜 감지 (행 ${index + 2}):`, dateStr);
+                            let cleanDate = String(dateStr).trim();
+                            
+                            // "2025. 10. 28." 형식 처리
+                            cleanDate = cleanDate.replace(/\./g, '-').replace(/\s+/g, '');
+                            
+                            // 마지막 하이픈 제거
+                            if (cleanDate.endsWith('-')) {
+                                cleanDate = cleanDate.slice(0, -1);
+                            }
+                            
+                            console.log(`🔄 정리된 날짜 문자열:`, cleanDate);
+                            
+                            // 날짜 파싱
+                            const parsedDate = new Date(cleanDate);
+                            
+                            if (!isNaN(parsedDate.getTime())) {
+                                assessmentDate = parsedDate.toISOString().split('T')[0];
+                                console.log(`✅ 변환 완료:`, assessmentDate);
+                            } else {
+                                console.warn(`⚠️ 문자열 날짜 파싱 실패 (행 ${index + 2}): "${dateStr}" → 오늘 날짜 사용`);
+                            }
+                        }
+                    } catch (error) {
+                        console.warn(`⚠️ 날짜 파싱 예외 (행 ${index + 2}): "${dateStr}" →`, error.message);
+                    }
+                }
+                
+                return {
+                    employee_id: String(row['사번']).trim(),
+                    process_name: String(row['프로세스']).trim(),
+                    category: String(row['Lv 카테고리']).trim(),
+                    item_name: String(row['평가항목']).trim(),
+                    is_satisfied: row['평가 결과'] === '만족' ? 1 : 0,
+                    assessment_date: assessmentDate
+                };
+            });
+            
+            console.log(`🔄 변환 완료: ${results.length}건`);
+            console.log('📊 변환된 첫 데이터:', results[0]);
             
             // 서버에 업로드
-            const response = await axios.post('/api/results/assessment/bulk', results);
+            const response = await axios.post('/api/supervisor-assessment-results/bulk', results);
             
-            alert(`${response.data.count}건의 결과를 업로드했습니다.`);
+            alert(`✅ ${response.data.success}건 성공\n⚠️ ${response.data.skipped}건 건너뜀\n\n상세:\n${response.data.message || ''}`);
             fileInput.value = '';
+            
+            // 페이지 새로고침하여 대시보드 업데이트
+            if (response.data.success > 0) {
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            }
         } catch (error) {
-            console.error('업로드 실패:', error);
-            alert('결과 업로드에 실패했습니다.\n\n파일 형식을 확인해주세요.');
+            console.error('❌ 업로드 실패:', error);
+            alert(`결과 업로드에 실패했습니다.\n\n오류: ${error.response?.data?.error || error.message}\n\n파일 형식을 확인해주세요.`);
         }
     };
     
@@ -3992,7 +4245,7 @@ function getTestPageHTML() {
                 
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">프로세스 선택</label>
-                    <select id="process-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <select id="position-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="">프로세스를 선택하세요</option>
                     </select>
                 </div>
@@ -4075,29 +4328,29 @@ async function loadTestPage() {
     }
     
     // 프로세스 목록 로드 (Drilling 제외, Quiz가 있는 프로세스만)
-    const processSelect = document.getElementById('process-select');
+    const processSelect = document.getElementById('position-select');
     if (processSelect) {
         // Quiz가 등록된 프로세스 확인
         const processesWithQuiz = [];
         
-        for (const process of processes) {
+        for (const position of positions) {
             // Drilling 제외
-            if (process.name === 'Drilling') continue;
+            if (position.name === 'Drilling') continue;
             
             try {
-                const response = await axios.get(`/api/quizzes/${process.id}`);
+                const response = await axios.get(`/api/quizzes/${position.id}`);
                 if (response.data.length > 0) {
-                    processesWithQuiz.push(process);
+                    processesWithQuiz.push(position);
                 }
             } catch (error) {
-                console.error(`프로세스 ${process.name} Quiz 확인 실패:`, error);
+                console.error(`프로세스 ${position.name} Quiz 확인 실패:`, error);
             }
         }
         
-        processesWithQuiz.forEach(process => {
+        processesWithQuiz.forEach(position => {
             const option = document.createElement('option');
-            option.value = process.id;
-            option.textContent = process.name;
+            option.value = position.id;
+            option.textContent = position.name;
             processSelect.appendChild(option);
         });
         
@@ -4137,7 +4390,7 @@ function filterWorkersByEntity() {
 async function startTest() {
     const entityId = document.getElementById('entity-select').value;
     const workerId = document.getElementById('worker-select').value;
-    const processId = document.getElementById('process-select').value;
+    const processId = document.getElementById('position-select').value;
     
     if (!entityId) {
         alert('법인을 선택해주세요.');
@@ -4219,7 +4472,7 @@ function selectAnswer(quizId, answer) {
 
 async function submitTest() {
     const workerId = document.getElementById('worker-select').value;
-    const processId = document.getElementById('process-select').value;
+    const processId = document.getElementById('position-select').value;
     
     // 모든 문제에 답했는지 확인
     if (Object.keys(selectedAnswers).length !== currentQuizzes.length) {
@@ -4263,7 +4516,7 @@ async function submitTest() {
         document.getElementById('test-content').classList.add('hidden');
         document.getElementById('entity-select').value = '';
         document.getElementById('worker-select').value = '';
-        document.getElementById('process-select').value = '';
+        document.getElementById('position-select').value = '';
     } catch (error) {
         console.error('시험 결과 제출 실패:', error);
         alert('시험 결과 제출에 실패했습니다.');
@@ -4297,7 +4550,7 @@ async function uploadTestResults() {
             }
             
             // 프로세스 매핑 (대소문자 구분 없이)
-            const processesResponse = await axios.get('/api/processes');
+            const processesResponse = await axios.get('/api/positions');
             const processMap = {};
             processesResponse.data.forEach(p => {
                 processMap[p.name.toUpperCase().trim()] = p.id;

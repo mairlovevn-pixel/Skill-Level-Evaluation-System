@@ -14,7 +14,7 @@ export interface Worker {
   updated_at?: string;
 }
 
-export interface Process {
+export interface Position {
   id?: number;
   name: string;
   description?: string;
@@ -23,7 +23,7 @@ export interface Process {
 
 export interface WrittenTestQuiz {
   id?: number;
-  process_id: number;
+  position_id: number;
   question: string;
   question_image_url?: string;
   option_a: string;
@@ -41,7 +41,7 @@ export interface WrittenTestQuiz {
 export interface WrittenTestResult {
   id?: number;
   worker_id: number;
-  process_id: number;
+  position_id: number;
   score: number;
   passed: boolean;
   test_date?: string;
@@ -49,7 +49,7 @@ export interface WrittenTestResult {
 
 export interface SupervisorAssessmentItem {
   id?: number;
-  process_id?: number;
+  position_id?: number;
   category: string;
   item_name: string;
   description?: string;
@@ -70,13 +70,13 @@ export interface DashboardStats {
   total_workers: number;
   written_test_takers: number;
   written_test_passed: number;
-  written_test_by_process: Array<{
-    process_name: string;
+  written_test_by_position: Array<{
+    position_name: string;
     takers: number;
     passed: number;
   }>;
-  avg_score_by_process: Array<{
-    process_name: string;
+  avg_score_by_position: Array<{
+    position_name: string;
     avg_score: number;
   }>;
   supervisor_assessment_by_level: Array<{
