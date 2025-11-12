@@ -4312,14 +4312,46 @@ async function uploadWrittenTestResults() {
             console.log(`🔄 Conversion complete: ${results.length} items`);
             console.log('📊 First converted data:', results[0]);
             
-            // Upload to server
-            const response = await axios.post('/api/written-test-results/bulk', results);
+            // Upload to server in batches (100 items per batch to avoid D1 timeout)
+            const BATCH_SIZE = 100;
+            let totalSuccess = 0;
+            let totalSkipped = 0;
+            const allMessages = [];
             
-            alert(`✅ ${response.data.success} succeeded\n⚠️ ${response.data.skipped} skipped\n\nDetails:\n${response.data.message || ''}`);
+            for (let i = 0; i < results.length; i += BATCH_SIZE) {
+                const batch = results.slice(i, i + BATCH_SIZE);
+                const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+                const totalBatches = Math.ceil(results.length / BATCH_SIZE);
+                
+                console.log(`📤 Uploading batch ${batchNumber}/${totalBatches} (${batch.length} items)...`);
+                
+                try {
+                    const response = await axios.post('/api/written-test-results/bulk', batch);
+                    totalSuccess += response.data.success || 0;
+                    totalSkipped += response.data.skipped || 0;
+                    
+                    if (response.data.message) {
+                        allMessages.push(`Batch ${batchNumber}: ${response.data.message}`);
+                    }
+                    
+                    console.log(`✅ Batch ${batchNumber}/${totalBatches} complete: ${response.data.success} succeeded, ${response.data.skipped} skipped`);
+                } catch (error) {
+                    console.error(`❌ Batch ${batchNumber}/${totalBatches} failed:`, error);
+                    allMessages.push(`❌ Batch ${batchNumber} failed: ${error.response?.data?.error || error.message}`);
+                }
+                
+                // Small delay between batches to avoid overwhelming the database
+                if (i + BATCH_SIZE < results.length) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            }
+            
+            const messageDetail = allMessages.length > 0 ? '\n\nDetails:\n' + allMessages.slice(0, 5).join('\n') : '';
+            alert(`✅ ${totalSuccess} succeeded\n⚠️ ${totalSkipped} skipped${messageDetail}`);
             fileInput.value = '';
             
             // Refresh page to update dashboard
-            if (response.data.success > 0) {
+            if (totalSuccess > 0) {
                 setTimeout(() => {
                     location.reload();
                 }, 1500);
