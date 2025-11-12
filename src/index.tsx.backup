@@ -78,7 +78,7 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
           p.name as process_name,
           COUNT(DISTINCT wtr.worker_id) as takers,
           COUNT(DISTINCT CASE WHEN wtr.passed = 1 THEN wtr.worker_id END) as passed
-        FROM positions p
+        FROM processes p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
         LEFT JOIN workers w ON wtr.worker_id = w.id
         WHERE w.entity = ? OR w.entity IS NULL
@@ -91,7 +91,7 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
           p.name as process_name,
           COUNT(DISTINCT wtr.worker_id) as takers,
           COUNT(DISTINCT CASE WHEN wtr.passed = 1 THEN wtr.worker_id END) as passed
-        FROM positions p
+        FROM processes p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
         GROUP BY p.id, p.name
         ORDER BY p.id
@@ -112,7 +112,7 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
         p.name as process_name,
         w.entity,
         COALESCE(AVG(wtr.score), 0) as avg_score
-      FROM positions p
+      FROM processes p
       LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
       LEFT JOIN workers w ON wtr.worker_id = w.id
       WHERE 1=1
@@ -325,9 +325,9 @@ app.delete('/api/workers/:id', errorHandler(async (c) => {
 // ==================== Processes CRUD ====================
 
 // 모든 프로세스 조회
-app.get('/api/positions', errorHandler(async (c) => {
+app.get('/api/processes', errorHandler(async (c) => {
   const db = c.env.DB
-  const result = await db.prepare('SELECT * FROM positions ORDER BY id').all()
+  const result = await db.prepare('SELECT * FROM processes ORDER BY id').all()
   return c.json(result.results)
 }))
 
@@ -444,7 +444,7 @@ app.delete('/api/quizzes/:id', errorHandler(async (c) => {
 }))
 
 // 프로세스별 Quiz 일괄 삭제
-app.delete('/api/quizzes/position/:processId', errorHandler(async (c) => {
+app.delete('/api/quizzes/process/:processId', errorHandler(async (c) => {
   const db = c.env.DB
   const processId = c.req.param('processId')
   
@@ -507,7 +507,7 @@ app.delete('/api/assessment-items/:id', errorHandler(async (c) => {
 }))
 
 // Assessment Item 프로세스별 일괄 삭제
-app.delete('/api/assessment-items/position/:processId', errorHandler(async (c) => {
+app.delete('/api/assessment-items/process/:processId', errorHandler(async (c) => {
   const db = c.env.DB
   const processId = c.req.param('processId')
   
@@ -818,7 +818,7 @@ app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
       p.name as process_name,
       p.id as process_id
     FROM written_test_results wtr
-    JOIN positions p ON wtr.process_id = p.id
+    JOIN processes p ON wtr.process_id = p.id
     WHERE wtr.worker_id = ?
     ORDER BY wtr.test_date DESC
   `).bind(workerId).all()
@@ -843,9 +843,9 @@ app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
   if (assessments.results && assessments.results.length > 0) {
     const firstAssessment = assessments.results[0] as any
     if (firstAssessment.process_id) {
-      const position = await db.prepare('SELECT * FROM positions WHERE id = ?')
+      const process = await db.prepare('SELECT * FROM processes WHERE id = ?')
         .bind(firstAssessment.process_id).first()
-      processInfo = position
+      processInfo = process
     }
   }
   
@@ -953,7 +953,7 @@ app.get('/api/results/written-test', errorHandler(async (c) => {
       wtr.test_date
     FROM written_test_results wtr
     JOIN workers w ON wtr.worker_id = w.id
-    JOIN positions p ON wtr.process_id = p.id
+    JOIN processes p ON wtr.process_id = p.id
     WHERE 1=1
   `
   
@@ -998,7 +998,7 @@ app.get('/api/results/written-test/detailed', errorHandler(async (c) => {
     JOIN written_test_results wtr ON wta.result_id = wtr.id
     JOIN written_test_quizzes q ON wta.quiz_id = q.id
     JOIN workers w ON wtr.worker_id = w.id
-    JOIN positions p ON wtr.process_id = p.id
+    JOIN processes p ON wtr.process_id = p.id
     WHERE 1=1
   `
   
@@ -1077,11 +1077,11 @@ app.post('/api/results/written-test/bulk', errorHandler(async (c) => {
     }
     
     // 프로세스 찾기
-    const position = await db.prepare('SELECT id FROM positions WHERE name = ?')
+    const process = await db.prepare('SELECT id FROM processes WHERE name = ?')
       .bind(result.process_name).first()
     
-    if (!position) {
-      console.log(`Position not found: ${result.process_name}`)
+    if (!process) {
+      console.log(`Process not found: ${result.process_name}`)
       continue
     }
     
@@ -1091,7 +1091,7 @@ app.post('/api/results/written-test/bulk', errorHandler(async (c) => {
       VALUES (?, ?, ?, ?, ?)
     `).bind(
       worker.id,
-      position.id,
+      process.id,
       result.score,
       result.passed ? 1 : 0,
       result.test_date || new Date().toISOString()
@@ -1248,7 +1248,7 @@ app.post('/api/supervisor-assessment-results/bulk', errorHandler(async (c) => {
       // 2. 프로세스 찾기 (대소문자 무시, 공백/특수문자 정규화)
       const normalizedProcessName = result.process_name.trim().toUpperCase()
       const processResult = await db.prepare(
-        'SELECT id FROM positions WHERE UPPER(name) = ?'
+        'SELECT id FROM processes WHERE UPPER(name) = ?'
       ).bind(normalizedProcessName).first()
       
       if (!processResult) {
@@ -1258,24 +1258,17 @@ app.post('/api/supervisor-assessment-results/bulk', errorHandler(async (c) => {
       }
       const processId = processResult.id as number
       
-      // 3. Assessment 항목 찾기 또는 생성
-      let itemResult = await db.prepare(
+      // 3. Assessment 항목 찾기
+      const itemResult = await db.prepare(
         'SELECT id FROM supervisor_assessment_items WHERE item_name = ? AND category = ? AND process_id = ?'
       ).bind(result.item_name, result.category, processId).first()
       
-      let itemId: number
-      
       if (!itemResult) {
-        // Item doesn't exist - create it automatically
-        const insertResult = await db.prepare(
-          'INSERT INTO supervisor_assessment_items (process_id, category, item_name, created_at) VALUES (?, ?, ?, ?)'
-        ).bind(processId, result.category, result.item_name, new Date().toISOString()).run()
-        
-        itemId = insertResult.meta.last_row_id as number
-        console.log(`Auto-created assessment item: "${result.item_name}" (${result.category}) for process ${processId}`)
-      } else {
-        itemId = itemResult.id as number
+        skippedCount++
+        errors.push(`항목 "${result.item_name}" (${result.category}) 없음`)
+        continue
       }
+      const itemId = itemResult.id as number
       
       // 4. 중복 체크 (동일 작업자, 항목, 날짜)
       const existingResult = await db.prepare(
@@ -1310,264 +1303,11 @@ app.post('/api/supervisor-assessment-results/bulk', errorHandler(async (c) => {
     }
   }
   
-  // 5. Calculate levels for all affected workers
-  const affectedWorkers = new Set(
-    results
-      .filter((_, idx) => idx < successCount)
-      .map(r => r.employee_id)
-  )
-  
-  for (const employeeId of affectedWorkers) {
-    try {
-      // Get worker ID
-      const workerResult = await db.prepare(
-        'SELECT id FROM workers WHERE employee_id = ?'
-      ).bind(employeeId).first()
-      
-      if (!workerResult) continue
-      const workerId = workerResult.id as number
-      
-      // Calculate level for each position
-      const positionsResult = await db.prepare(
-        'SELECT DISTINCT process_id FROM supervisor_assessments WHERE worker_id = ?'
-      ).bind(workerId).all()
-      
-      for (const posRow of positionsResult.results) {
-        const processId = posRow.process_id as number
-        
-        // Get all assessment items for this position, grouped by category
-        const categoryResults = await db.prepare(`
-          SELECT 
-            sai.category,
-            COUNT(*) as total_items,
-            SUM(CASE WHEN sa.is_satisfied = 1 THEN 1 ELSE 0 END) as satisfied_items
-          FROM supervisor_assessment_items sai
-          LEFT JOIN supervisor_assessments sa 
-            ON sa.item_id = sai.id 
-            AND sa.worker_id = ?
-            AND sa.process_id = ?
-          WHERE sai.process_id = ?
-          GROUP BY sai.category
-        `).bind(workerId, processId, processId).all()
-        
-        // Determine achieved level
-        let achievedLevel = 0
-        const categoryMap = new Map()
-        
-        for (const cat of categoryResults.results) {
-          const category = cat.category as string
-          const totalItems = cat.total_items as number
-          const satisfiedItems = cat.satisfied_items as number
-          
-          // Category is fully satisfied only if ALL items are satisfied
-          const isFullySatisfied = satisfiedItems === totalItems && totalItems > 0
-          categoryMap.set(category, isFullySatisfied)
-        }
-        
-        // IMPORTANT: Level achievement is cumulative!
-        // Level 1 is the default (no assessment items)
-        // To achieve Level N (N >= 2), worker must satisfy ALL items in Level 2 through Level N
-        const level2Complete = categoryMap.get('Level2') === true
-        const level3Complete = categoryMap.get('Level3') === true
-        const level4Complete = categoryMap.get('Level4') === true
-        
-        // Check from highest to lowest with cumulative requirements
-        if (level2Complete && level3Complete && level4Complete) {
-          achievedLevel = 4  // Level 4 requires Level 2, 3, 4 all complete
-        } else if (level2Complete && level3Complete) {
-          achievedLevel = 3  // Level 3 requires Level 2, 3 complete
-        } else if (level2Complete) {
-          achievedLevel = 2  // Level 2 requires only Level 2 complete
-        } else {
-          achievedLevel = 1  // Level 1 is the default (no assessment required)
-        }
-        
-        // Update all assessments for this worker-position with calculated level
-        await db.prepare(
-          'UPDATE supervisor_assessments SET level = ? WHERE worker_id = ? AND process_id = ?'
-        ).bind(achievedLevel, workerId, processId).run()
-      }
-    } catch (error: any) {
-      console.error(`Failed to calculate level for worker ${employeeId}:`, error)
-    }
-  }
-  
   return c.json({
     success: successCount,
     skipped: skippedCount,
     total: results.length,
-    message: errors.length > 0 ? errors.slice(0, 5).join('\n') : 'All data processed successfully'
-  })
-}))
-
-// ==================== WRITTEN TEST RESULTS BULK UPLOAD ====================
-
-/**
- * Bulk upload Written Test results
- * POST /api/written-test-results/bulk
- * 
- * Request Body: Array of results
- * [
- *   {
- *     employee_id: string,
- *     entity: string,
- *     team: string, 
- *     position: string,
- *     question: string,
- *     selected_answer: string,
- *     correct_answer: string,
- *     is_correct: 0|1,
- *     test_date: string (YYYY-MM-DD)
- *   }
- * ]
- */
-app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
-  const { DB } = c.env
-  const db = DB as D1Database
-  const results = await c.req.json() as Array<{
-    employee_id: string
-    entity: string
-    team: string
-    position: string
-    question: string
-    selected_answer: string
-    correct_answer: string
-    is_correct: number
-    test_date: string
-  }>
-  
-  let successCount = 0
-  let skippedCount = 0
-  const errors: string[] = []
-  
-  // Group results by worker + position + test_date
-  const groupedResults = new Map<string, {
-    worker_id: number
-    process_id: number
-    test_date: string
-    answers: Array<{
-      quiz_id: number
-      selected_answer: string
-      is_correct: number
-    }>
-  }>()
-  
-  // First pass: validate and group data
-  for (const result of results) {
-    try {
-      // 1. Find worker by employee_id
-      const worker = await db.prepare(
-        'SELECT id, name FROM workers WHERE employee_id = ?'
-      ).bind(result.employee_id).first()
-      
-      if (!worker) {
-        errors.push(`❌ Worker not found: ${result.employee_id}`)
-        skippedCount++
-        continue
-      }
-      
-      // 2. Find position by name (case-insensitive, trimmed)
-      const position = await db.prepare(
-        'SELECT id, name FROM positions WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))'
-      ).bind(result.position).first()
-      
-      if (!position) {
-        errors.push(`❌ Position not found: ${result.position}`)
-        skippedCount++
-        continue
-      }
-      
-      // 3. Find quiz by question text (exact match)
-      const quiz = await db.prepare(
-        'SELECT id, correct_answer FROM written_test_quizzes WHERE process_id = ? AND TRIM(question) = TRIM(?)'
-      ).bind(position.id, result.question).first()
-      
-      if (!quiz) {
-        errors.push(`❌ Quiz not found for position ${result.position}: "${result.question.substring(0, 50)}..."`)
-        skippedCount++
-        continue
-      }
-      
-      // 4. Group by worker + position + test_date
-      const groupKey = `${worker.id}-${position.id}-${result.test_date}`
-      
-      if (!groupedResults.has(groupKey)) {
-        groupedResults.set(groupKey, {
-          worker_id: worker.id as number,
-          process_id: position.id as number,
-          test_date: result.test_date,
-          answers: []
-        })
-      }
-      
-      const group = groupedResults.get(groupKey)!
-      group.answers.push({
-        quiz_id: quiz.id as number,
-        selected_answer: result.selected_answer,
-        is_correct: result.is_correct
-      })
-      
-      successCount++
-    } catch (error: any) {
-      console.error('Error processing result:', error)
-      errors.push(`❌ Error: ${result.employee_id} - ${error.message}`)
-      skippedCount++
-    }
-  }
-  
-  // Second pass: insert test results and answers
-  for (const [groupKey, group] of groupedResults.entries()) {
-    try {
-      // Calculate score (percentage)
-      const totalQuestions = group.answers.length
-      const correctAnswers = group.answers.filter(a => a.is_correct === 1).length
-      const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0
-      const passed = score >= 80 // 80% passing threshold
-      
-      // Check if test result already exists
-      const existingResult = await db.prepare(
-        'SELECT id FROM written_test_results WHERE worker_id = ? AND process_id = ? AND test_date = ?'
-      ).bind(group.worker_id, group.process_id, group.test_date).first()
-      
-      let resultId: number
-      
-      if (existingResult) {
-        // Update existing result
-        resultId = existingResult.id as number
-        await db.prepare(
-          'UPDATE written_test_results SET score = ?, passed = ? WHERE id = ?'
-        ).bind(score, passed ? 1 : 0, resultId).run()
-        
-        // Delete old answers
-        await db.prepare(
-          'DELETE FROM written_test_answers WHERE result_id = ?'
-        ).bind(resultId).run()
-      } else {
-        // Insert new result
-        const insertResult = await db.prepare(
-          'INSERT INTO written_test_results (worker_id, process_id, score, passed, test_date) VALUES (?, ?, ?, ?, ?)'
-        ).bind(group.worker_id, group.process_id, score, passed ? 1 : 0, group.test_date).run()
-        
-        resultId = insertResult.meta.last_row_id as number
-      }
-      
-      // Insert answers
-      for (const answer of group.answers) {
-        await db.prepare(
-          'INSERT INTO written_test_answers (result_id, quiz_id, selected_answer, is_correct) VALUES (?, ?, ?, ?)'
-        ).bind(resultId, answer.quiz_id, answer.selected_answer, answer.is_correct).run()
-      }
-    } catch (error: any) {
-      console.error('Error inserting test result:', error)
-      errors.push(`❌ Error inserting test result for group ${groupKey}: ${error.message}`)
-    }
-  }
-  
-  return c.json({
-    success: successCount,
-    skipped: skippedCount,
-    total: results.length,
-    message: errors.length > 0 ? errors.slice(0, 10).join('\n') : 'All results uploaded successfully'
+    message: errors.length > 0 ? errors.slice(0, 5).join('\n') : '모든 데이터 처리 완료'
   })
 }))
 
