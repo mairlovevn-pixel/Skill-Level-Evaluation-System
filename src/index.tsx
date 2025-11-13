@@ -1208,7 +1208,7 @@ app.get('/', (c) => {
             <!-- Pages will be loaded here -->
         </div>
 
-        <script src="/static/app.js?v=${Date.now()}"></script>
+        <script src="/static/app.js"></script>
     </body>
     </html>
   `)
@@ -1440,6 +1440,35 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
   let skippedCount = 0
   const errors: string[] = []
   
+  // 🚀 OPTIMIZATION: Pre-load all lookup data to avoid repeated queries
+  console.log('[BULK UPLOAD] Loading lookup data...')
+  
+  // Load all workers
+  const workersResult = await db.prepare('SELECT id, employee_id, name FROM workers').all()
+  const workerMap = new Map<string, { id: number, name: string }>()
+  for (const worker of workersResult.results) {
+    workerMap.set(worker.employee_id as string, { id: worker.id as number, name: worker.name as string })
+  }
+  console.log(`[BULK UPLOAD] Loaded ${workerMap.size} workers`)
+  
+  // Load all positions
+  const positionsResult = await db.prepare('SELECT id, name FROM positions').all()
+  const positionMap = new Map<string, number>()
+  for (const position of positionsResult.results) {
+    const normalizedName = (position.name as string).trim().toUpperCase()
+    positionMap.set(normalizedName, position.id as number)
+  }
+  console.log(`[BULK UPLOAD] Loaded ${positionMap.size} positions`)
+  
+  // Load all quizzes
+  const quizzesResult = await db.prepare('SELECT id, process_id, question, correct_answer FROM written_test_quizzes').all()
+  const quizMap = new Map<string, { id: number, correct_answer: string }>()
+  for (const quiz of quizzesResult.results) {
+    const key = `${quiz.process_id}-${(quiz.question as string).trim()}`
+    quizMap.set(key, { id: quiz.id as number, correct_answer: quiz.correct_answer as string })
+  }
+  console.log(`[BULK UPLOAD] Loaded ${quizMap.size} quizzes`)
+  
   // Group results by worker + position + test_date
   const groupedResults = new Map<string, {
     worker_id: number
@@ -1452,36 +1481,30 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
     }>
   }>()
   
-  // First pass: validate and group data
+  // First pass: validate and group data using cached lookups
+  console.log(`[BULK UPLOAD] Processing ${results.length} results...`)
   for (const result of results) {
     try {
-      // 1. Find worker by employee_id
-      const worker = await db.prepare(
-        'SELECT id, name FROM workers WHERE employee_id = ?'
-      ).bind(result.employee_id).first()
-      
+      // 1. Find worker from cache
+      const worker = workerMap.get(result.employee_id)
       if (!worker) {
         errors.push(`❌ Worker not found: ${result.employee_id}`)
         skippedCount++
         continue
       }
       
-      // 2. Find position by name (case-insensitive, trimmed)
-      const position = await db.prepare(
-        'SELECT id, name FROM positions WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))'
-      ).bind(result.position).first()
-      
-      if (!position) {
+      // 2. Find position from cache
+      const normalizedPosition = result.position.trim().toUpperCase()
+      const positionId = positionMap.get(normalizedPosition)
+      if (!positionId) {
         errors.push(`❌ Position not found: ${result.position}`)
         skippedCount++
         continue
       }
       
-      // 3. Find quiz by question text (exact match)
-      const quiz = await db.prepare(
-        'SELECT id, correct_answer FROM written_test_quizzes WHERE process_id = ? AND TRIM(question) = TRIM(?)'
-      ).bind(position.id, result.question).first()
-      
+      // 3. Find quiz from cache
+      const quizKey = `${positionId}-${result.question.trim()}`
+      const quiz = quizMap.get(quizKey)
       if (!quiz) {
         errors.push(`❌ Quiz not found for position ${result.position}: "${result.question.substring(0, 50)}..."`)
         skippedCount++
@@ -1489,12 +1512,12 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
       }
       
       // 4. Group by worker + position + test_date
-      const groupKey = `${worker.id}-${position.id}-${result.test_date}`
+      const groupKey = `${worker.id}-${positionId}-${result.test_date}`
       
       if (!groupedResults.has(groupKey)) {
         groupedResults.set(groupKey, {
-          worker_id: worker.id as number,
-          process_id: position.id as number,
+          worker_id: worker.id,
+          process_id: positionId,
           test_date: result.test_date,
           answers: []
         })
@@ -1502,7 +1525,7 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
       
       const group = groupedResults.get(groupKey)!
       group.answers.push({
-        quiz_id: quiz.id as number,
+        quiz_id: quiz.id,
         selected_answer: result.selected_answer,
         is_correct: result.is_correct
       })
@@ -1514,6 +1537,8 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
       skippedCount++
     }
   }
+  
+  console.log(`[BULK UPLOAD] Validation complete: ${successCount} succeeded, ${skippedCount} skipped`)
   
   // Second pass: insert test results and answers
   for (const [groupKey, group] of groupedResults.entries()) {

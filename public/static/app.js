@@ -335,36 +335,139 @@ function getDashboardHTML() {
                 </div>
             </div>
             
-            <!-- Written Test 현황 차트 -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4">
+            <!-- Written Test 현황 차트 (전체 너비) -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">
                         <i class="fas fa-chart-bar mr-2"></i>
-                        Written Test Status by Position
+                        Written Test Results
                     </h3>
-                    <canvas id="test-status-chart"></canvas>
                 </div>
                 
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold text-gray-800">
-                            <i class="fas fa-chart-column mr-2"></i>
-                            WRITTEN TEST [평균점수]
-                        </h3>
-                        <div class="flex gap-2">
-                            <div class="w-36">
-                                <select id="avg-score-team-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="onAvgScoreTeamChange()">
-                                    <option value="">전체 팀</option>
-                                </select>
+                <!-- Filters -->
+                <div class="grid grid-cols-3 gap-3 mb-4 max-w-2xl">
+                        <!-- Entity Filter -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Entity</label>
+                            <button onclick="toggleDropdown('entity-filter')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 flex justify-between items-center">
+                                <span id="entity-filter-label">All</span>
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            <div id="entity-filter-dropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" value="ALL" checked onchange="updateTestStatusFilter('entity', this)" class="entity-filter-checkbox mr-2">
+                                    <span class="text-sm">All</span>
+                                </label>
+                                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" value="CSVN" checked onchange="updateTestStatusFilter('entity', this)" class="entity-filter-checkbox mr-2">
+                                    <span class="text-sm">CSVN</span>
+                                </label>
+                                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" value="CSCN" checked onchange="updateTestStatusFilter('entity', this)" class="entity-filter-checkbox mr-2">
+                                    <span class="text-sm">CSCN</span>
+                                </label>
+                                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" value="CSTW" checked onchange="updateTestStatusFilter('entity', this)" class="entity-filter-checkbox mr-2">
+                                    <span class="text-sm">CSTW</span>
+                                </label>
                             </div>
-                            <div class="w-36">
-                                <select id="avg-score-position-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="filterAvgScoreChart()">
-                                    <option value="">All Positions</option>
-                                </select>
+                        </div>
+                        
+                        <!-- Team Filter -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Team</label>
+                            <button onclick="toggleDropdown('team-filter')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 flex justify-between items-center">
+                                <span id="team-filter-label">All</span>
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            <div id="team-filter-dropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                <!-- Will be populated dynamically -->
+                            </div>
+                        </div>
+                        
+                        <!-- Position Filter -->
+                        <div class="relative">
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Position</label>
+                            <button onclick="toggleDropdown('position-filter')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 flex justify-between items-center">
+                                <span id="position-filter-label">All</span>
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            <div id="position-filter-dropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                <!-- Will be populated dynamically -->
                             </div>
                         </div>
                     </div>
-                    <canvas id="avg-score-chart"></canvas>
+                    
+                    <canvas id="test-status-chart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Written Test Analysis (전체 너비) -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-magnifying-glass-chart mr-2"></i>
+                    Written Test Analysis
+                </h3>
+                
+                <!-- Analysis Mode Tabs -->
+                <div class="flex gap-2 mb-6 border-b border-gray-200">
+                    <button onclick="switchAnalysisMode('heatmap')" id="tab-heatmap" class="analysis-tab px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600">
+                        <i class="fas fa-table-cells mr-2"></i>Position Heatmap
+                    </button>
+                    <button onclick="switchAnalysisMode('weakness')" id="tab-weakness" class="analysis-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-triangle-exclamation mr-2"></i>Weakness Analysis
+                    </button>
+                    <button onclick="switchAnalysisMode('summary')" id="tab-summary" class="analysis-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-gauge-high mr-2"></i>Summary KPI
+                    </button>
+                </div>
+                
+                <!-- Filters (Dynamic based on mode) -->
+                <div id="analysis-filters" class="mb-6">
+                    <!-- Entity Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
+                        <div class="flex gap-4">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSVN" checked onchange="updateAnalysisFilter()" class="analysis-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSVN</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSCN" checked onchange="updateAnalysisFilter()" class="analysis-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSCN</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSTW" checked onchange="updateAnalysisFilter()" class="analysis-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSTW</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Team Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
+                        <div class="flex flex-wrap gap-4" id="analysis-team-checkboxes">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+                    
+                    <!-- Position Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
+                        <div class="flex flex-wrap gap-4" id="analysis-position-checkboxes">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chart Area -->
+                <div id="analysis-chart-container">
+                    <canvas id="analysis-chart"></canvas>
+                </div>
+                
+                <!-- Additional Info Area (for tables, alerts, etc.) -->
+                <div id="analysis-info-container" class="mt-6">
+                    <!-- Dynamic content based on analysis mode -->
                 </div>
             </div>
             
@@ -448,14 +551,483 @@ async function loadDashboard() {
         // 요약 카드 업데이트
         updateDashboardStats();
         
+        // 필터 초기화
+        populateTestStatusFilters();
+        
+        // 분석 탭 초기화
+        initializeAnalysisTab();
+        
         // 차트 렌더링
         renderTestStatusChart();
         renderAvgScoreChart();
         renderAssessmentChart();
+        
+        // 분석 탭 초기화
+        initializeAnalysisTab();
     } catch (error) {
         console.error('대시보드 로드 실패:', error);
         alert('대시보드 데이터를 불러오는데 실패했습니다.');
     }
+}
+
+// ==================== Written Test Analysis Tab Functions ====================
+
+let currentAnalysisMode = 'heatmap';
+let analysisFilters = {
+    entities: new Set(['CSVN', 'CSCN', 'CSTW']),
+    teams: new Set(),
+    positions: new Set()
+};
+
+function initializeAnalysisTab() {
+    // Populate team checkboxes
+    const teamContainer = document.getElementById('analysis-team-checkboxes');
+    teamContainer.innerHTML = '';
+    WRITTEN_TEST_TEAM_ORDER.forEach(team => {
+        teamContainer.innerHTML += `
+            <label class="inline-flex items-center cursor-pointer">
+                <input type="checkbox" value="${team}" checked onchange="updateAnalysisFilter()" class="analysis-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                <span class="text-sm">${team}</span>
+            </label>
+        `;
+        analysisFilters.teams.add(team);
+    });
+    
+    // Populate position checkboxes
+    const positionContainer = document.getElementById('analysis-position-checkboxes');
+    positionContainer.innerHTML = '';
+    const allPositions = [];
+    WRITTEN_TEST_TEAM_ORDER.forEach(team => {
+        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(pos => {
+                if (!allPositions.includes(pos)) {
+                    allPositions.push(pos);
+                }
+            });
+        }
+    });
+    
+    allPositions.forEach(position => {
+        positionContainer.innerHTML += `
+            <label class="inline-flex items-center cursor-pointer">
+                <input type="checkbox" value="${position}" checked onchange="updateAnalysisFilter()" class="analysis-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                <span class="text-sm text-xs">${position}</span>
+            </label>
+        `;
+        analysisFilters.positions.add(position);
+    });
+    
+    // Load initial analysis
+    switchAnalysisMode('heatmap');
+}
+
+function switchAnalysisMode(mode) {
+    currentAnalysisMode = mode;
+    
+    // Update tab styles
+    document.querySelectorAll('.analysis-tab').forEach(tab => {
+        tab.classList.remove('text-blue-600', 'border-blue-600', 'border-b-2');
+        tab.classList.add('text-gray-500');
+    });
+    
+    const activeTab = document.getElementById(`tab-${mode}`);
+    if (activeTab) {
+        activeTab.classList.remove('text-gray-500');
+        activeTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+    }
+    
+    // Render analysis based on mode
+    renderAnalysis();
+}
+
+function updateAnalysisFilter() {
+    // Update entity filters
+    const entityCheckboxes = document.querySelectorAll('.analysis-entity-checkbox');
+    analysisFilters.entities = new Set();
+    entityCheckboxes.forEach(cb => {
+        if (cb.checked) analysisFilters.entities.add(cb.value);
+    });
+    
+    // Update team filters
+    const teamCheckboxes = document.querySelectorAll('.analysis-team-checkbox');
+    analysisFilters.teams = new Set();
+    teamCheckboxes.forEach(cb => {
+        if (cb.checked) analysisFilters.teams.add(cb.value);
+    });
+    
+    // Update position filters
+    const positionCheckboxes = document.querySelectorAll('.analysis-position-checkbox');
+    analysisFilters.positions = new Set();
+    positionCheckboxes.forEach(cb => {
+        if (cb.checked) analysisFilters.positions.add(cb.value);
+    });
+    
+    // Re-render analysis
+    renderAnalysis();
+}
+
+function renderAnalysis() {
+    switch(currentAnalysisMode) {
+        case 'heatmap':
+            renderHeatmapAnalysis();
+            break;
+        case 'weakness':
+            renderWeaknessAnalysis();
+            break;
+        case 'summary':
+            renderSummaryKPI();
+            break;
+    }
+}
+
+function renderHeatmapAnalysis() {
+    const container = document.getElementById('analysis-chart-container');
+    const infoContainer = document.getElementById('analysis-info-container');
+    
+    // Get filtered data
+    const data = dashboardData.written_test_by_process;
+    
+    // Build heatmap data structure
+    const entities = Array.from(analysisFilters.entities);
+    const positions = Array.from(analysisFilters.positions);
+    
+    // Create heatmap HTML table
+    let heatmapHTML = `
+        <div class="overflow-x-auto">
+            <h4 class="text-lg font-semibold mb-3">
+                <i class="fas fa-th mr-2"></i>
+                Entity-Position Performance Heatmap
+            </h4>
+            <p class="text-sm text-gray-600 mb-4">Average scores by entity and position (higher scores = better performance)</p>
+            <table class="min-w-full border-collapse border border-gray-300">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="border border-gray-300 px-4 py-2 text-left font-semibold">Position</th>
+    `;
+    
+    entities.forEach(entity => {
+        heatmapHTML += `<th class="border border-gray-300 px-4 py-2 text-center font-semibold">${entity}</th>`;
+    });
+    heatmapHTML += `</tr></thead><tbody>`;
+    
+    // Add data rows
+    positions.forEach(position => {
+        heatmapHTML += `<tr><td class="border border-gray-300 px-4 py-2 font-medium">${position}</td>`;
+        
+        entities.forEach(entity => {
+            // Calculate average score for this entity-position combination
+            const score = calculateAverageScore(entity, position);
+            const colorClass = getHeatmapColor(score);
+            
+            heatmapHTML += `
+                <td class="border border-gray-300 px-4 py-2 text-center ${colorClass}">
+                    <span class="font-bold">${score !== null ? score.toFixed(1) : 'N/A'}</span>
+                </td>
+            `;
+        });
+        
+        heatmapHTML += `</tr>`;
+    });
+    
+    heatmapHTML += `</tbody></table></div>`;
+    
+    container.innerHTML = heatmapHTML;
+    infoContainer.innerHTML = `
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+            <p class="text-sm text-blue-700">
+                <i class="fas fa-info-circle mr-2"></i>
+                <strong>How to read:</strong> Green cells indicate high performance (≥80), yellow is moderate (60-79), and red indicates improvement needed (<60).
+            </p>
+        </div>
+    `;
+}
+
+function calculateAverageScore(entity, position) {
+    // This would need actual score data by entity
+    // For now, using avg_score_by_process data
+    const processData = dashboardData.avg_score_by_process || [];
+    const matches = processData.filter(d => 
+        d.entity === entity && d.process_name === position
+    );
+    
+    if (matches.length === 0) return null;
+    
+    const sum = matches.reduce((acc, d) => acc + parseFloat(d.avg_score || 0), 0);
+    return sum / matches.length;
+}
+
+function getHeatmapColor(score) {
+    if (score === null) return 'bg-gray-100 text-gray-400';
+    if (score >= 80) return 'bg-green-200 text-green-900';
+    if (score >= 60) return 'bg-yellow-200 text-yellow-900';
+    return 'bg-red-200 text-red-900';
+}
+
+function renderWeaknessAnalysis() {
+    const container = document.getElementById('analysis-chart-container');
+    const infoContainer = document.getElementById('analysis-info-container');
+    
+    // Get filtered data
+    const data = dashboardData.written_test_by_process || [];
+    const filteredData = data.filter(d => 
+        analysisFilters.positions.has(d.process_name)
+    );
+    
+    // Calculate metrics for each position
+    const metrics = filteredData.map(d => {
+        const takers = parseInt(d.takers) || 0;
+        const passed = parseInt(d.passed) || 0;
+        const passRate = takers > 0 ? (passed / takers * 100) : 0;
+        
+        return {
+            position: d.process_name,
+            takers: takers,
+            passed: passed,
+            passRate: passRate.toFixed(1),
+            priority: getPriorityLevel(takers, passRate)
+        };
+    }).filter(m => m.takers > 0);
+    
+    // Sort by priority (high priority first)
+    metrics.sort((a, b) => {
+        const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3, 'excellent': 4 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+    
+    // Build weakness matrix table
+    let tableHTML = `
+        <h4 class="text-lg font-semibold mb-4">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            Weakness Priority Matrix
+        </h4>
+        <p class="text-sm text-gray-600 mb-4">Positions ranked by urgency (volume × pass rate)</p>
+        <div class="overflow-x-auto">
+            <table class="min-w-full border-collapse border border-gray-300">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="border border-gray-300 px-4 py-2 text-left">Priority</th>
+                        <th class="border border-gray-300 px-4 py-2 text-left">Position</th>
+                        <th class="border border-gray-300 px-4 py-2 text-center">Test Takers</th>
+                        <th class="border border-gray-300 px-4 py-2 text-center">Passed</th>
+                        <th class="border border-gray-300 px-4 py-2 text-center">Pass Rate</th>
+                        <th class="border border-gray-300 px-4 py-2 text-left">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    metrics.forEach(m => {
+        const priorityBadge = getPriorityBadge(m.priority);
+        const actionText = getActionText(m.priority);
+        
+        tableHTML += `
+            <tr>
+                <td class="border border-gray-300 px-4 py-2">${priorityBadge}</td>
+                <td class="border border-gray-300 px-4 py-2 font-medium">${m.position}</td>
+                <td class="border border-gray-300 px-4 py-2 text-center">${m.takers}</td>
+                <td class="border border-gray-300 px-4 py-2 text-center">${m.passed}</td>
+                <td class="border border-gray-300 px-4 py-2 text-center font-bold">${m.passRate}%</td>
+                <td class="border border-gray-300 px-4 py-2 text-sm">${actionText}</td>
+            </tr>
+        `;
+    });
+    
+    tableHTML += `</tbody></table></div>`;
+    container.innerHTML = tableHTML;
+    
+    // Priority legend
+    infoContainer.innerHTML = `
+        <div class="grid grid-cols-4 gap-4 mt-6">
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                <p class="font-semibold text-red-800">🔴 High Priority</p>
+                <p class="text-sm text-gray-600">Many takers + Low pass rate</p>
+                <p class="text-xs text-gray-500 mt-1">Urgent training needed</p>
+            </div>
+            <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+                <p class="font-semibold text-yellow-800">🟡 Medium Priority</p>
+                <p class="text-sm text-gray-600">Moderate performance</p>
+                <p class="text-xs text-gray-500 mt-1">Monitor and improve</p>
+            </div>
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                <p class="font-semibold text-blue-800">🔵 Low Priority</p>
+                <p class="text-sm text-gray-600">Good performance</p>
+                <p class="text-xs text-gray-500 mt-1">Maintain current level</p>
+            </div>
+            <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                <p class="font-semibold text-green-800">🟢 Excellent</p>
+                <p class="text-sm text-gray-600">Outstanding results</p>
+                <p class="text-xs text-gray-500 mt-1">Best practices</p>
+            </div>
+        </div>
+    `;
+}
+
+function getPriorityLevel(takers, passRate) {
+    // High Priority: Many takers + Low pass rate
+    if (takers >= 20 && passRate < 70) return 'high';
+    // Medium Priority: Either many takers OR low pass rate
+    if ((takers >= 20 && passRate < 80) || (takers >= 10 && passRate < 70)) return 'medium';
+    // Excellent: High pass rate
+    if (passRate >= 85) return 'excellent';
+    // Low Priority: Good enough
+    return 'low';
+}
+
+function getPriorityBadge(priority) {
+    const badges = {
+        'high': '<span class="px-3 py-1 bg-red-200 text-red-800 rounded-full text-xs font-bold">🔴 HIGH</span>',
+        'medium': '<span class="px-3 py-1 bg-yellow-200 text-yellow-800 rounded-full text-xs font-bold">🟡 MEDIUM</span>',
+        'low': '<span class="px-3 py-1 bg-blue-200 text-blue-800 rounded-full text-xs font-bold">🔵 LOW</span>',
+        'excellent': '<span class="px-3 py-1 bg-green-200 text-green-800 rounded-full text-xs font-bold">🟢 EXCELLENT</span>'
+    };
+    return badges[priority] || '';
+}
+
+function getActionText(priority) {
+    const actions = {
+        'high': '⚠️ Urgent: Increase training resources and review curriculum',
+        'medium': '📊 Monitor: Track progress and provide additional support',
+        'low': '✅ Maintain: Continue current training approach',
+        'excellent': '⭐ Share: Document and share best practices'
+    };
+    return actions[priority] || '';
+}
+
+function renderSummaryKPI() {
+    const container = document.getElementById('analysis-chart-container');
+    const infoContainer = document.getElementById('analysis-info-container');
+    
+    // Get filtered data
+    const data = dashboardData.written_test_by_process || [];
+    const filteredData = data.filter(d => 
+        analysisFilters.positions.has(d.process_name)
+    );
+    
+    // Calculate KPIs from filtered data
+    const totalTakers = filteredData.reduce((sum, d) => sum + (parseInt(d.takers) || 0), 0);
+    const totalPassed = filteredData.reduce((sum, d) => sum + (parseInt(d.passed) || 0), 0);
+    const passRate = totalTakers > 0 ? ((totalPassed / totalTakers) * 100).toFixed(1) : 0;
+    const positionsCount = filteredData.length;
+    
+    // Find best and worst performing positions
+    const positionsWithPassRate = filteredData.map(d => {
+        const takers = parseInt(d.takers) || 0;
+        const passed = parseInt(d.passed) || 0;
+        return {
+            position: d.process_name,
+            passRate: takers > 0 ? (passed / takers * 100) : 0,
+            takers: takers
+        };
+    }).filter(d => d.takers > 0);
+    
+    positionsWithPassRate.sort((a, b) => b.passRate - a.passRate);
+    const bestPosition = positionsWithPassRate[0] || { position: 'N/A', passRate: 0 };
+    const worstPosition = positionsWithPassRate[positionsWithPassRate.length - 1] || { position: 'N/A', passRate: 0 };
+    
+    // Entity comparison
+    const avgScoreData = dashboardData.avg_score_by_process || [];
+    const entityScores = {};
+    Array.from(analysisFilters.entities).forEach(entity => {
+        const entityData = avgScoreData.filter(d => 
+            d.entity === entity && analysisFilters.positions.has(d.process_name)
+        );
+        if (entityData.length > 0) {
+            const avgScore = entityData.reduce((sum, d) => sum + parseFloat(d.avg_score || 0), 0) / entityData.length;
+            entityScores[entity] = avgScore.toFixed(1);
+        }
+    });
+    
+    container.innerHTML = `
+        <h4 class="text-lg font-semibold mb-4">
+            <i class="fas fa-tachometer-alt mr-2"></i>
+            Key Performance Indicators
+        </h4>
+        
+        <!-- Overall KPIs -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500">
+                <p class="text-sm text-gray-600 mb-1">Total Test Takers</p>
+                <p class="text-3xl font-bold text-blue-600">${totalTakers}</p>
+            </div>
+            <div class="bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
+                <p class="text-sm text-gray-600 mb-1">Passed</p>
+                <p class="text-3xl font-bold text-green-600">${totalPassed}</p>
+            </div>
+            <div class="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-500">
+                <p class="text-sm text-gray-600 mb-1">Pass Rate</p>
+                <p class="text-3xl font-bold text-purple-600">${passRate}%</p>
+            </div>
+            <div class="bg-orange-50 rounded-lg p-4 border-l-4 border-orange-500">
+                <p class="text-sm text-gray-600 mb-1">Positions Tested</p>
+                <p class="text-3xl font-bold text-orange-600">${positionsCount}</p>
+            </div>
+        </div>
+    `;
+    
+        </div>
+        
+        <!-- Entity Comparison -->
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            ${Object.keys(entityScores).map(entity => `
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-300">
+                    <p class="text-sm text-gray-600 mb-1">${entity} Avg Score</p>
+                    <p class="text-2xl font-bold text-gray-800">${entityScores[entity]}</p>
+                </div>
+            `).join('')}
+        </div>
+        
+        <!-- Best/Worst Performance -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-green-50 rounded-lg p-4 border-l-4 border-green-500">
+                <p class="font-semibold text-green-800 mb-2">
+                    <i class="fas fa-trophy mr-2"></i>Best Performing Position
+                </p>
+                <p class="text-lg font-bold text-green-900">${bestPosition.position}</p>
+                <p class="text-sm text-green-700">Pass Rate: ${bestPosition.passRate.toFixed(1)}%</p>
+            </div>
+            <div class="bg-red-50 rounded-lg p-4 border-l-4 border-red-500">
+                <p class="font-semibold text-red-800 mb-2">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Needs Improvement
+                </p>
+                <p class="text-lg font-bold text-red-900">${worstPosition.position}</p>
+                <p class="text-sm text-red-700">Pass Rate: ${worstPosition.passRate.toFixed(1)}%</p>
+            </div>
+        </div>
+    `;
+    
+    // Alerts and recommendations
+    const highPriorityPositions = positionsWithPassRate.filter(p => 
+        p.takers >= 20 && p.passRate < 70
+    );
+    
+    let alertsHTML = '';
+    if (highPriorityPositions.length > 0) {
+        alertsHTML = `
+            <div class="mt-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                <p class="font-semibold text-red-800 mb-2">
+                    <i class="fas fa-bell mr-2"></i>
+                    ⚠️ ${highPriorityPositions.length} Position(s) Need Urgent Attention
+                </p>
+                <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+                    ${highPriorityPositions.slice(0, 3).map(p => 
+                        `<li>${p.position}: ${p.passRate.toFixed(1)}% pass rate (${p.takers} takers)</li>`
+                    ).join('')}
+                </ul>
+            </div>
+        `;
+    } else {
+        alertsHTML = `
+            <div class="mt-6 bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                <p class="font-semibold text-green-800">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    ✅ All positions are performing well!
+                </p>
+                <p class="text-sm text-green-700">No urgent issues detected. Keep up the good work!</p>
+            </div>
+        `;
+    }
+    
+    infoContainer.innerHTML = alertsHTML;
 }
 
 // Position → Process 매핑 테이블 (확장 용이)
@@ -991,9 +1563,304 @@ async function filterAssessmentChart() {
     }
 }
 
-function renderTestStatusChart() {
+// Test Status Chart Filters State
+let testStatusFilters = {
+    entities: new Set(['CSVN', 'CSCN', 'CSTW']),
+    teams: new Set(),
+    positions: new Set()
+};
+
+// Written Test Team-Position Mapping (Fixed Order)
+const WRITTEN_TEST_TEAM_POSITIONS = {
+    'BLACK TOWER': [
+        'CUTTING',
+        'BEVELING',
+        'BENDING',
+        'LS WELDING',
+        'FIT UP',
+        'CS WELDING',
+        'VTMT',
+        'BRACKET FU',
+        'BRACKET WELD',
+        'UT REPAIR',
+        'DOOR FRAME FU',
+        'DOOR FRAME WELD',
+        'FLATNESS'
+    ],
+    'WHITE TOWER': [
+        'BLASTING',
+        'METALIZING',
+        'PAINTING'
+    ],
+    'INTERNAL MOUNTING': [
+        'ASSEMBLY',
+        'IM CABLE'
+    ]
+};
+
+// Team order for Written Test
+const WRITTEN_TEST_TEAM_ORDER = ['BLACK TOWER', 'WHITE TOWER', 'INTERNAL MOUNTING'];
+
+function toggleDropdown(filterId) {
+    const dropdown = document.getElementById(`${filterId}-dropdown`);
+    
+    // Close all other dropdowns
+    ['entity-filter', 'team-filter', 'position-filter'].forEach(id => {
+        if (id !== filterId) {
+            const otherDropdown = document.getElementById(`${id}-dropdown`);
+            if (otherDropdown) otherDropdown.classList.add('hidden');
+        }
+    });
+    
+    // Toggle current dropdown
+    dropdown.classList.toggle('hidden');
+}
+
+// Close dropdowns when clicking outside (but not when clicking inside dropdown)
+document.addEventListener('click', function(event) {
+    const clickedInsideDropdown = event.target.closest('[id$="-filter-dropdown"]');
+    const clickedButton = event.target.closest('button[onclick^="toggleDropdown"]');
+    
+    if (!clickedInsideDropdown && !clickedButton) {
+        ['entity-filter', 'team-filter', 'position-filter'].forEach(id => {
+            const dropdown = document.getElementById(`${id}-dropdown`);
+            if (dropdown) dropdown.classList.add('hidden');
+        });
+    }
+});
+
+function updateTestStatusFilter(filterType, clickedCheckbox) {
+    // Prevent event propagation
+    event.stopPropagation();
+    
+    const checkboxes = document.querySelectorAll(`.${filterType}-filter-checkbox`);
+    const allCheckbox = Array.from(checkboxes).find(cb => cb.value === 'ALL');
+    const otherCheckboxes = Array.from(checkboxes).filter(cb => cb.value !== 'ALL');
+    
+    // Handle "All" checkbox click
+    if (clickedCheckbox && clickedCheckbox.value === 'ALL') {
+        const shouldCheckAll = clickedCheckbox.checked;
+        otherCheckboxes.forEach(cb => cb.checked = shouldCheckAll);
+    } else {
+        // Individual checkbox clicked - update "All" checkbox state
+        if (allCheckbox) {
+            allCheckbox.checked = otherCheckboxes.every(cb => cb.checked);
+        }
+    }
+    
+    // Update filter state
+    const selectedValues = otherCheckboxes.filter(cb => cb.checked).map(cb => cb.value);
+    
+    if (filterType === 'entity') {
+        testStatusFilters.entities = new Set(selectedValues.length > 0 ? selectedValues : ['CSVN', 'CSCN', 'CSTW']);
+        // When entity changes, update team dropdown
+        updateTeamDropdown();
+    } else if (filterType === 'team') {
+        testStatusFilters.teams = new Set(selectedValues);
+        // When team changes, update position dropdown
+        updatePositionDropdown();
+    } else if (filterType === 'position') {
+        testStatusFilters.positions = new Set(selectedValues);
+    }
+    
+    // Update label
+    updateFilterLabel(filterType);
+    
+    // Re-render chart
+    renderTestStatusChart();
+}
+
+function updateTeamDropdown() {
+    // Get workers by selected entities
+    axios.get('/api/workers').then(response => {
+        const workers = response.data;
+        
+        // Filter workers by selected entities
+        const selectedEntities = Array.from(testStatusFilters.entities);
+        const filteredWorkers = workers.filter(w => selectedEntities.includes(w.entity));
+        
+        // Get unique teams that have Written Test positions
+        const teams = new Set();
+        filteredWorkers.forEach(worker => {
+            if (worker.team && WRITTEN_TEST_TEAM_POSITIONS[worker.team]) {
+                teams.add(worker.team);
+            }
+        });
+        
+        // Sort teams by defined order
+        const sortedTeams = WRITTEN_TEST_TEAM_ORDER.filter(team => teams.has(team));
+        
+        // Repopulate team dropdown
+        const teamDropdown = document.getElementById('team-filter-dropdown');
+        teamDropdown.innerHTML = `
+            <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" value="ALL" checked onchange="updateTestStatusFilter('team', this)" class="team-filter-checkbox mr-2">
+                <span class="text-sm">All</span>
+            </label>
+        `;
+        
+        sortedTeams.forEach(team => {
+            teamDropdown.innerHTML += `
+                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" value="${team}" checked onchange="updateTestStatusFilter('team', this)" class="team-filter-checkbox mr-2">
+                    <span class="text-sm">${team}</span>
+                </label>
+            `;
+        });
+        
+        // Update teams filter state
+        testStatusFilters.teams = new Set(sortedTeams);
+        updateFilterLabel('team');
+        
+        // Update position dropdown based on new teams
+        updatePositionDropdown();
+    });
+}
+
+function updatePositionDropdown() {
+    // Get positions for selected teams
+    const selectedTeams = Array.from(testStatusFilters.teams);
+    const positions = new Set();
+    
+    selectedTeams.forEach(team => {
+        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(pos => positions.add(pos));
+        }
+    });
+    
+    // Keep order from team definitions
+    const orderedPositions = [];
+    selectedTeams.forEach(team => {
+        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(pos => {
+                if (!orderedPositions.includes(pos)) {
+                    orderedPositions.push(pos);
+                }
+            });
+        }
+    });
+    
+    // Repopulate position dropdown
+    const positionDropdown = document.getElementById('position-filter-dropdown');
+    positionDropdown.innerHTML = `
+        <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" value="ALL" checked onchange="updateTestStatusFilter('position', this)" class="position-filter-checkbox mr-2">
+            <span class="text-sm">All</span>
+        </label>
+    `;
+    
+    orderedPositions.forEach(position => {
+        positionDropdown.innerHTML += `
+            <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" value="${position}" checked onchange="updateTestStatusFilter('position', this)" class="position-filter-checkbox mr-2">
+                <span class="text-sm">${position}</span>
+            </label>
+        `;
+    });
+    
+    // Update positions filter state
+    testStatusFilters.positions = new Set(orderedPositions);
+    updateFilterLabel('position');
+}
+
+function updateFilterLabel(filterType) {
+    const checkboxes = document.querySelectorAll(`.${filterType}-filter-checkbox`);
+    const selected = Array.from(checkboxes).filter(cb => cb.checked && cb.value !== 'ALL');
+    const label = document.getElementById(`${filterType}-filter-label`);
+    
+    if (selected.length === 0) {
+        label.textContent = 'None';
+    } else if (selected.length === checkboxes.length - 1 || selected.length > 3) {
+        label.textContent = 'All';
+    } else {
+        label.textContent = `${selected.length} selected`;
+    }
+}
+
+function populateTestStatusFilters() {
+    // Initialize with all Written Test teams
+    const teamDropdown = document.getElementById('team-filter-dropdown');
+    teamDropdown.innerHTML = `
+        <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" value="ALL" checked onchange="updateTestStatusFilter('team', this)" class="team-filter-checkbox mr-2">
+            <span class="text-sm">All</span>
+        </label>
+    `;
+    
+    WRITTEN_TEST_TEAM_ORDER.forEach(team => {
+        teamDropdown.innerHTML += `
+            <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" value="${team}" checked onchange="updateTestStatusFilter('team', this)" class="team-filter-checkbox mr-2">
+                <span class="text-sm">${team}</span>
+            </label>
+        `;
+        testStatusFilters.teams.add(team);
+    });
+    
+    // Initialize with all positions from all teams (in order)
+    const positionDropdown = document.getElementById('position-filter-dropdown');
+    positionDropdown.innerHTML = `
+        <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+            <input type="checkbox" value="ALL" checked onchange="updateTestStatusFilter('position', this)" class="position-filter-checkbox mr-2">
+            <span class="text-sm">All</span>
+        </label>
+    `;
+    
+    const allPositions = [];
+    WRITTEN_TEST_TEAM_ORDER.forEach(team => {
+        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(pos => {
+                if (!allPositions.includes(pos)) {
+                    allPositions.push(pos);
+                }
+            });
+        }
+    });
+    
+    allPositions.forEach(position => {
+        positionDropdown.innerHTML += `
+            <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                <input type="checkbox" value="${position}" checked onchange="updateTestStatusFilter('position', this)" class="position-filter-checkbox mr-2">
+                <span class="text-sm">${position}</span>
+            </label>
+        `;
+        testStatusFilters.positions.add(position);
+    });
+}
+
+async function renderTestStatusChart() {
     const ctx = document.getElementById('test-status-chart');
-    const data = dashboardData.written_test_by_process;
+    
+    // Destroy existing chart
+    if (currentTestStatusChart) {
+        currentTestStatusChart.destroy();
+    }
+    
+    // Get filtered data
+    let data = dashboardData.written_test_by_process;
+    
+    // Apply filters
+    if (testStatusFilters.positions.size > 0) {
+        data = data.filter(d => testStatusFilters.positions.has(d.process_name));
+    }
+    
+    // Sort by defined position order (not alphabetically)
+    const selectedPositions = Array.from(testStatusFilters.positions);
+    const orderedPositions = [];
+    WRITTEN_TEST_TEAM_ORDER.forEach(team => {
+        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(pos => {
+                if (selectedPositions.includes(pos) && !orderedPositions.includes(pos)) {
+                    orderedPositions.push(pos);
+                }
+            });
+        }
+    });
+    
+    // Reorder data based on position order
+    data = orderedPositions.map(pos => {
+        return data.find(d => d.process_name === pos);
+    }).filter(d => d); // Remove undefined items
     
     currentTestStatusChart = new Chart(ctx, {
         type: 'bar',
@@ -1025,7 +1892,8 @@ function renderTestStatusChart() {
                     align: 'end',
                     formatter: (value) => value,
                     font: {
-                        weight: 'bold'
+                        weight: 'bold',
+                        size: 10
                     }
                 }
             }
@@ -3101,12 +3969,40 @@ async function uploadWorkers() {
             }
             
             console.log('✅ 필수 항목 검증 통과');
-            console.log('📤 API 전송 시작...', workers.slice(0, 2)); // 처음 2개만 로그
+            console.log('📤 API 전송 시작... (총 ' + workers.length + '명)');
             
-            const response = await axios.post('/api/workers/bulk', workers);
+            // BATCH PROCESSING: 100개씩 나눠서 업로드
+            const BATCH_SIZE = 100;
+            let totalInserted = 0;
+            let totalUpdated = 0;
             
-            console.log('🎉 업로드 성공:', response.data);
-            alert(`✅ ${response.data.count}명의 작업자가 성공적으로 등록되었습니다.`);
+            for (let i = 0; i < workers.length; i += BATCH_SIZE) {
+                const batch = workers.slice(i, i + BATCH_SIZE);
+                const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+                const totalBatches = Math.ceil(workers.length / BATCH_SIZE);
+                
+                console.log(`📤 Uploading batch ${batchNumber}/${totalBatches} (${batch.length} workers)...`);
+                
+                try {
+                    const response = await axios.post('/api/workers/bulk', batch);
+                    totalInserted += response.data.inserted || 0;
+                    totalUpdated += response.data.updated || 0;
+                    
+                    console.log(`✅ Batch ${batchNumber}/${totalBatches} complete: ${response.data.inserted} inserted, ${response.data.updated} updated`);
+                } catch (error) {
+                    console.error(`❌ Batch ${batchNumber}/${totalBatches} failed:`, error);
+                    alert(`❌ Batch ${batchNumber}/${totalBatches} upload failed.\n\nError: ${error.response?.data?.error || error.message}\n\nPlease try again.`);
+                    return;
+                }
+                
+                // 500ms delay between batches to avoid overwhelming the server
+                if (i + BATCH_SIZE < workers.length) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            }
+            
+            console.log('🎉 All batches uploaded successfully');
+            alert(`✅ Upload complete!\n\n📊 New workers: ${totalInserted}\n🔄 Updated workers: ${totalUpdated}\n📈 Total: ${totalInserted + totalUpdated}`);
             
             fileInput.value = '';
             await loadWorkers();
