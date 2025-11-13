@@ -9,8 +9,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "webapp-production",
-      "database_id": "a8a7bebb-0eb6-428c-a136-fb498531a058"
+      "database_name": "webapp-production-v2",
+      "database_id": "213528b4-3a71-4651-b259-8d70794ef24f"
     }
   ]
 }

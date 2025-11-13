@@ -106,11 +106,12 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     // 프로세스별 평균 점수 (법인별로 구분, 프로세스/팀 필터 추가)
     let avgScoreResult
     
-    // 동적 쿼리 빌드 for avg_score
+    // 동적 쿼리 빌드 for avg_score - INCLUDE team in SELECT and GROUP BY
     let avgScoreQuery = `
       SELECT 
         p.name as process_name,
         w.entity,
+        w.team,
         COALESCE(AVG(wtr.score), 0) as avg_score
       FROM positions p
       INNER JOIN written_test_results wtr ON p.id = wtr.process_id
@@ -135,8 +136,8 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     }
     
     avgScoreQuery += `
-      GROUP BY p.id, p.name, w.entity
-      ORDER BY p.id, w.entity
+      GROUP BY p.id, p.name, w.entity, w.team
+      ORDER BY p.id, w.entity, w.team
     `
     
     avgScoreResult = await db.prepare(avgScoreQuery).bind(...avgScoreParams).all()
@@ -241,23 +242,23 @@ app.post('/api/workers/bulk', errorHandler(async (c) => {
     else if (normalizedEntity === 'CN') standardEntity = 'CSCN'
     else if (normalizedEntity === 'TW') standardEntity = 'CSTW'
     
-    // 기존 작업자 확인 (employee_id로 검색)
-    const existing = await db.prepare('SELECT id FROM workers WHERE employee_id = ?')
-      .bind(worker.employee_id).first()
+    // 기존 작업자 확인 (employee_id + entity 조합으로 검색)
+    const existing = await db.prepare('SELECT id FROM workers WHERE employee_id = ? AND entity = ?')
+      .bind(worker.employee_id, standardEntity).first()
     
     if (existing) {
       // 업데이트
       await db.prepare(`
         UPDATE workers 
-        SET name = ?, entity = ?, team = ?, position = ?, start_to_work_date = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE employee_id = ?
+        SET name = ?, team = ?, position = ?, start_to_work_date = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE employee_id = ? AND entity = ?
       `).bind(
         worker.name,
-        standardEntity,
         normalizedTeam,
         normalizedPosition,
         worker.start_to_work_date,
-        worker.employee_id
+        worker.employee_id,
+        standardEntity
       ).run()
       updatedCount++
     } else {

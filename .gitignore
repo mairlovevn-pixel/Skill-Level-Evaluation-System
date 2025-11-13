@@ -31,3 +31,12 @@ lerna-debug.log*
 
 # misc
 .DS_Store
+
+# Temporary work files
+*.xlsx
+*.json
+*.py
+!package.json
+!package-lock.json
+!tsconfig.json
+!wrangler.jsonc
