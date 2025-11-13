@@ -91,12 +91,12 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
         SELECT 
           p.name as process_name,
           COUNT(DISTINCT wtr.worker_id) as takers,
-          COUNT(DISTINCT CASE WHEN wtr.passed = 1 THEN wtr.worker_id END) as passed
+          COUNT(DISTINCT CASE WHEN wtr.score >= ? THEN wtr.worker_id END) as passed
         FROM positions p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
         GROUP BY p.id, p.name
         ORDER BY p.id
-      `).all()
+      `).bind(passThreshold).all()
     }
     const written_test_by_process = testByProcessResult.results || []
 
