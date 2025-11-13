@@ -615,39 +615,88 @@ function initializeAnalysisTab() {
     WRITTEN_TEST_TEAM_ORDER.forEach(team => {
         teamContainer.innerHTML += `
             <label class="inline-flex items-center cursor-pointer">
-                <input type="checkbox" value="${team}" checked onchange="updateAnalysisFilter()" class="analysis-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                <span class="text-sm">${team}</span>
+                <input type="checkbox" value="${team}" checked onchange="onTeamCheckboxChange('${team}')" class="analysis-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                <span class="text-sm font-semibold">${team}</span>
             </label>
         `;
         analysisFilters.teams.add(team);
     });
     
-    // Populate position checkboxes
+    // Populate position checkboxes with hierarchical grouping
     const positionContainer = document.getElementById('analysis-position-checkboxes');
     positionContainer.innerHTML = '';
-    const allPositions = [];
+    
     WRITTEN_TEST_TEAM_ORDER.forEach(team => {
         if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
-            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(pos => {
-                if (!allPositions.includes(pos)) {
-                    allPositions.push(pos);
-                }
+            // Create team group
+            const teamGroup = document.createElement('div');
+            teamGroup.className = 'w-full mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200';
+            teamGroup.dataset.team = team;
+            
+            // Team header
+            const teamHeader = document.createElement('div');
+            teamHeader.className = 'font-semibold text-sm text-gray-700 mb-2 flex items-center';
+            teamHeader.innerHTML = `
+                <i class="fas fa-layer-group mr-2 text-blue-500"></i>
+                ${team}
+            `;
+            teamGroup.appendChild(teamHeader);
+            
+            // Position checkboxes for this team
+            const positionsWrapper = document.createElement('div');
+            positionsWrapper.className = 'flex flex-wrap gap-3 ml-6';
+            
+            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
+                const label = document.createElement('label');
+                label.className = 'inline-flex items-center cursor-pointer';
+                label.innerHTML = `
+                    <input type="checkbox" 
+                           value="${position}" 
+                           data-team="${team}"
+                           checked 
+                           onchange="updateAnalysisFilter()" 
+                           class="analysis-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                    <span class="text-xs text-gray-700">${position}</span>
+                `;
+                positionsWrapper.appendChild(label);
+                analysisFilters.positions.add(position);
             });
+            
+            teamGroup.appendChild(positionsWrapper);
+            positionContainer.appendChild(teamGroup);
         }
-    });
-    
-    allPositions.forEach(position => {
-        positionContainer.innerHTML += `
-            <label class="inline-flex items-center cursor-pointer">
-                <input type="checkbox" value="${position}" checked onchange="updateAnalysisFilter()" class="analysis-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                <span class="text-sm text-xs">${position}</span>
-            </label>
-        `;
-        analysisFilters.positions.add(position);
     });
     
     // Load initial analysis
     switchAnalysisMode('heatmap');
+}
+
+// Team 체크박스 변경 시 하위 Position들 제어
+function onTeamCheckboxChange(team) {
+    const teamCheckbox = document.querySelector(`.analysis-team-checkbox[value="${team}"]`);
+    const isChecked = teamCheckbox.checked;
+    
+    // 해당 팀의 모든 Position 체크박스 찾기
+    const positionCheckboxes = document.querySelectorAll(`.analysis-position-checkbox[data-team="${team}"]`);
+    
+    positionCheckboxes.forEach(checkbox => {
+        if (isChecked) {
+            // Team이 체크되면: Position 활성화하고 체크
+            checkbox.disabled = false;
+            checkbox.checked = true;
+            checkbox.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.add('cursor-pointer');
+        } else {
+            // Team이 체크 해제되면: Position 비활성화하고 체크 해제
+            checkbox.disabled = true;
+            checkbox.checked = false;
+            checkbox.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.remove('cursor-pointer');
+        }
+    });
+    
+    // 필터 업데이트
+    updateAnalysisFilter();
 }
 
 function switchAnalysisMode(mode) {
