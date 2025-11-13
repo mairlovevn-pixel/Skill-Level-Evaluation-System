@@ -2088,6 +2088,13 @@ async function renderTestStatusChart() {
 function renderAvgScoreChart() {
     const ctx = document.getElementById('avg-score-chart');
     if (!ctx) return; // Canvas element not found
+    
+    // Destroy existing chart first
+    if (currentAvgScoreChart) {
+        currentAvgScoreChart.destroy();
+        currentAvgScoreChart = null;
+    }
+    
     const data = dashboardData.avg_score_by_process;
     
     // 법인별로 데이터 그룹화
@@ -2148,6 +2155,13 @@ function renderAvgScoreChart() {
 function renderAssessmentChart() {
     const ctx = document.getElementById('assessment-chart');
     if (!ctx) return; // Canvas element not found
+    
+    // Destroy existing chart first
+    if (currentAssessmentChart) {
+        currentAssessmentChart.destroy();
+        currentAssessmentChart = null;
+    }
+    
     const data = dashboardData.supervisor_assessment_by_level;
     
     // 법인별로 그룹화
