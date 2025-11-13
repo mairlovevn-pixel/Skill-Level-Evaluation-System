@@ -1201,6 +1201,9 @@ app.get('/', (c) => {
                     <button onclick="showPage('result-management')" class="hover:underline">
                         <i class="fas fa-file-excel mr-1"></i>Result Management
                     </button>
+                    <button onclick="showPage('chatbot')" class="hover:underline">
+                        <i class="fas fa-comments mr-1"></i>Chatbot
+                    </button>
                 </div>
             </div>
         </nav>
@@ -1603,6 +1606,265 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
     total: results.length,
     message: errors.length > 0 ? errors.slice(0, 10).join('\n') : 'All results uploaded successfully'
   })
+}))
+
+// ==================== Chatbot API ====================
+app.post('/api/chatbot/query', errorHandler(async (c) => {
+  const db = c.env.DB
+  const { question } = await c.req.json()
+  
+  if (!question || typeof question !== 'string') {
+    return c.json({ error: 'Invalid question' }, 400)
+  }
+
+  const query = question.toLowerCase().trim()
+  let response = ''
+  let data: any = null
+
+  try {
+    // 1. 작업자 수 관련 질문
+    if (query.includes('작업자') && (query.includes('몇') || query.includes('수') || query.includes('명'))) {
+      if (query.includes('csvn')) {
+        const result = await db.prepare("SELECT COUNT(*) as count FROM workers WHERE entity = 'CSVN'").first()
+        response = `CSVN 소속 작업자는 총 ${result?.count || 0}명입니다.`
+        data = { entity: 'CSVN', count: result?.count || 0 }
+      } else if (query.includes('cscn')) {
+        const result = await db.prepare("SELECT COUNT(*) as count FROM workers WHERE entity = 'CSCN'").first()
+        response = `CSCN 소속 작업자는 총 ${result?.count || 0}명입니다.`
+        data = { entity: 'CSCN', count: result?.count || 0 }
+      } else if (query.includes('cstw')) {
+        const result = await db.prepare("SELECT COUNT(*) as count FROM workers WHERE entity = 'CSTW'").first()
+        response = `CSTW 소속 작업자는 총 ${result?.count || 0}명입니다.`
+        data = { entity: 'CSTW', count: result?.count || 0 }
+      } else {
+        const result = await db.prepare('SELECT COUNT(*) as count FROM workers').first()
+        response = `전체 작업자는 총 ${result?.count || 0}명입니다.`
+        data = { total: result?.count || 0 }
+      }
+    }
+    
+    // 2. 프로세스/포지션 수 질문
+    else if (query.includes('프로세스') || query.includes('포지션') || query.includes('공정')) {
+      const result = await db.prepare('SELECT COUNT(*) as count FROM positions').first()
+      response = `전체 프로세스는 총 ${result?.count || 0}개입니다.`
+      data = { processCount: result?.count || 0 }
+    }
+    
+    // 3. Written Test 합격률 질문
+    else if (query.includes('합격률') || query.includes('통과율')) {
+      const entity = query.includes('csvn') ? 'CSVN' : query.includes('cscn') ? 'CSCN' : query.includes('cstw') ? 'CSTW' : null
+      
+      let totalQuery, passedQuery
+      if (entity) {
+        totalQuery = await db.prepare(`
+          SELECT COUNT(DISTINCT wtr.worker_id) as count 
+          FROM written_test_results wtr
+          JOIN workers w ON wtr.worker_id = w.id
+          WHERE w.entity = ?
+        `).bind(entity).first()
+        
+        passedQuery = await db.prepare(`
+          SELECT COUNT(DISTINCT wtr.worker_id) as count 
+          FROM written_test_results wtr
+          JOIN workers w ON wtr.worker_id = w.id
+          WHERE w.entity = ? AND wtr.score >= 70
+        `).bind(entity).first()
+        
+        const total = totalQuery?.count || 0
+        const passed = passedQuery?.count || 0
+        const rate = total > 0 ? ((passed / total) * 100).toFixed(1) : '0.0'
+        
+        response = `${entity} 소속 작업자의 Written Test 합격률은 ${rate}%입니다. (${passed}명/${total}명)`
+        data = { entity, total, passed, rate: parseFloat(rate) }
+      } else {
+        totalQuery = await db.prepare('SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results').first()
+        passedQuery = await db.prepare('SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results WHERE score >= 70').first()
+        
+        const total = totalQuery?.count || 0
+        const passed = passedQuery?.count || 0
+        const rate = total > 0 ? ((passed / total) * 100).toFixed(1) : '0.0'
+        
+        response = `전체 작업자의 Written Test 합격률은 ${rate}%입니다. (${passed}명/${total}명)`
+        data = { total, passed, rate: parseFloat(rate) }
+      }
+    }
+    
+    // 4. Written Test 응시자 수 질문
+    else if ((query.includes('written test') || query.includes('필기') || query.includes('시험')) && 
+             (query.includes('응시') || query.includes('참여'))) {
+      const entity = query.includes('csvn') ? 'CSVN' : query.includes('cscn') ? 'CSCN' : query.includes('cstw') ? 'CSTW' : null
+      
+      if (entity) {
+        const result = await db.prepare(`
+          SELECT COUNT(DISTINCT wtr.worker_id) as count 
+          FROM written_test_results wtr
+          JOIN workers w ON wtr.worker_id = w.id
+          WHERE w.entity = ?
+        `).bind(entity).first()
+        
+        response = `${entity} 소속 작업자 중 Written Test 응시자는 ${result?.count || 0}명입니다.`
+        data = { entity, takers: result?.count || 0 }
+      } else {
+        const result = await db.prepare('SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results').first()
+        response = `전체 Written Test 응시자는 ${result?.count || 0}명입니다.`
+        data = { takers: result?.count || 0 }
+      }
+    }
+    
+    // 5. 평균 점수 질문
+    else if (query.includes('평균') && (query.includes('점수') || query.includes('성적'))) {
+      const entity = query.includes('csvn') ? 'CSVN' : query.includes('cscn') ? 'CSCN' : query.includes('cstw') ? 'CSTW' : null
+      
+      if (entity) {
+        const result = await db.prepare(`
+          SELECT AVG(wtr.score) as avg_score
+          FROM written_test_results wtr
+          JOIN workers w ON wtr.worker_id = w.id
+          WHERE w.entity = ?
+        `).bind(entity).first()
+        
+        const avgScore = result?.avg_score ? (result.avg_score as number).toFixed(1) : '0.0'
+        response = `${entity} 소속 작업자의 평균 점수는 ${avgScore}점입니다.`
+        data = { entity, avgScore: parseFloat(avgScore) }
+      } else {
+        const result = await db.prepare('SELECT AVG(score) as avg_score FROM written_test_results').first()
+        const avgScore = result?.avg_score ? (result.avg_score as number).toFixed(1) : '0.0'
+        response = `전체 작업자의 평균 점수는 ${avgScore}점입니다.`
+        data = { avgScore: parseFloat(avgScore) }
+      }
+    }
+    
+    // 6. 프로세스별 통계 질문
+    else if (query.includes('프로세스별') || query.includes('공정별')) {
+      const results = await db.prepare(`
+        SELECT 
+          p.name as process_name,
+          COUNT(DISTINCT wtr.worker_id) as takers,
+          COUNT(DISTINCT CASE WHEN wtr.score >= 70 THEN wtr.worker_id END) as passed,
+          AVG(wtr.score) as avg_score
+        FROM positions p
+        LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
+        GROUP BY p.id, p.name
+        ORDER BY takers DESC
+        LIMIT 10
+      `).all()
+      
+      if (results.results.length > 0) {
+        response = '프로세스별 상위 10개 통계입니다:\n\n'
+        results.results.forEach((row: any, idx: number) => {
+          const passRate = row.takers > 0 ? ((row.passed / row.takers) * 100).toFixed(1) : '0.0'
+          const avgScore = row.avg_score ? row.avg_score.toFixed(1) : '0.0'
+          response += `${idx + 1}. ${row.process_name}: 응시 ${row.takers}명, 합격률 ${passRate}%, 평균 ${avgScore}점\n`
+        })
+        data = results.results
+      } else {
+        response = '프로세스별 통계 데이터가 없습니다.'
+      }
+    }
+    
+    // 7. 최고 성적자 질문
+    else if (query.includes('최고') || query.includes('1등') || query.includes('top')) {
+      const result = await db.prepare(`
+        SELECT 
+          w.employee_id,
+          w.name,
+          w.entity,
+          p.name as process_name,
+          wtr.score,
+          wtr.test_date
+        FROM written_test_results wtr
+        JOIN workers w ON wtr.worker_id = w.id
+        JOIN positions p ON wtr.process_id = p.id
+        ORDER BY wtr.score DESC
+        LIMIT 5
+      `).all()
+      
+      if (result.results.length > 0) {
+        response = 'Written Test 최고 성적 Top 5:\n\n'
+        result.results.forEach((row: any, idx: number) => {
+          response += `${idx + 1}. ${row.name} (${row.employee_id}, ${row.entity}) - ${row.process_name}: ${row.score}점\n`
+        })
+        data = result.results
+      } else {
+        response = '성적 데이터가 없습니다.'
+      }
+    }
+    
+    // 8. 취약 프로세스 질문 (합격률 낮은 순)
+    else if (query.includes('취약') || query.includes('낮은') || query.includes('부진')) {
+      const results = await db.prepare(`
+        SELECT 
+          p.name as process_name,
+          COUNT(DISTINCT wtr.worker_id) as takers,
+          COUNT(DISTINCT CASE WHEN wtr.score >= 70 THEN wtr.worker_id END) as passed,
+          AVG(wtr.score) as avg_score
+        FROM positions p
+        LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
+        WHERE wtr.worker_id IS NOT NULL
+        GROUP BY p.id, p.name
+        HAVING takers >= 5
+        ORDER BY (CAST(passed AS REAL) / CAST(takers AS REAL)) ASC
+        LIMIT 10
+      `).all()
+      
+      if (results.results.length > 0) {
+        response = '취약 프로세스 Top 10 (응시자 5명 이상):\n\n'
+        results.results.forEach((row: any, idx: number) => {
+          const passRate = row.takers > 0 ? ((row.passed / row.takers) * 100).toFixed(1) : '0.0'
+          const avgScore = row.avg_score ? row.avg_score.toFixed(1) : '0.0'
+          response += `${idx + 1}. ${row.process_name}: 합격률 ${passRate}% (${row.passed}/${row.takers}명), 평균 ${avgScore}점\n`
+        })
+        data = results.results
+      } else {
+        response = '취약 프로세스 데이터가 없습니다.'
+      }
+    }
+    
+    // 9. 도움말
+    else if (query.includes('도움') || query.includes('help') || query.includes('?') || query.includes('무엇')) {
+      response = `다음과 같은 질문을 할 수 있습니다:
+
+📊 작업자 정보:
+- "작업자는 몇 명이야?"
+- "CSVN 작업자 수는?"
+
+📝 Written Test 통계:
+- "Written Test 합격률은?"
+- "평균 점수는 얼마야?"
+- "응시자는 몇 명이야?"
+
+🏆 성적 분석:
+- "최고 성적자는?"
+- "취약 프로세스는?"
+- "프로세스별 통계 보여줘"
+
+📋 기타:
+- "프로세스는 몇 개야?"
+
+궁금한 점을 자유롭게 물어보세요!`
+      data = { type: 'help' }
+    }
+    
+    // 10. 기본 응답
+    else {
+      response = '죄송합니다. 질문을 이해하지 못했습니다. "도움말"을 입력하시면 사용 가능한 질문 목록을 확인하실 수 있습니다.'
+      data = { type: 'unknown' }
+    }
+
+    return c.json({ 
+      success: true, 
+      response, 
+      data,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error: any) {
+    console.error('Chatbot query error:', error)
+    return c.json({ 
+      success: false, 
+      response: '데이터를 조회하는 중 오류가 발생했습니다.',
+      error: error.message 
+    }, 500)
+  }
 }))
 
 export default app

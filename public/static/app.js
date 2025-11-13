@@ -217,6 +217,10 @@ function showPage(pageName) {
             app.innerHTML = getResultManagementHTML();
             loadResultManagementPage();
             break;
+        case 'chatbot':
+            app.innerHTML = getChatbotHTML();
+            initializeChatbot();
+            break;
     }
 }
 
@@ -7148,4 +7152,253 @@ async function displayAssessmentTraining(assessments, processInfo) {
         console.error('Assessment 교육 추천 로드 실패:', error);
         container.innerHTML = '<p class="text-gray-500">교육 프로그램을 불러오는데 실패했습니다.</p>';
     }
+}
+
+// ==================== 챗봇 페이지 ====================
+
+// 챗봇 상태 관리
+const ChatbotState = {
+    messages: [],
+    isLoading: false
+};
+
+// 챗봇 HTML 생성
+function getChatbotHTML() {
+    return `
+        <div class="max-w-5xl mx-auto">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <!-- 챗봇 헤더 -->
+                <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-bold flex items-center">
+                                <i class="fas fa-robot mr-3"></i>
+                                Skill Level 평가 시스템 챗봇
+                            </h2>
+                            <p class="text-blue-100 mt-2 text-sm">
+                                등록된 데이터를 기반으로 질문해보세요. 작업자, Written Test, 프로세스 정보를 조회할 수 있습니다.
+                            </p>
+                        </div>
+                        <button onclick="clearChatHistory()" 
+                                class="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition text-sm font-semibold">
+                            <i class="fas fa-trash-alt mr-1"></i>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 빠른 질문 버튼 -->
+                <div class="p-4 bg-gray-50 border-b">
+                    <p class="text-xs font-semibold text-gray-600 mb-2">
+                        <i class="fas fa-bolt mr-1"></i>빠른 질문:
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="sendQuickQuestion('작업자는 몇 명이야?')" 
+                                class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-100 transition">
+                            👥 작업자 수
+                        </button>
+                        <button onclick="sendQuickQuestion('Written Test 합격률은?')" 
+                                class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-100 transition">
+                            📊 합격률
+                        </button>
+                        <button onclick="sendQuickQuestion('평균 점수는?')" 
+                                class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-100 transition">
+                            📈 평균 점수
+                        </button>
+                        <button onclick="sendQuickQuestion('취약 프로세스는?')" 
+                                class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-100 transition">
+                            ⚠️ 취약 프로세스
+                        </button>
+                        <button onclick="sendQuickQuestion('최고 성적자는?')" 
+                                class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-100 transition">
+                            🏆 최고 성적
+                        </button>
+                        <button onclick="sendQuickQuestion('프로세스별 통계')" 
+                                class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-full hover:bg-gray-100 transition">
+                            📋 통계
+                        </button>
+                        <button onclick="sendQuickQuestion('도움말')" 
+                                class="px-3 py-1 text-sm bg-blue-100 border border-blue-300 text-blue-700 rounded-full hover:bg-blue-200 transition">
+                            ❓ 도움말
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 채팅 메시지 영역 -->
+                <div id="chat-messages" class="h-96 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-gray-50 to-white">
+                    <!-- 초기 환영 메시지 -->
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                <p class="text-gray-800">
+                                    안녕하세요! 👋 Skill Level 평가 시스템 챗봇입니다.
+                                </p>
+                                <p class="text-gray-600 text-sm mt-2">
+                                    작업자 정보, Written Test 결과, 프로세스 통계 등을 조회할 수 있습니다.<br>
+                                    위의 빠른 질문 버튼을 클릭하거나 직접 질문을 입력해보세요.
+                                </p>
+                            </div>
+                            <span class="text-xs text-gray-400 mt-1 block">방금 전</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 입력 영역 -->
+                <div class="p-4 bg-white border-t">
+                    <div class="flex space-x-3">
+                        <input 
+                            type="text" 
+                            id="chat-input" 
+                            placeholder="질문을 입력하세요... (예: CSVN 작업자는 몇 명이야?)"
+                            class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onkeypress="if(event.key === 'Enter') sendChatMessage()"
+                        />
+                        <button 
+                            onclick="sendChatMessage()" 
+                            id="send-button"
+                            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed">
+                            <i class="fas fa-paper-plane mr-2"></i>전송
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        현재는 등록된 DB 데이터만 조회 가능합니다. Assessment 데이터는 추후 지원 예정입니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// 챗봇 초기화
+function initializeChatbot() {
+    ChatbotState.messages = [];
+    ChatbotState.isLoading = false;
+    console.log('✅ Chatbot initialized');
+}
+
+// 채팅 메시지 전송
+async function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    const question = input.value.trim();
+    
+    if (!question) return;
+    
+    // 사용자 메시지 추가
+    addMessageToChat('user', question);
+    input.value = '';
+    
+    // 전송 버튼 비활성화
+    const sendButton = document.getElementById('send-button');
+    sendButton.disabled = true;
+    
+    // 로딩 메시지 추가
+    addMessageToChat('bot', '답변을 생성하고 있습니다...', true);
+    
+    try {
+        const response = await axios.post('/api/chatbot/query', { question });
+        
+        // 로딩 메시지 제거
+        removeLoadingMessage();
+        
+        if (response.data.success) {
+            addMessageToChat('bot', response.data.response);
+        } else {
+            addMessageToChat('bot', '죄송합니다. 오류가 발생했습니다.');
+        }
+    } catch (error) {
+        console.error('Chatbot query error:', error);
+        removeLoadingMessage();
+        addMessageToChat('bot', '죄송합니다. 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+        sendButton.disabled = false;
+        input.focus();
+    }
+}
+
+// 빠른 질문 전송
+function sendQuickQuestion(question) {
+    const input = document.getElementById('chat-input');
+    input.value = question;
+    sendChatMessage();
+}
+
+// 채팅에 메시지 추가
+function addMessageToChat(sender, message, isLoading = false) {
+    const messagesContainer = document.getElementById('chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'flex items-start space-x-3';
+    
+    if (sender === 'user') {
+        messageDiv.classList.add('flex-row-reverse', 'space-x-reverse');
+        messageDiv.innerHTML = `
+            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center text-white">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="flex-1 max-w-xl">
+                <div class="bg-blue-600 text-white rounded-lg p-4 shadow-sm">
+                    <p>${escapeHtml(message)}</p>
+                </div>
+                <span class="text-xs text-gray-400 mt-1 block text-right">방금 전</span>
+            </div>
+        `;
+    } else {
+        messageDiv.innerHTML = `
+            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="flex-1">
+                <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm ${isLoading ? 'chatbot-loading' : ''}">
+                    <p class="text-gray-800 whitespace-pre-wrap">${escapeHtml(message)}</p>
+                </div>
+                <span class="text-xs text-gray-400 mt-1 block">방금 전</span>
+            </div>
+        `;
+    }
+    
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// 로딩 메시지 제거
+function removeLoadingMessage() {
+    const messagesContainer = document.getElementById('chat-messages');
+    const loadingMessages = messagesContainer.querySelectorAll('.chatbot-loading');
+    loadingMessages.forEach(msg => msg.closest('.flex').remove());
+}
+
+// 채팅 히스토리 초기화
+function clearChatHistory() {
+    const messagesContainer = document.getElementById('chat-messages');
+    messagesContainer.innerHTML = `
+        <div class="flex items-start space-x-3">
+            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="flex-1">
+                <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                    <p class="text-gray-800">
+                        안녕하세요! 👋 Skill Level 평가 시스템 챗봇입니다.
+                    </p>
+                    <p class="text-gray-600 text-sm mt-2">
+                        작업자 정보, Written Test 결과, 프로세스 통계 등을 조회할 수 있습니다.<br>
+                        위의 빠른 질문 버튼을 클릭하거나 직접 질문을 입력해보세요.
+                    </p>
+                </div>
+                <span class="text-xs text-gray-400 mt-1 block">방금 전</span>
+            </div>
+        </div>
+    `;
+    ChatbotState.messages = [];
+    console.log('✅ Chat history cleared');
+}
+
+// HTML 이스케이프 함수
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
