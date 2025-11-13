@@ -962,9 +962,6 @@ function renderSummaryKPI() {
                 <p class="text-3xl font-bold text-orange-600">${positionsCount}</p>
             </div>
         </div>
-    `;
-    
-        </div>
         
         <!-- Entity Comparison -->
         <div class="grid grid-cols-3 gap-4 mb-6">
