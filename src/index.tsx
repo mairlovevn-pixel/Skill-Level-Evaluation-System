@@ -113,8 +113,8 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
         w.entity,
         COALESCE(AVG(wtr.score), 0) as avg_score
       FROM positions p
-      LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
-      LEFT JOIN workers w ON wtr.worker_id = w.id
+      INNER JOIN written_test_results wtr ON p.id = wtr.process_id
+      INNER JOIN workers w ON wtr.worker_id = w.id
       WHERE 1=1
     `
     const avgScoreParams: any[] = []

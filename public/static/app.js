@@ -640,7 +640,7 @@ function switchAnalysisMode(mode) {
     renderAnalysis();
 }
 
-function updateAnalysisFilter() {
+async function updateAnalysisFilter() {
     // Update entity filters
     const entityCheckboxes = document.querySelectorAll('.analysis-entity-checkbox');
     analysisFilters.entities = new Set();
@@ -662,7 +662,11 @@ function updateAnalysisFilter() {
         if (cb.checked) analysisFilters.positions.add(cb.value);
     });
     
-    // Re-render analysis
+    // Reload data if entity filter changed (to get correct data from API)
+    // Note: We don't use entity filter in API because frontend manages multi-entity selection
+    // But if needed in future, we can add: ?entity=${Array.from(analysisFilters.entities).join(',')}
+    
+    // Re-render analysis with current dashboardData
     renderAnalysis();
 }
 
