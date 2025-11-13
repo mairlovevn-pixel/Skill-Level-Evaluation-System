@@ -1443,11 +1443,17 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
   // 🚀 OPTIMIZATION: Pre-load all lookup data to avoid repeated queries
   console.log('[BULK UPLOAD] Loading lookup data...')
   
-  // Load all workers
-  const workersResult = await db.prepare('SELECT id, employee_id, name FROM workers').all()
-  const workerMap = new Map<string, { id: number, name: string }>()
+  // Load all workers (with entity for unique identification)
+  const workersResult = await db.prepare('SELECT id, employee_id, name, entity FROM workers').all()
+  const workerMap = new Map<string, { id: number, name: string, entity: string }>()
   for (const worker of workersResult.results) {
-    workerMap.set(worker.employee_id as string, { id: worker.id as number, name: worker.name as string })
+    // Use employee_id + entity as composite key to handle duplicate employee_ids across entities
+    const compositeKey = `${worker.employee_id}-${worker.entity}`
+    workerMap.set(compositeKey, { 
+      id: worker.id as number, 
+      name: worker.name as string,
+      entity: worker.entity as string
+    })
   }
   console.log(`[BULK UPLOAD] Loaded ${workerMap.size} workers`)
   
@@ -1485,10 +1491,11 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
   console.log(`[BULK UPLOAD] Processing ${results.length} results...`)
   for (const result of results) {
     try {
-      // 1. Find worker from cache
-      const worker = workerMap.get(result.employee_id)
+      // 1. Find worker from cache using composite key (employee_id + entity)
+      const compositeKey = `${result.employee_id}-${result.entity}`
+      const worker = workerMap.get(compositeKey)
       if (!worker) {
-        errors.push(`❌ Worker not found: ${result.employee_id}`)
+        errors.push(`❌ Worker not found: ${result.employee_id} (${result.entity})`)
         skippedCount++
         continue
       }
