@@ -1025,27 +1025,17 @@ function renderWeaknessAnalysis() {
 }
 
 function getPriorityLevel(takers, passRate) {
-    // Excellent: High pass rate (85%+)
+    // Excellent: 85%+ pass rate
     if (passRate >= 85) return 'excellent';
     
-    // High Priority: Low pass rate (< 70%) - regardless of volume
-    if (passRate < 70) {
-        // Even higher priority if many takers
-        if (takers >= 20) return 'high';
-        // Still high priority for smaller groups with very low pass rate
-        if (takers >= 5) return 'high';
-        // Very small groups (< 5) with low pass rate
-        return 'medium';
-    }
+    // Low (Good): 60-85% pass rate
+    if (passRate >= 60) return 'low';
     
-    // Medium Priority: Moderate pass rate (70-85%)
-    if (passRate < 85) {
-        if (takers >= 10) return 'medium';
-        return 'low';
-    }
+    // High (Critical): < 30% pass rate - ALWAYS HIGH regardless of volume
+    if (passRate < 30) return 'high';
     
-    // Low Priority: Small groups with okay performance
-    return 'low';
+    // Medium (Warning): 30-60% pass rate
+    return 'medium';
 }
 
 function getPriorityBadge(priority) {
