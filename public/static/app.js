@@ -909,10 +909,17 @@ function renderWeaknessAnalysis() {
         };
     }).filter(m => m.takers > 0);
     
-    // Sort by priority (high priority first)
+    // Sort by priority first, then by pass rate (lowest first)
     metrics.sort((a, b) => {
         const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3, 'excellent': 4 };
-        return priorityOrder[a.priority] - priorityOrder[b.priority];
+        const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+        
+        // If same priority, sort by pass rate (lowest first)
+        if (priorityDiff === 0) {
+            return parseFloat(a.passRate) - parseFloat(b.passRate);
+        }
+        
+        return priorityDiff;
     });
     
     // Build weakness matrix table
@@ -984,13 +991,26 @@ function renderWeaknessAnalysis() {
 }
 
 function getPriorityLevel(takers, passRate) {
-    // High Priority: Many takers + Low pass rate
-    if (takers >= 20 && passRate < 70) return 'high';
-    // Medium Priority: Either many takers OR low pass rate
-    if ((takers >= 20 && passRate < 80) || (takers >= 10 && passRate < 70)) return 'medium';
-    // Excellent: High pass rate
+    // Excellent: High pass rate (85%+)
     if (passRate >= 85) return 'excellent';
-    // Low Priority: Good enough
+    
+    // High Priority: Low pass rate (< 70%) - regardless of volume
+    if (passRate < 70) {
+        // Even higher priority if many takers
+        if (takers >= 20) return 'high';
+        // Still high priority for smaller groups with very low pass rate
+        if (takers >= 5) return 'high';
+        // Very small groups (< 5) with low pass rate
+        return 'medium';
+    }
+    
+    // Medium Priority: Moderate pass rate (70-85%)
+    if (passRate < 85) {
+        if (takers >= 10) return 'medium';
+        return 'low';
+    }
+    
+    // Low Priority: Small groups with okay performance
     return 'low';
 }
 
