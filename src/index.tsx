@@ -27,6 +27,7 @@ app.use('/static/*', serveStatic({ root: './' }))
 app.get('/api/dashboard/stats', errorHandler(async (c) => {
   const db = c.env.DB
   const entity = c.req.query('entity') // 법인 필터 파라미터
+  const passThreshold = parseInt(c.req.query('passThreshold') || '70')
   
     // 전체 작업자 수
     let totalWorkersResult
@@ -54,19 +55,19 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     }
     const written_test_takers = (testTakersResult?.count as number) || 0
 
-    // Written Test 합격자 수 (중복 제거, passed=1)
+    // Written Test 합격자 수 (동적 합격 기준 점수 적용)
     let testPassedResult
     if (entity) {
       testPassedResult = await db.prepare(`
         SELECT COUNT(DISTINCT wtr.worker_id) as count 
         FROM written_test_results wtr
         JOIN workers w ON wtr.worker_id = w.id
-        WHERE w.entity = ? AND wtr.passed = 1
-      `).bind(entity).first()
+        WHERE w.entity = ? AND wtr.score >= ?
+      `).bind(entity, passThreshold).first()
     } else {
       testPassedResult = await db.prepare(
-        'SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results WHERE passed = 1'
-      ).first()
+        'SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results WHERE score >= ?'
+      ).bind(passThreshold).first()
     }
     const written_test_passed = (testPassedResult?.count as number) || 0
 
@@ -77,14 +78,14 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
         SELECT 
           p.name as process_name,
           COUNT(DISTINCT wtr.worker_id) as takers,
-          COUNT(DISTINCT CASE WHEN wtr.passed = 1 THEN wtr.worker_id END) as passed
+          COUNT(DISTINCT CASE WHEN wtr.score >= ? THEN wtr.worker_id END) as passed
         FROM positions p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
         LEFT JOIN workers w ON wtr.worker_id = w.id
         WHERE w.entity = ? OR w.entity IS NULL
         GROUP BY p.id, p.name
         ORDER BY p.id
-      `).bind(entity).all()
+      `).bind(passThreshold, entity).all()
     } else {
       testByProcessResult = await db.prepare(`
         SELECT 
