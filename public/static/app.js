@@ -695,18 +695,59 @@ function renderHeatmapAnalysis() {
     const entities = Array.from(analysisFilters.entities);
     const positions = Array.from(analysisFilters.positions);
     
-    // Create heatmap HTML table
+    // Prepare data for line chart
+    const chartData = {
+        labels: positions,
+        datasets: entities.map((entity, idx) => {
+            const colors = ['rgb(59, 130, 246)', 'rgb(16, 185, 129)', 'rgb(239, 68, 68)'];
+            const color = colors[idx % colors.length];
+            
+            return {
+                label: entity,
+                data: positions.map(pos => calculateAverageScore(entity, pos)),
+                borderColor: color,
+                backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
+                tension: 0.4,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            };
+        })
+    };
+    
+    // Create HTML with line chart and heatmap
     let heatmapHTML = `
-        <div class="overflow-x-auto">
-            <h4 class="text-lg font-semibold mb-3">
-                <i class="fas fa-th mr-2"></i>
-                Entity-Position Performance Heatmap
-            </h4>
-            <p class="text-sm text-gray-600 mb-4">Average scores by entity and position (higher scores = better performance)</p>
-            <table class="min-w-full border-collapse border border-gray-300">
-                <thead>
-                    <tr class="bg-gray-100">
-                        <th class="border border-gray-300 px-4 py-2 text-left font-semibold">Position</th>
+        <div class="space-y-6">
+            <!-- Line Chart Section -->
+            <div class="bg-white rounded-lg p-4 border border-gray-200">
+                <h4 class="text-lg font-semibold mb-3">
+                    <i class="fas fa-chart-line mr-2"></i>
+                    Entity-Position Performance Trends
+                </h4>
+                <p class="text-sm text-gray-600 mb-4">Compare average scores across positions by entity</p>
+                <div style="position: relative; height: 400px;">
+                    <canvas id="heatmap-line-chart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Heatmap Table Section -->
+            <div class="bg-white rounded-lg p-4 border border-gray-200">
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="text-lg font-semibold">
+                        <i class="fas fa-th mr-2"></i>
+                        Entity-Position Performance Heatmap (Detailed Numbers)
+                    </h4>
+                    <button onclick="toggleHeatmapTable()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm">
+                        <i id="heatmap-toggle-icon" class="fas fa-chevron-up mr-2"></i>
+                        <span id="heatmap-toggle-text">Collapse Table</span>
+                    </button>
+                </div>
+                <div id="heatmap-table-container">
+                    <p class="text-sm text-gray-600 mb-4">Average scores by entity and position (higher scores = better performance)</p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full border-collapse border border-gray-300">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="border border-gray-300 px-4 py-2 text-left font-semibold">Position</th>
     `;
     
     entities.forEach(entity => {
@@ -733,9 +774,59 @@ function renderHeatmapAnalysis() {
         heatmapHTML += `</tr>`;
     });
     
-    heatmapHTML += `</tbody></table></div>`;
+    heatmapHTML += `</tbody></table></div></div></div></div>`;
     
     container.innerHTML = heatmapHTML;
+    
+    // Create line chart
+    const ctx = document.getElementById('heatmap-line-chart');
+    if (ctx) {
+        if (window.heatmapLineChart) {
+            window.heatmapLineChart.destroy();
+        }
+        
+        window.heatmapLineChart = new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + (context.parsed.y !== null ? context.parsed.y.toFixed(1) : 'N/A');
+                            }
+                        }
+                    },
+                    datalabels: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Average Score'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Position'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
     infoContainer.innerHTML = `
         <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
             <p class="text-sm text-blue-700">
@@ -746,13 +837,39 @@ function renderHeatmapAnalysis() {
     `;
 }
 
+// Toggle heatmap table visibility
+function toggleHeatmapTable() {
+    const tableContainer = document.getElementById('heatmap-table-container');
+    const toggleIcon = document.getElementById('heatmap-toggle-icon');
+    const toggleText = document.getElementById('heatmap-toggle-text');
+    
+    if (tableContainer.style.display === 'none') {
+        // Show table
+        tableContainer.style.display = 'block';
+        toggleIcon.className = 'fas fa-chevron-up mr-2';
+        toggleText.textContent = 'Collapse Table';
+    } else {
+        // Hide table
+        tableContainer.style.display = 'none';
+        toggleIcon.className = 'fas fa-chevron-down mr-2';
+        toggleText.textContent = 'Expand Table';
+    }
+}
+
 function calculateAverageScore(entity, position) {
-    // This would need actual score data by entity
-    // For now, using avg_score_by_process data
+    // Use avg_score_by_process data with team filtering
     const processData = dashboardData.avg_score_by_process || [];
-    const matches = processData.filter(d => 
-        d.entity === entity && d.process_name === position
-    );
+    const matches = processData.filter(d => {
+        // Match entity and position
+        const entityMatch = d.entity === entity && d.process_name === position;
+        
+        // Apply team filter if teams are selected
+        if (analysisFilters.teams.size > 0) {
+            return entityMatch && analysisFilters.teams.has(d.team);
+        }
+        
+        return entityMatch;
+    });
     
     if (matches.length === 0) return null;
     
@@ -1831,6 +1948,7 @@ function populateTestStatusFilters() {
 
 async function renderTestStatusChart() {
     const ctx = document.getElementById('test-status-chart');
+    if (!ctx) return; // Canvas element not found
     
     // Destroy existing chart
     if (currentTestStatusChart) {
@@ -1904,6 +2022,7 @@ async function renderTestStatusChart() {
 
 function renderAvgScoreChart() {
     const ctx = document.getElementById('avg-score-chart');
+    if (!ctx) return; // Canvas element not found
     const data = dashboardData.avg_score_by_process;
     
     // 법인별로 데이터 그룹화
@@ -1963,6 +2082,7 @@ function renderAvgScoreChart() {
 
 function renderAssessmentChart() {
     const ctx = document.getElementById('assessment-chart');
+    if (!ctx) return; // Canvas element not found
     const data = dashboardData.supervisor_assessment_by_level;
     
     // 법인별로 그룹화
@@ -2800,56 +2920,7 @@ async function loadAssessmentStatus() {
             }
         });
         
-        // 테이블 생성
-        let tableHTML = `
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">프로세스</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">등록된 항목 수</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">카테고리 분포</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">최근 등록일</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-        `;
-        
-        // 일반 항목 (프로세스 미연결)
-        if (itemCounts['general']) {
-            const count = itemCounts['general'];
-            const latestDate = latestDates['general'];
-            const dateStr = latestDate ? latestDate.toLocaleDateString('ko-KR') : '-';
-            const categories = Object.entries(categoryBreakdown['general'])
-                .map(([cat, cnt]) => `${cat}(${cnt})`)
-                .join(', ');
-            
-            tableHTML += `
-                <tr class="bg-blue-50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">일반 항목 (공통)</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${count}개</td>
-                    <td class="px-6 py-4 text-sm text-gray-500">${categories}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dateStr}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">공통</span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        <div class="flex gap-2">
-                            <button onclick="showAssessmentManagement(null, '일반 항목 (공통)')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs py-1 px-3 rounded">
-                                <i class="fas fa-cog mr-1"></i>관리
-                            </button>
-                            <button onclick="deleteAllAssessmentsByProcess(null, '일반 항목 (공통)', ${count})" class="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded">
-                                <i class="fas fa-trash-alt mr-1"></i>전체 삭제
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }
-        
-        // Team-based grouped display (59 positions across 8 teams)
-        tableHTML += '</tbody></table>';
+        // 팀별 섹션만 표시 (테이블 헤더 제거)
         
         // Generate team sections
         let teamHTML = '<div class="space-y-4">';
@@ -2948,7 +3019,7 @@ async function loadAssessmentStatus() {
         
         teamHTML += '</div>';
         
-        statusDiv.innerHTML = tableHTML + teamHTML;
+        statusDiv.innerHTML = teamHTML;
     } catch (error) {
         console.error('Assessment 현황 로드 실패:', error);
         document.getElementById('assessment-status-table').innerHTML = 
@@ -3068,7 +3139,7 @@ function getAssessmentUploadHTML() {
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h3 class="text-xl font-bold text-gray-800 mb-4">
                     <i class="fas fa-list-check mr-2"></i>
-                    등록된 Assessment 항목 현황
+                    Registered Assessment Items Status
                 </h3>
                 <div id="assessment-status-table" class="overflow-x-auto">
                     <p class="text-gray-500">로딩 중...</p>
@@ -6365,6 +6436,7 @@ async function showAssessmentAnalysis(processId, processName) {
 
 function drawAssessmentRadarChart(assessmentData, processName) {
     const ctx = document.getElementById('assessment-radar-chart');
+    if (!ctx) return; // Canvas element not found
     
     // 기존 차트 파괴
     if (assessmentChart) {
@@ -6717,6 +6789,7 @@ async function showTestAnalysis(resultId, processName, processId, score, workerI
 
 function drawComparisonChart(processName, workerScore, entityAverage, entity) {
     const ctx = document.getElementById('comparison-chart');
+    if (!ctx) return; // Canvas element not found
     
     // 기존 차트 파괴
     if (window.comparisonChartInstance) {
@@ -6782,6 +6855,7 @@ function drawComparisonChart(processName, workerScore, entityAverage, entity) {
 
 function drawCategoryChart(categoryScores) {
     const ctx = document.getElementById('category-chart');
+    if (!ctx) return; // Canvas element not found
     
     // 기존 차트 파괴
     if (categoryChart) {
@@ -6889,6 +6963,7 @@ function displayAssessmentResults(assessments, processInfo) {
 
 function drawAssessmentChart(assessments) {
     const ctx = document.getElementById('assessment-chart');
+    if (!ctx) return; // Canvas element not found
     
     // 기존 차트 파괴
     if (assessmentChart) {
