@@ -934,25 +934,26 @@ function renderWeaknessAnalysis() {
         };
     }).filter(m => m.takers > 0);
     
-    // Sort by priority first, then by pass rate and volume
+    // Sort by priority first, then by pass rate (lowest first), then by volume (more takers = worse)
     metrics.sort((a, b) => {
         const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3, 'excellent': 4 };
         const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
         
-        // If same priority
-        if (priorityDiff === 0) {
-            const passRateDiff = parseFloat(a.passRate) - parseFloat(b.passRate);
-            
-            // If same pass rate (especially 0%), sort by volume (more takers = worse)
-            if (Math.abs(passRateDiff) < 0.1) {
-                return b.takers - a.takers;
-            }
-            
-            // Otherwise sort by pass rate (lowest first)
+        // If different priority, sort by priority
+        if (priorityDiff !== 0) {
+            return priorityDiff;
+        }
+        
+        // Same priority: sort by pass rate (lowest first)
+        const passRateDiff = parseFloat(a.passRate) - parseFloat(b.passRate);
+        
+        // If different pass rate, sort by pass rate
+        if (Math.abs(passRateDiff) >= 0.1) {
             return passRateDiff;
         }
         
-        return priorityDiff;
+        // Same pass rate (especially 0%): sort by volume (more takers = worse = higher priority)
+        return b.takers - a.takers;
     });
     
     // Build weakness matrix table
