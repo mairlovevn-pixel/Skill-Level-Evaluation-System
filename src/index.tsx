@@ -1219,22 +1219,28 @@ app.get('/', (c) => {
   `)
 })
 
-// Supervisor Assessment 결과 일괄 업로드
+// Supervisor Assessment 결과 배치 업로드 (Cloudflare Workers subrequest 제한 회피)
 app.post('/api/supervisor-assessment-results/bulk', errorHandler(async (c) => {
   const db = c.env.DB
   const body = await c.req.json()
-  const results = body as Array<{
-    employee_id: string
-    process_name: string
-    category: string
-    item_name: string
-    is_satisfied: number
-    assessment_date: string
-  }>
+  const { results, batchIndex, totalBatches } = body as {
+    results: Array<{
+      employee_id: string
+      process_name: string
+      category: string
+      item_name: string
+      is_satisfied: number
+      assessment_date: string
+    }>
+    batchIndex: number
+    totalBatches: number
+  }
   
   let successCount = 0
   let skippedCount = 0
   const errors: string[] = []
+  
+  console.log(`Processing batch ${batchIndex + 1}/${totalBatches} with ${results.length} items`)
   
   for (const result of results) {
     try {
@@ -1401,7 +1407,10 @@ app.post('/api/supervisor-assessment-results/bulk', errorHandler(async (c) => {
     success: successCount,
     skipped: skippedCount,
     total: results.length,
-    message: errors.length > 0 ? errors.slice(0, 5).join('\n') : 'All data processed successfully'
+    batchIndex,
+    totalBatches,
+    isLastBatch: batchIndex === totalBatches - 1,
+    message: errors.length > 0 ? errors.slice(0, 5).join('\n') : `Batch ${batchIndex + 1}/${totalBatches} processed successfully`
   })
 }))
 

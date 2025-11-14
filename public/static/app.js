@@ -5547,14 +5547,49 @@ async function uploadAssessmentResults() {
             console.log(`🔄 Conversion complete: ${results.length} items`);
             console.log('📊 First converted data:', results[0]);
             
-            // Upload to server
-            const response = await axios.post('/api/supervisor-assessment-results/bulk', results);
+            // Upload to server in batches to avoid Cloudflare Workers subrequest limit
+            const BATCH_SIZE = 100; // Process 100 items per batch
+            const totalBatches = Math.ceil(results.length / BATCH_SIZE);
             
-            alert(`✅ ${response.data.success} succeeded\n⚠️ ${response.data.skipped} skipped\n\nDetails:\n${response.data.message || ''}`);
+            let totalSuccess = 0;
+            let totalSkipped = 0;
+            
+            for (let i = 0; i < totalBatches; i++) {
+                const start = i * BATCH_SIZE;
+                const end = Math.min(start + BATCH_SIZE, results.length);
+                const batch = results.slice(start, end);
+                
+                console.log(`📤 Uploading batch ${i + 1}/${totalBatches} (${batch.length} items)...`);
+                
+                try {
+                    const response = await axios.post('/api/supervisor-assessment-results/bulk', {
+                        results: batch,
+                        batchIndex: i,
+                        totalBatches: totalBatches
+                    });
+                    
+                    totalSuccess += response.data.success;
+                    totalSkipped += response.data.skipped;
+                    
+                    console.log(`✅ Batch ${i + 1}/${totalBatches}: ${response.data.success} succeeded, ${response.data.skipped} skipped`);
+                    
+                    // Update progress message
+                    const progressMessage = `Processing batch ${i + 1}/${totalBatches}...\n\n✅ ${totalSuccess} succeeded\n⚠️ ${totalSkipped} skipped`;
+                    
+                    // Show progress in console
+                    console.log(progressMessage);
+                    
+                } catch (error) {
+                    console.error(`❌ Batch ${i + 1} failed:`, error);
+                    alert(`❌ Batch ${i + 1}/${totalBatches} failed.\n\nError: ${error.response?.data?.error || error.message}\n\nContinuing with next batch...`);
+                }
+            }
+            
+            alert(`✅ Assessment Upload Complete!\n\n✅ ${totalSuccess} items succeeded\n⚠️ ${totalSkipped} items skipped\n\nTotal batches processed: ${totalBatches}`);
             fileInput.value = '';
             
             // Refresh page to update dashboard
-            if (response.data.success > 0) {
+            if (totalSuccess > 0) {
                 setTimeout(() => {
                     location.reload();
                 }, 1500);
