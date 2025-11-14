@@ -6,8 +6,9 @@
 - **주요 기능**: Written Test 관리, Supervisor Assessment, 대시보드 리포팅
 
 ## 접속 URL
-- **개발 서버**: https://3000-ij9mph43upsb11fhzb0zo-82b888ba.sandbox.novita.ai
-- **API 베이스**: https://3000-ij9mph43upsb11fhzb0zo-82b888ba.sandbox.novita.ai/api
+- **프로덕션**: https://webapp-5ki.pages.dev
+- **개발 서버**: https://3000-ib4d8xeoiy2k1oqdjx8w8-d0b9e1e2.sandbox.novita.ai
+- **API 베이스**: https://webapp-5ki.pages.dev/api
 
 ## 완성된 기능
 
@@ -296,9 +297,12 @@
 - **기타**: 7개 항목 (기술 능력, 안전, 태도, 효율성)
 
 ## 배포 상태
-- **플랫폼**: Cloudflare Pages (로컬 개발 모드)
+- **플랫폼**: Cloudflare Pages
+- **프로덕션 URL**: https://webapp-5ki.pages.dev
+- **프로젝트 이름**: webapp
+- **D1 Database**: webapp-production-v2
 - **상태**: ✅ 활성
-- **마지막 업데이트**: 2025-10-30
+- **마지막 업데이트**: 2025-11-14
 - **최근 변경사항**: 
   - **Team-Process 매핑 테이블 기반 필터링** ⭐⭐⭐⭐ NEW!
     - **엑셀 기반 정의**: TEAM PROCESS.xlsx 파일을 기반으로 팀-프로세스 매핑
