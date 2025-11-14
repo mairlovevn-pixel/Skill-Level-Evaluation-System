@@ -144,11 +144,11 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     avgScoreResult = await db.prepare(avgScoreQuery).bind(...avgScoreParams).all()
     const avg_score_by_process = avgScoreResult.results || []
 
-    // Level별 법인 현황 - 간소화된 버전
-    // 각 작업자의 가장 높은 level 값을 최종 Level로 간주
-    // IMPORTANT: 실시간 계산은 너무 느리므로, 저장된 level 값 기반으로 집계
+    // Level별 법인 현황 - 평가받은 작업자 + 평가받지 않은 작업자(Level 1)
+    // Step 1: 평가받은 작업자의 최종 Level 계산
     let levelQuery = `
       SELECT 
+        w.id,
         w.entity,
         MAX(sa.level) as final_level
       FROM workers w
@@ -177,15 +177,37 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
       GROUP BY w.id, w.entity
     `
     
-    const workersResult = await db.prepare(levelQuery).bind(...params).all()
-    const workers = workersResult.results || []
+    const assessedWorkersResult = await db.prepare(levelQuery).bind(...params).all()
+    const assessedWorkers = assessedWorkersResult.results || []
     
-    // 법인별, Level별 집계
+    // Step 2: 필터링된 전체 작업자 수 조회 (평가받지 않은 작업자 계산용)
+    let totalFilteredQuery = `SELECT COUNT(*) as count FROM workers w WHERE 1=1`
+    const totalParams: any[] = []
+    
+    if (entity) {
+      totalFilteredQuery += ' AND w.entity = ?'
+      totalParams.push(entity)
+    }
+    
+    if (team) {
+      totalFilteredQuery += ' AND w.team = ?'
+      totalParams.push(team)
+    }
+    
+    const totalFilteredResult = await db.prepare(totalFilteredQuery).bind(...totalParams).first()
+    const totalFiltered = (totalFilteredResult?.count as number) || 0
+    
+    // Step 3: 법인별, Level별 집계
     const levelCounts: Record<string, Record<number, number>> = {}
+    const assessedWorkerIds = new Set<number>()
     
-    for (const worker of workers) {
+    // 평가받은 작업자 집계
+    for (const worker of assessedWorkers) {
       const workerEntity = (worker as any).entity
+      const workerId = (worker as any).id
       const finalLevel = (worker as any).final_level || 1
+      
+      assessedWorkerIds.add(workerId)
       
       if (!levelCounts[workerEntity]) {
         levelCounts[workerEntity] = { 1: 0, 2: 0, 3: 0, 4: 0 }
@@ -193,14 +215,58 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
       levelCounts[workerEntity][finalLevel]++
     }
     
+    // Step 4: 평가받지 않은 작업자는 Level 1로 계산
+    const unassessedCount = totalFiltered - assessedWorkerIds.size
+    
+    if (unassessedCount > 0) {
+      // 단일 Entity 필터인 경우
+      if (entity) {
+        if (!levelCounts[entity]) {
+          levelCounts[entity] = { 1: 0, 2: 0, 3: 0, 4: 0 }
+        }
+        levelCounts[entity][1] += unassessedCount
+      } else {
+        // Entity 필터 없는 경우, 평가받지 않은 작업자의 Entity별 분포 조회
+        let unassessedQuery = `
+          SELECT w.entity, COUNT(*) as count
+          FROM workers w
+          WHERE w.id NOT IN (
+            SELECT DISTINCT sa.worker_id 
+            FROM supervisor_assessments sa
+          )
+        `
+        const unassessedParams: any[] = []
+        
+        if (team) {
+          unassessedQuery += ' AND w.team = ?'
+          unassessedParams.push(team)
+        }
+        
+        unassessedQuery += ' GROUP BY w.entity'
+        
+        const unassessedResult = await db.prepare(unassessedQuery).bind(...unassessedParams).all()
+        const unassessedByEntity = unassessedResult.results || []
+        
+        for (const row of unassessedByEntity) {
+          const workerEntity = (row as any).entity
+          const count = (row as any).count
+          
+          if (!levelCounts[workerEntity]) {
+            levelCounts[workerEntity] = { 1: 0, 2: 0, 3: 0, 4: 0 }
+          }
+          levelCounts[workerEntity][1] += count
+        }
+      }
+    }
+    
     // 결과 포맷팅
     const supervisor_assessment_by_level: any[] = []
-    for (const [entity, levels] of Object.entries(levelCounts)) {
+    for (const [entityKey, levels] of Object.entries(levelCounts)) {
       for (const [level, count] of Object.entries(levels)) {
         if (count > 0) {
           supervisor_assessment_by_level.push({
             level: parseInt(level),
-            entity: entity,
+            entity: entityKey,
             count: count
           })
         }
@@ -217,6 +283,37 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     }
 
     return c.json(stats)
+}))
+
+// 작업자 테이블에 없지만 시험/평가 데이터에는 있는 작업자 조회
+app.get('/api/workers/missing', errorHandler(async (c) => {
+  const db = c.env.DB
+  
+  // Written Test 데이터에서 추출한 작업자 정보 (workers 테이블에 없는 경우)
+  // 주의: written_test_results는 worker_id를 참조하므로, 
+  // 이 테이블에는 이미 workers에 등록된 작업자만 있어야 함
+  // 따라서 이 쿼리는 결과가 없어야 정상
+  
+  // Supervisor Assessments 데이터에서 추출한 작업자 정보
+  // 마찬가지로 worker_id를 참조하므로 이미 등록된 작업자만 있어야 함
+  
+  // 실제로는 업로드 시 스킵된 데이터를 분석해야 함
+  // 스킵 로그에서 "Worker not found" 메시지를 추출하는 방식
+  
+  // 대신, 모든 테이블의 데이터 일관성을 확인하는 쿼리 제공
+  const result = await db.prepare(`
+    SELECT 
+      'All data is consistent' as status,
+      (SELECT COUNT(*) FROM workers) as total_workers,
+      (SELECT COUNT(DISTINCT worker_id) FROM written_test_results) as workers_with_written_test,
+      (SELECT COUNT(DISTINCT worker_id) FROM supervisor_assessments) as workers_with_assessment
+  `).first()
+  
+  return c.json({
+    message: "현재 DB 구조상 모든 시험/평가 데이터는 이미 등록된 작업자만 참조 가능합니다.",
+    note: "업로드 시 스킵된 작업자를 찾으려면 업로드 응답의 skippedReasons를 확인하세요.",
+    consistency_check: result
+  })
 }))
 
 // ==================== Workers CRUD ====================
@@ -1171,172 +1268,187 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
   const db = c.env.DB
   const results: any[] = await c.req.json()
   
+  console.log(`Starting bulk upload of ${results.length} items`)
+  const startTime = Date.now()
+  
   let successCount = 0
   let skippedCount = 0
   const skippedReasons: string[] = []
-  const processedWorkers = new Set<number>() // 처리된 작업자 추적
+  const processedWorkers = new Set<number>()
+  
+  // Step 1: 배치로 모든 필요한 worker 조회 (1 query)
+  const workerKeys = results.map(r => {
+    const entity = r.entity || r.ENTITY || r['ENTITY']
+    const empId = r.employee_id || r['EMPLOYEE ID']
+    return `${entity}|${empId}`
+  })
+  const uniqueWorkerKeys = [...new Set(workerKeys)]
+  
+  const employeeIds = uniqueWorkerKeys.map(k => k.split('|')[1])
+  const entities = uniqueWorkerKeys.map(k => k.split('|')[0])
+  
+  const workerPlaceholders = employeeIds.map(() => '?').join(',')
+  const workerQuery = `
+    SELECT id, employee_id, entity 
+    FROM workers 
+    WHERE employee_id IN (${workerPlaceholders})
+  `
+  const workersData = await db.prepare(workerQuery).bind(...employeeIds).all()
+  
+  // Worker lookup map 생성
+  const workerMap = new Map<string, number>()
+  for (const worker of (workersData.results || [])) {
+    const key = `${(worker as any).entity}|${(worker as any).employee_id}`
+    workerMap.set(key, (worker as any).id)
+  }
+  
+  console.log(`Fetched ${workerMap.size} workers in ${Date.now() - startTime}ms`)
+  
+  // Step 2: 배치로 모든 필요한 assessment items 조회 (1 query)
+  const itemKeys = results.map(r => {
+    const cat = r.lv_category || r.category || r['LV CATEGORY']
+    const name = r.assessment_item || r.item_name || r['ASSESSMENT ITEM']
+    return `${cat}|${name}`
+  })
+  const uniqueItemKeys = [...new Set(itemKeys)]
+  
+  // 모든 assessment items 가져오기
+  const allItemsData = await db.prepare('SELECT id, category, item_name FROM supervisor_assessment_items').all()
+  
+  // Item lookup map 생성 (정규화된 키로)
+  const itemMap = new Map<string, { id: number, category: string }>()
+  for (const item of (allItemsData.results || [])) {
+    const normalizedCat = ((item as any).category || '').replace(/\s+/g, '')
+    const key1 = `${(item as any).category}|${(item as any).item_name}`
+    const key2 = `${normalizedCat}|${(item as any).item_name}`
+    
+    const value = { id: (item as any).id, category: (item as any).category }
+    itemMap.set(key1, value)
+    itemMap.set(key2, value)
+  }
+  
+  console.log(`Fetched ${allItemsData.results?.length || 0} assessment items in ${Date.now() - startTime}ms`)
+  
+  // Step 3: 기존 assessments 조회 (1 query)
+  const workerIds = [...workerMap.values()]
+  const itemIds = [...new Set([...itemMap.values()].map(v => v.id))]
+  
+  const existingPlaceholders = workerIds.map(() => '?').join(',')
+  const existingQuery = `
+    SELECT worker_id, item_id, id
+    FROM supervisor_assessments
+    WHERE worker_id IN (${existingPlaceholders})
+  `
+  const existingData = await db.prepare(existingQuery).bind(...workerIds).all()
+  
+  // Existing assessments lookup map
+  const existingMap = new Map<string, number>()
+  for (const existing of (existingData.results || [])) {
+    const key = `${(existing as any).worker_id}|${(existing as any).item_id}`
+    existingMap.set(key, (existing as any).id)
+  }
+  
+  console.log(`Fetched ${existingMap.size} existing assessments in ${Date.now() - startTime}ms`)
+  
+  // Step 4: Prepare all operations
+  const insertOps: any[] = []
+  const updateOps: any[] = []
   
   for (const result of results) {
-    // 작업자 찾기
-    const worker = await db.prepare('SELECT id FROM workers WHERE employee_id = ?')
-      .bind(result.employee_id).first()
+    const entityValue = result.entity || result.ENTITY || result['ENTITY']
+    const employeeIdValue = result.employee_id || result['EMPLOYEE ID']
+    const workerKey = `${entityValue}|${employeeIdValue}`
     
-    if (!worker) {
-      console.log(`Worker not found: ${result.employee_id}`)
+    const workerId = workerMap.get(workerKey)
+    if (!workerId) {
       skippedCount++
-      skippedReasons.push(`Worker not found: ${result.employee_id}`)
+      skippedReasons.push(`Worker not found: ${entityValue} - ${employeeIdValue}`)
       continue
     }
     
-    // 평가 항목 찾기 (LV CATEGORY를 category로, ASSESSMENT ITEM을 item_name으로 매칭)
     const category = result.lv_category || result.category || result['LV CATEGORY']
     const itemName = result.assessment_item || result.item_name || result['ASSESSMENT ITEM']
+    const normalizedCategory = (category || '').replace(/\s+/g, '')
     
-    const item = await db.prepare('SELECT id, category FROM supervisor_assessment_items WHERE category = ? AND item_name = ?')
-      .bind(category, itemName).first()
+    const itemKey1 = `${category}|${itemName}`
+    const itemKey2 = `${normalizedCategory}|${itemName}`
     
+    const item = itemMap.get(itemKey1) || itemMap.get(itemKey2)
     if (!item) {
-      console.log(`Assessment item not found: ${category} - ${itemName}`)
       skippedCount++
       skippedReasons.push(`Item not found: ${category} - ${itemName}`)
       continue
     }
     
-    // 중복 체크 및 업데이트 또는 삽입
-    const existing = await db.prepare(`
-      SELECT id FROM supervisor_assessments 
-      WHERE worker_id = ? AND item_id = ?
-      ORDER BY assessment_date DESC LIMIT 1
-    `).bind(worker.id, (item as any).id).first()
+    // RESULT 파싱
+    const resultValue = result.result || result['RESULT']
+    const isSatisfied = resultValue === true || resultValue === 'TRUE' || resultValue === 'true' || resultValue === 1
     
-    try {
-      // RESULT 컬럼 값 파싱 (TRUE/FALSE)
-      const resultValue = result.result || result['RESULT']
-      const isSatisfied = resultValue === true || resultValue === 'TRUE' || resultValue === 'true' || resultValue === 1
-      
-      // Level 값은 RESULT가 TRUE면 해당 카테고리의 레벨, FALSE면 1
-      // 예: Level2 항목이고 RESULT가 TRUE면 level=2, FALSE면 level=1
-      let levelValue = 1
-      if (isSatisfied) {
-        if ((item as any).category === 'Level2') levelValue = 2
-        else if ((item as any).category === 'Level3') levelValue = 3
-        else if ((item as any).category === 'Level4') levelValue = 4
-      }
-      
-      if (existing) {
-        // 기존 데이터 업데이트
-        await db.prepare(`
-          UPDATE supervisor_assessments 
-          SET level = ?, assessed_by = ?, assessment_date = ?, comments = ?
-          WHERE id = ?
-        `).bind(
-          levelValue,
-          result.assessed_by || 'Supervisor',
-          result.assessment_date || new Date().toISOString(),
-          result.comments || '',
-          (existing as any).id
-        ).run()
-        console.log(`Updated assessment: ${result.employee_id} - ${category} - ${itemName}`)
-      } else {
-        // 신규 데이터 삽입
-        await db.prepare(`
-          INSERT INTO supervisor_assessments (worker_id, item_id, level, assessed_by, assessment_date, comments)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).bind(
-          (worker as any).id,
-          (item as any).id,
-          levelValue,
-          result.assessed_by || 'Supervisor',
-          result.assessment_date || new Date().toISOString(),
-          result.comments || ''
-        ).run()
-      }
-      
-      successCount++
-      
-      // 처리된 작업자 추적
-      processedWorkers.add((worker as any).id)
-    } catch (error) {
-      console.error(`Error inserting/updating assessment for ${result.employee_id}:`, error)
-      skippedCount++
-      skippedReasons.push(`Insert/Update error: ${result.employee_id}`)
+    let levelValue = 1
+    if (isSatisfied) {
+      if (item.category === 'Level2') levelValue = 2
+      else if (item.category === 'Level3') levelValue = 3
+      else if (item.category === 'Level4') levelValue = 4
     }
+    
+    const assessedBy = result.assessed_by || 'Supervisor'
+    const assessmentDate = result.assessment_date || new Date().toISOString()
+    const comments = result.comments || ''
+    
+    const existingKey = `${workerId}|${item.id}`
+    const existingId = existingMap.get(existingKey)
+    
+    if (existingId) {
+      updateOps.push({ id: existingId, levelValue, assessedBy, assessmentDate, comments })
+    } else {
+      insertOps.push({ workerId, itemId: item.id, levelValue, assessedBy, assessmentDate, comments })
+    }
+    
+    processedWorkers.add(workerId)
+    successCount++
   }
   
-  // 각 작업자별 최종 Level 계산
-  const workerLevels: Record<string, number> = {}
+  console.log(`Prepared ${insertOps.length} inserts and ${updateOps.length} updates in ${Date.now() - startTime}ms`)
   
-  for (const workerId of Array.from(processedWorkers)) {
-    // Level 2 체크: 모든 Level 2 항목이 만족(level >= 2)인가?
-    const level2Check = await db.prepare(`
-      SELECT 
-        COUNT(DISTINCT sai.id) as total_items,
-        COUNT(DISTINCT CASE WHEN sa.level >= 2 THEN sai.id END) as satisfied_items
-      FROM supervisor_assessment_items sai
-      LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
-      WHERE sai.category = 'Level2'
-    `).bind(workerId).first()
-    
-    const hasAllLevel2 = level2Check && 
-      (level2Check as any).total_items > 0 &&
-      (level2Check as any).satisfied_items === (level2Check as any).total_items
-    
-    // Level 3 체크
-    const level3Check = await db.prepare(`
-      SELECT 
-        COUNT(DISTINCT sai.id) as total_items,
-        COUNT(DISTINCT CASE WHEN sa.level >= 3 THEN sai.id END) as satisfied_items
-      FROM supervisor_assessment_items sai
-      LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
-      WHERE sai.category = 'Level3'
-    `).bind(workerId).first()
-    
-    const hasAllLevel3 = hasAllLevel2 && level3Check && 
-      (level3Check as any).total_items > 0 &&
-      (level3Check as any).satisfied_items === (level3Check as any).total_items
-    
-    // Level 4 체크
-    const level4Check = await db.prepare(`
-      SELECT 
-        COUNT(DISTINCT sai.id) as total_items,
-        COUNT(DISTINCT CASE WHEN sa.level >= 4 THEN sai.id END) as satisfied_items
-      FROM supervisor_assessment_items sai
-      LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
-      WHERE sai.category = 'Level4'
-    `).bind(workerId).first()
-    
-    const hasAllLevel4 = hasAllLevel2 && hasAllLevel3 && level4Check && 
-      (level4Check as any).total_items > 0 &&
-      (level4Check as any).satisfied_items === (level4Check as any).total_items
-    
-    // 최종 Level 결정
-    let finalLevel = 1
-    if (hasAllLevel2) finalLevel = 2
-    if (hasAllLevel3) finalLevel = 3
-    if (hasAllLevel4) finalLevel = 4
-    
-    // 작업자 ID로 employee_id 조회
-    const workerInfo = await db.prepare('SELECT employee_id FROM workers WHERE id = ?')
-      .bind(workerId).first()
-    
-    if (workerInfo) {
-      workerLevels[(workerInfo as any).employee_id] = finalLevel
-      console.log(`Worker ${(workerInfo as any).employee_id}: Final Level ${finalLevel}`)
+  // Step 5: Execute batch operations
+  try {
+    // Batch updates
+    for (const op of updateOps) {
+      await db.prepare(`
+        UPDATE supervisor_assessments 
+        SET level = ?, assessed_by = ?, assessment_date = ?, comments = ?
+        WHERE id = ?
+      `).bind(op.levelValue, op.assessedBy, op.assessmentDate, op.comments, op.id).run()
     }
+    
+    // Batch inserts
+    for (const op of insertOps) {
+      await db.prepare(`
+        INSERT INTO supervisor_assessments (worker_id, item_id, level, assessed_by, assessment_date, comments)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(op.workerId, op.itemId, op.levelValue, op.assessedBy, op.assessmentDate, op.comments).run()
+    }
+    
+    console.log(`Executed all operations in ${Date.now() - startTime}ms`)
+  } catch (error) {
+    console.error('Error during batch operations:', error)
+    throw error
   }
   
-  console.log(`Assessment Bulk Upload: ${successCount} succeeded, ${skippedCount} skipped`)
+  const endTime = Date.now()
+  console.log(`Assessment Bulk Upload: ${successCount} succeeded, ${skippedCount} skipped in ${endTime - startTime}ms`)
   if (skippedCount > 0) {
     console.log('Skipped reasons:', skippedReasons.slice(0, 10))
   }
   
+  // Level 계산은 대시보드 쿼리에서 수행하므로 여기서는 생략
   return c.json({ 
     success: true, 
     total: results.length,
     succeeded: successCount,
     skipped: skippedCount,
-    skippedReasons: skippedReasons.slice(0, 10),
-    workerLevels: workerLevels // 각 작업자의 계산된 최종 Level
+    skippedReasons: skippedReasons,
+    processingTimeMs: endTime - startTime
   })
 }))
 

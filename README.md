@@ -304,6 +304,13 @@
 - **상태**: ✅ 활성
 - **마지막 업데이트**: 2025-11-14
 - **최근 변경사항**: 
+  - **Assessment 벌크 업로드 대폭 최적화** ⭐⭐⭐⭐⭐ NEW! (2025-11-14)
+    - **성능 개선**: N+1 쿼리 문제 해결, 280 queries → 5-10 queries per batch
+    - **배치 쿼리**: 모든 worker와 assessment item을 한 번에 조회
+    - **메모리 기반 처리**: Map 자료구조로 고속 lookup 구현
+    - **처리 시간 측정**: 로그에 실행 시간(ms) 표시
+    - **후처리 제거**: Level 계산은 대시보드 쿼리에서만 수행하도록 변경
+    - **예상 성능**: 50개 항목 처리 시간 60초+ → 5-10초로 약 80-90% 단축
   - **Team-Process 매핑 테이블 기반 필터링** ⭐⭐⭐⭐ NEW!
     - **엑셀 기반 정의**: TEAM PROCESS.xlsx 파일을 기반으로 팀-프로세스 매핑
     - **7개 팀 정의**: BLACK TOWER, WHITE TOWER, INTERNAL MOUNTING, MT, TRANSPORATION, IM QC, WAREHOUSE

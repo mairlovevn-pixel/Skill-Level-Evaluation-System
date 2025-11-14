@@ -512,11 +512,11 @@ function getDashboardHTML() {
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
                         <div class="flex gap-4">
                             <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSVN" checked onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <input type="checkbox" value="CSVN" onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
                                 <span class="text-sm">CSVN</span>
                             </label>
                             <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSCN" checked onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <input type="checkbox" value="CSCN" onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
                                 <span class="text-sm">CSCN</span>
                             </label>
                             <label class="inline-flex items-center cursor-pointer">
@@ -1898,7 +1898,7 @@ let testStatusFilters = {
 
 // Assessment Chart Filters State
 let assessmentFilters = {
-    entities: new Set(['CSVN', 'CSCN', 'CSTW']),
+    entities: new Set(['CSTW']),  // Default: CSTW only
     teams: new Set(),
     positions: new Set()
 };
@@ -4510,6 +4510,12 @@ function getSupervisorAssessmentHTML() {
                 <i class="fas fa-upload mr-2"></i>
                 Upload Results
             </button>
+            
+            <button onclick="checkAndDownloadSkipReport()" 
+                    class="ml-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition">
+                <i class="fas fa-download mr-2"></i>
+                Download Last Skip Report
+            </button>
         </div>
     `;
 }
@@ -5641,13 +5647,13 @@ async function uploadAssessmentResults() {
                 }
                 
                 return {
-                    employee_id: String(row['EMPLOYEE ID'] || '').trim(),
-                    entity: String(row['ENTITY'] || '').trim().toUpperCase(),
-                    team: String(row['TEAM'] || '').trim().toUpperCase(),
-                    process_name: String(row['POSITION'] || '').trim().toUpperCase(),
-                    category: String(row['LV CATEGORY'] || '').trim(),
-                    item_name: String(row['ASSESSMENT ITEM'] || '').trim(),
-                    is_satisfied: String(row['RESULT'] || '').trim().toUpperCase() === 'SATISFACTORY' ? 1 : 0,
+                    'EMPLOYEE ID': String(row['EMPLOYEE ID'] || '').trim(),
+                    'ENTITY': String(row['ENTITY'] || '').trim().toUpperCase(),
+                    'TEAM': String(row['TEAM'] || '').trim().toUpperCase(),
+                    'POSITION': String(row['POSITION'] || '').trim().toUpperCase(),
+                    'LV CATEGORY': String(row['LV CATEGORY'] || '').trim(),
+                    'ASSESSMENT ITEM': String(row['ASSESSMENT ITEM'] || '').trim(),
+                    'RESULT': row['RESULT'], // Keep original boolean value
                     assessment_date: assessmentDate
                 };
             });
@@ -5656,27 +5662,29 @@ async function uploadAssessmentResults() {
             console.log('📊 First converted data:', results[0]);
             
             // Upload to server in batches to avoid Cloudflare Workers subrequest limit
-            const BATCH_SIZE = 100; // Process 100 items per batch
+            const BATCH_SIZE = 50; // Process 50 items per batch (reduced from 100)
             const totalBatches = Math.ceil(results.length / BATCH_SIZE);
             const MAX_RETRIES = 3; // Maximum retry attempts per batch
-            const RETRY_DELAY = 2000; // 2 seconds delay between retries
+            const RETRY_DELAY = 3000; // 3 seconds delay between retries (increased)
             
             let totalSuccess = 0;
             let totalSkipped = 0;
             let failedBatches = []; // Track failed batches for later retry
+            let allSkippedReasons = []; // Collect all skipped reasons
             
             // Helper function to upload a single batch with retry
             async function uploadBatchWithRetry(batchIndex, batch, retryCount = 0) {
                 try {
-                    const response = await axios.post('/api/supervisor-assessment-results/bulk', {
-                        results: batch,
-                        batchIndex: batchIndex,
-                        totalBatches: totalBatches
-                    });
+                    const response = await axios.post('/api/results/assessment/bulk', batch);
+                    
+                    // Collect skipped reasons
+                    if (response.data.skippedReasons && response.data.skippedReasons.length > 0) {
+                        allSkippedReasons.push(...response.data.skippedReasons);
+                    }
                     
                     return {
                         success: true,
-                        successCount: response.data.success,
+                        successCount: response.data.succeeded,
                         skippedCount: response.data.skipped
                     };
                 } catch (error) {
@@ -5720,13 +5728,23 @@ async function uploadAssessmentResults() {
                 // Update progress message
                 const progressMessage = `Processing batch ${i + 1}/${totalBatches}...\n\n✅ ${totalSuccess} succeeded\n⚠️ ${totalSkipped} skipped\n❌ ${failedBatches.length} batches failed`;
                 console.log(progressMessage);
+                
+                // Add delay between batches to avoid overloading Cloudflare Workers
+                if (i < totalBatches - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 500)); // 0.5s delay between batches
+                }
             }
             
-            // Store failed batches in global variable for retry
+            // Store failed batches and skipped reasons in global variable
             window.failedAssessmentBatches = failedBatches;
+            window.skippedAssessmentReasons = allSkippedReasons;
             
             // Show completion message
             let completionMessage = `✅ Assessment Upload Complete!\n\n✅ ${totalSuccess} items succeeded\n⚠️ ${totalSkipped} items skipped\n\nTotal batches processed: ${totalBatches}`;
+            
+            if (totalSkipped > 0) {
+                completionMessage += `\n\n📋 ${allSkippedReasons.length} skip reasons collected.\nClick "Download Skip Report" to see details.`;
+            }
             
             if (failedBatches.length > 0) {
                 completionMessage += `\n\n❌ ${failedBatches.length} batches failed (${failedBatches.length * BATCH_SIZE} items)\nFailed batch numbers: ${failedBatches.map(b => b.batchIndex + 1).join(', ')}`;
@@ -5738,6 +5756,11 @@ async function uploadAssessmentResults() {
             // Show retry button if there are failed batches
             if (failedBatches.length > 0) {
                 showRetryFailedBatchesButton();
+            }
+            
+            // Show download skip report button if there are skipped items
+            if (totalSkipped > 0 && allSkippedReasons.length > 0) {
+                showDownloadSkipReportButton();
             }
             
             fileInput.value = '';
@@ -7749,4 +7772,138 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Show download skip report button
+function showDownloadSkipReportButton() {
+    const container = document.getElementById('assessment-upload-container');
+    if (!container) return;
+    
+    // Remove existing button if any
+    const existingButton = document.getElementById('download-skip-report-btn');
+    if (existingButton) existingButton.remove();
+    
+    // Create download button
+    const downloadButton = document.createElement('button');
+    downloadButton.id = 'download-skip-report-btn';
+    downloadButton.className = 'mt-4 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition';
+    downloadButton.innerHTML = '<i class="fas fa-download mr-2"></i>Download Skip Report';
+    downloadButton.onclick = downloadSkipReport;
+    
+    container.appendChild(downloadButton);
+}
+
+// Check and download skip report (wrapper for button)
+function checkAndDownloadSkipReport() {
+    if (!window.skippedAssessmentReasons || window.skippedAssessmentReasons.length === 0) {
+        alert('⚠️ No skip data available.\n\nSkip data is only available after uploading an assessment file.\n\nPlease upload an assessment file first, and if there are skipped items, you can download the report.');
+        return;
+    }
+    
+    downloadSkipReport();
+}
+
+// Download skip report as text file
+function downloadSkipReport() {
+    if (!window.skippedAssessmentReasons || window.skippedAssessmentReasons.length === 0) {
+        alert('No skip data available.');
+        return;
+    }
+    
+    // Parse skip reasons to extract worker info
+    const workerNotFound = [];
+    const itemNotFound = [];
+    const otherReasons = [];
+    
+    window.skippedAssessmentReasons.forEach(reason => {
+        if (reason.includes('Worker not found:')) {
+            // Extract: "Worker not found: ENTITY - EMPLOYEE_ID"
+            const match = reason.match(/Worker not found: (.+) - (.+)/);
+            if (match) {
+                workerNotFound.push({
+                    entity: match[1].trim(),
+                    employee_id: match[2].trim(),
+                    reason: reason
+                });
+            }
+        } else if (reason.includes('Item not found:')) {
+            itemNotFound.push(reason);
+        } else {
+            otherReasons.push(reason);
+        }
+    });
+    
+    // Create report content
+    let reportContent = '='.repeat(80) + '\n';
+    reportContent += '  Assessment Upload Skip Report\n';
+    reportContent += '  Generated: ' + new Date().toLocaleString() + '\n';
+    reportContent += '='.repeat(80) + '\n\n';
+    
+    reportContent += `Total Skipped Items: ${window.skippedAssessmentReasons.length}\n\n`;
+    
+    // Workers not found section
+    if (workerNotFound.length > 0) {
+        reportContent += '-'.repeat(80) + '\n';
+        reportContent += `1. WORKERS NOT FOUND (${workerNotFound.length} cases)\n`;
+        reportContent += '-'.repeat(80) + '\n';
+        reportContent += 'These workers exist in Excel but not in the Workers table.\n';
+        reportContent += 'Please register these workers first:\n\n';
+        
+        reportContent += 'ENTITY\t\tEMPLOYEE_ID\n';
+        reportContent += '-'.repeat(40) + '\n';
+        workerNotFound.forEach(w => {
+            reportContent += `${w.entity}\t\t${w.employee_id}\n`;
+        });
+        reportContent += '\n';
+    }
+    
+    // Items not found section
+    if (itemNotFound.length > 0) {
+        reportContent += '-'.repeat(80) + '\n';
+        reportContent += `2. ASSESSMENT ITEMS NOT FOUND (${itemNotFound.length} cases)\n`;
+        reportContent += '-'.repeat(80) + '\n';
+        reportContent += 'These assessment items exist in Excel but not in the database.\n';
+        reportContent += 'Please register these items first:\n\n';
+        
+        itemNotFound.slice(0, 20).forEach(reason => {
+            reportContent += `- ${reason}\n`;
+        });
+        
+        if (itemNotFound.length > 20) {
+            reportContent += `\n... and ${itemNotFound.length - 20} more items\n`;
+        }
+        reportContent += '\n';
+    }
+    
+    // Other reasons section
+    if (otherReasons.length > 0) {
+        reportContent += '-'.repeat(80) + '\n';
+        reportContent += `3. OTHER REASONS (${otherReasons.length} cases)\n`;
+        reportContent += '-'.repeat(80) + '\n';
+        otherReasons.slice(0, 10).forEach(reason => {
+            reportContent += `- ${reason}\n`;
+        });
+        
+        if (otherReasons.length > 10) {
+            reportContent += `\n... and ${otherReasons.length - 10} more items\n`;
+        }
+        reportContent += '\n';
+    }
+    
+    reportContent += '='.repeat(80) + '\n';
+    reportContent += 'End of Report\n';
+    reportContent += '='.repeat(80) + '\n';
+    
+    // Create and download file
+    const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `assessment_skip_report_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    console.log('✅ Skip report downloaded successfully');
 }
