@@ -1070,6 +1070,10 @@ app.post('/api/results/written-test/bulk', errorHandler(async (c) => {
   const db = c.env.DB
   const results: any[] = await c.req.json()
   
+  let successCount = 0
+  let skippedCount = 0
+  const skippedReasons: string[] = []
+  
   for (const result of results) {
     // 작업자 찾기
     const worker = await db.prepare('SELECT id FROM workers WHERE employee_id = ?')
@@ -1077,6 +1081,8 @@ app.post('/api/results/written-test/bulk', errorHandler(async (c) => {
     
     if (!worker) {
       console.log(`Worker not found: ${result.employee_id}`)
+      skippedCount++
+      skippedReasons.push(`Worker not found: ${result.employee_id}`)
       continue
     }
     
@@ -1086,29 +1092,66 @@ app.post('/api/results/written-test/bulk', errorHandler(async (c) => {
     
     if (!position) {
       console.log(`Position not found: ${result.process_name}`)
+      skippedCount++
+      skippedReasons.push(`Position not found: ${result.process_name}`)
       continue
     }
     
-    // 결과 저장
-    await db.prepare(`
-      INSERT INTO written_test_results (worker_id, process_id, score, passed, test_date)
-      VALUES (?, ?, ?, ?, ?)
-    `).bind(
-      worker.id,
-      position.id,
-      result.score,
-      result.passed ? 1 : 0,
-      result.test_date || new Date().toISOString()
-    ).run()
+    // 중복 체크
+    const existing = await db.prepare(`
+      SELECT id FROM written_test_results 
+      WHERE worker_id = ? AND process_id = ?
+    `).bind(worker.id, position.id).first()
+    
+    if (existing) {
+      console.log(`Duplicate result: ${result.employee_id} - ${result.process_name}`)
+      skippedCount++
+      skippedReasons.push(`Duplicate: ${result.employee_id} - ${result.process_name}`)
+      continue
+    }
+    
+    try {
+      // 결과 저장
+      await db.prepare(`
+        INSERT INTO written_test_results (worker_id, process_id, score, passed, test_date)
+        VALUES (?, ?, ?, ?, ?)
+      `).bind(
+        worker.id,
+        position.id,
+        result.score,
+        result.passed ? 1 : 0,
+        result.test_date || new Date().toISOString()
+      ).run()
+      successCount++
+    } catch (error) {
+      console.error(`Error inserting result for ${result.employee_id}:`, error)
+      skippedCount++
+      skippedReasons.push(`Insert error: ${result.employee_id}`)
+    }
   }
   
-  return c.json({ success: true, count: results.length })
+  console.log(`Written Test Bulk Upload: ${successCount} succeeded, ${skippedCount} skipped`)
+  if (skippedCount > 0) {
+    console.log('Skipped reasons:', skippedReasons.slice(0, 10)) // Log first 10 reasons
+  }
+  
+  return c.json({ 
+    success: true, 
+    total: results.length,
+    succeeded: successCount,
+    skipped: skippedCount,
+    skippedReasons: skippedReasons.slice(0, 10) // Return first 10 reasons
+  })
 }))
 
 // Assessment 결과 일괄 업로드
 app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
   const db = c.env.DB
   const results: any[] = await c.req.json()
+  
+  let successCount = 0
+  let skippedCount = 0
+  const skippedReasons: string[] = []
   
   for (const result of results) {
     // 작업자 찾기
@@ -1117,6 +1160,8 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
     
     if (!worker) {
       console.log(`Worker not found: ${result.employee_id}`)
+      skippedCount++
+      skippedReasons.push(`Worker not found: ${result.employee_id}`)
       continue
     }
     
@@ -1126,24 +1171,58 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
     
     if (!item) {
       console.log(`Assessment item not found: ${result.category} - ${result.item_name}`)
+      skippedCount++
+      skippedReasons.push(`Item not found: ${result.category} - ${result.item_name}`)
       continue
     }
     
-    // 결과 저장
-    await db.prepare(`
-      INSERT INTO supervisor_assessments (worker_id, item_id, level, assessed_by, assessment_date, comments)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(
-      worker.id,
-      item.id,
-      result.level,
-      result.assessed_by || 'Supervisor',
-      result.assessment_date || new Date().toISOString(),
-      result.comments || ''
-    ).run()
+    // 중복 체크
+    const existing = await db.prepare(`
+      SELECT id FROM supervisor_assessments 
+      WHERE worker_id = ? AND item_id = ?
+      ORDER BY assessment_date DESC LIMIT 1
+    `).bind(worker.id, item.id).first()
+    
+    if (existing) {
+      console.log(`Duplicate assessment: ${result.employee_id} - ${result.category} - ${result.item_name}`)
+      skippedCount++
+      skippedReasons.push(`Duplicate: ${result.employee_id} - ${result.item_name}`)
+      continue
+    }
+    
+    try {
+      // 결과 저장
+      await db.prepare(`
+        INSERT INTO supervisor_assessments (worker_id, item_id, level, assessed_by, assessment_date, comments)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(
+        worker.id,
+        item.id,
+        result.level,
+        result.assessed_by || 'Supervisor',
+        result.assessment_date || new Date().toISOString(),
+        result.comments || ''
+      ).run()
+      successCount++
+    } catch (error) {
+      console.error(`Error inserting assessment for ${result.employee_id}:`, error)
+      skippedCount++
+      skippedReasons.push(`Insert error: ${result.employee_id}`)
+    }
   }
   
-  return c.json({ success: true, count: results.length })
+  console.log(`Assessment Bulk Upload: ${successCount} succeeded, ${skippedCount} skipped`)
+  if (skippedCount > 0) {
+    console.log('Skipped reasons:', skippedReasons.slice(0, 10)) // Log first 10 reasons
+  }
+  
+  return c.json({ 
+    success: true, 
+    total: results.length,
+    succeeded: successCount,
+    skipped: skippedCount,
+    skippedReasons: skippedReasons.slice(0, 10) // Return first 10 reasons
+  })
 }))
 
 // ==================== Main Page ====================
