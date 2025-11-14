@@ -361,13 +361,14 @@ function getDashboardHTML() {
                 <div id="dashboard-content-test-results" class="dashboard-content">
                 
                 <!-- Filters -->
-                <div class="grid grid-cols-4 gap-3 mb-4">
-                        <!-- Pass Score Threshold -->
-                        <div class="relative">
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">
-                                <i class="fas fa-trophy mr-1 text-yellow-500"></i>
-                                Pass Score
-                            </label>
+                <div class="mb-6">
+                    <!-- Pass Score Threshold -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-trophy mr-1 text-yellow-500"></i>
+                            Pass Score
+                        </label>
+                        <div class="w-48">
                             <select id="pass-threshold-select" onchange="updatePassThreshold()" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500">
                                 <option value="50">50점</option>
                                 <option value="55">55점</option>
@@ -382,58 +383,43 @@ function getDashboardHTML() {
                                 <option value="100">100점</option>
                             </select>
                         </div>
-                        
-                        <!-- Entity Filter -->
-                        <div class="relative">
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Entity</label>
-                            <button onclick="toggleDropdown('entity-filter')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 flex justify-between items-center">
-                                <span id="entity-filter-label">All</span>
-                                <i class="fas fa-chevron-down text-xs"></i>
-                            </button>
-                            <div id="entity-filter-dropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="ALL" checked onchange="updateTestStatusFilter('entity', this)" class="entity-filter-checkbox mr-2">
-                                    <span class="text-sm">All</span>
-                                </label>
-                                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="CSVN" checked onchange="updateTestStatusFilter('entity', this)" class="entity-filter-checkbox mr-2">
-                                    <span class="text-sm">CSVN</span>
-                                </label>
-                                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="CSCN" checked onchange="updateTestStatusFilter('entity', this)" class="entity-filter-checkbox mr-2">
-                                    <span class="text-sm">CSCN</span>
-                                </label>
-                                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" value="CSTW" checked onchange="updateTestStatusFilter('entity', this)" class="entity-filter-checkbox mr-2">
-                                    <span class="text-sm">CSTW</span>
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <!-- Team Filter -->
-                        <div class="relative">
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Team</label>
-                            <button onclick="toggleDropdown('team-filter')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 flex justify-between items-center">
-                                <span id="team-filter-label">All</span>
-                                <i class="fas fa-chevron-down text-xs"></i>
-                            </button>
-                            <div id="team-filter-dropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                <!-- Will be populated dynamically -->
-                            </div>
-                        </div>
-                        
-                        <!-- Position Filter -->
-                        <div class="relative">
-                            <label class="block text-xs font-semibold text-gray-700 mb-1">Position</label>
-                            <button onclick="toggleDropdown('position-filter')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 flex justify-between items-center">
-                                <span id="position-filter-label">All</span>
-                                <i class="fas fa-chevron-down text-xs"></i>
-                            </button>
-                            <div id="position-filter-dropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                <!-- Will be populated dynamically -->
-                            </div>
+                    </div>
+                    
+                    <!-- Entity Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
+                        <div class="flex gap-4">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSVN" checked onchange="updateTestStatusFilter()" class="test-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSVN</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSCN" checked onchange="updateTestStatusFilter()" class="test-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSCN</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSTW" checked onchange="updateTestStatusFilter()" class="test-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSTW</span>
+                            </label>
                         </div>
                     </div>
+                    
+                    <!-- Team Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
+                        <div class="flex flex-wrap gap-4" id="test-team-checkboxes">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+                    
+                    <!-- Position Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
+                        <div class="flex flex-wrap gap-4" id="test-position-checkboxes">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+                </div>
                     
                     <canvas id="test-status-chart"></canvas>
                 </div>
@@ -502,20 +488,26 @@ function getDashboardHTML() {
                 
                 <!-- Supervisor Assessment 탭 컨텐츠 -->
                 <div id="dashboard-content-assessment" class="dashboard-content hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <div class="flex gap-2">
-                        <div class="w-36">
-                            <select id="assessment-team-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="onAssessmentTeamChange()">
-                                <option value="">전체 팀</option>
-                            </select>
+                
+                <!-- Filters -->
+                <div id="assessment-filters" class="mb-6">
+                    <!-- Team Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
+                        <div class="flex flex-wrap gap-4" id="assessment-team-checkboxes">
+                            <!-- Will be populated dynamically -->
                         </div>
-                        <div class="w-36">
-                            <select id="assessment-position-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="filterAssessmentChart()">
-                                <option value="">All Positions</option>
-                            </select>
+                    </div>
+                    
+                    <!-- Position Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
+                        <div class="flex flex-wrap gap-4" id="assessment-position-checkboxes">
+                            <!-- Will be populated dynamically -->
                         </div>
                     </div>
                 </div>
+                
                 <canvas id="assessment-chart"></canvas>
                 </div>
             </div>
@@ -594,21 +586,22 @@ async function loadDashboard() {
             teamProcessMapping[team] = Array.from(teamProcessMapping[team]);
         });
         
-        // 팀 셀렉트 박스 채우기
+        // 팀 셀렉트 박스 채우기 (avg-score 차트용만 - 아직 변경 안함)
         if (teams.length > 0) {
             populateTeamSelect('avg-score-team-select', teams);
-            populateTeamSelect('assessment-team-select', teams);
         }
         
-        // 초기 프로세스 셀렉트 박스 채우기 (전체 프로세스)
+        // 초기 프로세스 셀렉트 박스 채우기 (avg-score 차트용만)
         updateProcessSelectForTeam('avg-score', null);
-        updateProcessSelectForTeam('assessment', null);
         
         // 요약 카드 업데이트
         updateDashboardStats();
         
         // 필터 초기화
         populateTestStatusFilters();
+        
+        // Assessment 필터 초기화
+        initializeAssessmentFilters();
         
         // 분석 탭 초기화
         initializeAnalysisTab();
@@ -617,9 +610,6 @@ async function loadDashboard() {
         renderTestStatusChart();
         renderAvgScoreChart();
         renderAssessmentChart();
-        
-        // 분석 탭 초기화
-        initializeAnalysisTab();
     } catch (error) {
         console.error('대시보드 로드 실패:', error);
         alert('대시보드 데이터를 불러오는데 실패했습니다.');
@@ -634,6 +624,71 @@ let analysisFilters = {
     teams: new Set(),
     positions: new Set()
 };
+
+// ==================== Supervisor Assessment Filter Functions ====================
+
+function initializeAssessmentFilters() {
+    // Populate team checkboxes
+    const teamContainer = document.getElementById('assessment-team-checkboxes');
+    teamContainer.innerHTML = '';
+    
+    WRITTEN_TEST_TEAM_ORDER.forEach(team => {
+        teamContainer.innerHTML += `
+            <label class="inline-flex items-center cursor-pointer">
+                <input type="checkbox" value="${team}" checked onchange="onAssessmentTeamCheckboxChange('${team}')" class="assessment-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                <span class="text-sm font-semibold">${team}</span>
+            </label>
+        `;
+        assessmentFilters.teams.add(team);
+    });
+    
+    // Populate position checkboxes with hierarchical grouping
+    const positionContainer = document.getElementById('assessment-position-checkboxes');
+    positionContainer.innerHTML = '';
+    
+    WRITTEN_TEST_TEAM_ORDER.forEach(team => {
+        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+            // Create team group
+            const teamGroup = document.createElement('div');
+            teamGroup.className = 'w-full mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200';
+            teamGroup.dataset.team = team;
+            
+            // Team header
+            const teamHeader = document.createElement('div');
+            teamHeader.className = 'font-semibold text-sm text-gray-700 mb-2 flex items-center';
+            teamHeader.innerHTML = `
+                <i class="fas fa-layer-group mr-2 text-blue-500"></i>
+                ${team}
+            `;
+            teamGroup.appendChild(teamHeader);
+            
+            // Position checkboxes for this team
+            const positionsWrapper = document.createElement('div');
+            positionsWrapper.className = 'flex flex-wrap gap-3 ml-6';
+            
+            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
+                const label = document.createElement('label');
+                label.className = 'inline-flex items-center cursor-pointer';
+                label.innerHTML = `
+                    <input type="checkbox" 
+                           value="${position}" 
+                           data-team="${team}"
+                           checked 
+                           onchange="updateAssessmentFilter()" 
+                           class="assessment-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                    <span class="text-xs text-gray-700">${position}</span>
+                `;
+                positionsWrapper.appendChild(label);
+                assessmentFilters.positions.add(position);
+            });
+            
+            teamGroup.appendChild(positionsWrapper);
+            positionContainer.appendChild(teamGroup);
+        }
+    });
+}
+
+// ==================== Written Test Analysis Tab Functions ====================
 
 function initializeAnalysisTab() {
     // Populate team checkboxes
@@ -1641,16 +1696,32 @@ function onAvgScoreTeamChange() {
     filterAvgScoreChart();
 }
 
-// Assessment 차트 팀 변경 핸들러
-function onAssessmentTeamChange() {
-    const teamSelect = document.getElementById('assessment-team-select');
-    const selectedTeam = teamSelect.value;
+// Team 체크박스 변경 시 하위 Position들 제어 (Assessment)
+function onAssessmentTeamCheckboxChange(team) {
+    const teamCheckbox = document.querySelector(`.assessment-team-checkbox[value="${team}"]`);
+    const isChecked = teamCheckbox.checked;
     
-    // 프로세스 셀렉트 업데이트
-    updateProcessSelectForTeam('assessment', selectedTeam);
+    // 해당 팀의 모든 Position 체크박스 찾기
+    const positionCheckboxes = document.querySelectorAll(`.assessment-position-checkbox[data-team="${team}"]`);
     
-    // 차트 필터링
-    filterAssessmentChart();
+    positionCheckboxes.forEach(checkbox => {
+        if (isChecked) {
+            // Team이 체크되면: Position 활성화하고 체크
+            checkbox.disabled = false;
+            checkbox.checked = true;
+            checkbox.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.add('cursor-pointer');
+        } else {
+            // Team이 체크 해제되면: Position 비활성화하고 체크 해제
+            checkbox.disabled = true;
+            checkbox.checked = false;
+            checkbox.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.remove('cursor-pointer');
+        }
+    });
+    
+    // 필터 업데이트
+    updateAssessmentFilter();
 }
 
 function updateDashboardStats() {
@@ -1758,53 +1829,35 @@ async function filterAvgScoreChart() {
     }
 }
 
-// Assessment 차트 프로세스/팀 필터
-async function filterAssessmentChart() {
-    const entitySelect = document.getElementById('dashboard-entity-select');
-    const processSelect = document.getElementById('assessment-position-select');
-    const teamSelect = document.getElementById('assessment-team-select');
-    const selectedEntity = entitySelect.value;
-    const selectedProcess = processSelect.value;
-    const selectedTeam = teamSelect.value;
+// Update Assessment filters
+async function updateAssessmentFilter() {
+    // Update team filters
+    const teamCheckboxes = document.querySelectorAll('.assessment-team-checkbox');
+    assessmentFilters.teams = new Set();
+    teamCheckboxes.forEach(cb => {
+        if (cb.checked) assessmentFilters.teams.add(cb.value);
+    });
     
-    try {
-        let url = '/api/dashboard/stats?';
-        const params = [];
-        
-        if (selectedEntity) {
-            params.push(`entity=${selectedEntity}`);
-        }
-        if (selectedProcess) {
-            params.push(`processId=${selectedProcess}`);
-        }
-        if (selectedTeam) {
-            params.push(`team=${encodeURIComponent(selectedTeam)}`);
-        }
-        
-        url += params.join('&');
-        
-        const response = await axios.get(url);
-        const filteredData = response.data;
-        
-        // Assessment 차트만 업데이트
-        if (currentAssessmentChart) {
-            currentAssessmentChart.destroy();
-        }
-        
-        // 임시로 데이터 교체
-        const originalData = dashboardData;
-        dashboardData = filteredData;
-        renderAssessmentChart();
-        dashboardData = originalData;
-    } catch (error) {
-        console.error('Assessment 차트 필터링 실패:', error);
-        alert('데이터를 불러오는데 실패했습니다.');
-    }
+    // Update position filters
+    const positionCheckboxes = document.querySelectorAll('.assessment-position-checkbox');
+    assessmentFilters.positions = new Set();
+    positionCheckboxes.forEach(cb => {
+        if (cb.checked) assessmentFilters.positions.add(cb.value);
+    });
+    
+    // Re-render chart
+    renderAssessmentChart();
 }
 
 // Test Status Chart Filters State
 let testStatusFilters = {
     entities: new Set(['CSVN', 'CSCN', 'CSTW']),
+    teams: new Set(),
+    positions: new Set()
+};
+
+// Assessment Chart Filters State
+let assessmentFilters = {
     teams: new Set(),
     positions: new Set()
 };
@@ -1840,230 +1893,118 @@ const WRITTEN_TEST_TEAM_POSITIONS = {
 // Team order for Written Test
 const WRITTEN_TEST_TEAM_ORDER = ['BLACK TOWER', 'WHITE TOWER', 'INTERNAL MOUNTING'];
 
-function toggleDropdown(filterId) {
-    const dropdown = document.getElementById(`${filterId}-dropdown`);
-    
-    // Close all other dropdowns
-    ['entity-filter', 'team-filter', 'position-filter'].forEach(id => {
-        if (id !== filterId) {
-            const otherDropdown = document.getElementById(`${id}-dropdown`);
-            if (otherDropdown) otherDropdown.classList.add('hidden');
-        }
+async function updateTestStatusFilter() {
+    // Update entity filters
+    const entityCheckboxes = document.querySelectorAll('.test-entity-checkbox');
+    testStatusFilters.entities = new Set();
+    entityCheckboxes.forEach(cb => {
+        if (cb.checked) testStatusFilters.entities.add(cb.value);
     });
     
-    // Toggle current dropdown
-    dropdown.classList.toggle('hidden');
-}
-
-// Close dropdowns when clicking outside (but not when clicking inside dropdown)
-document.addEventListener('click', function(event) {
-    const clickedInsideDropdown = event.target.closest('[id$="-filter-dropdown"]');
-    const clickedButton = event.target.closest('button[onclick^="toggleDropdown"]');
+    // Update team filters
+    const teamCheckboxes = document.querySelectorAll('.test-team-checkbox');
+    testStatusFilters.teams = new Set();
+    teamCheckboxes.forEach(cb => {
+        if (cb.checked) testStatusFilters.teams.add(cb.value);
+    });
     
-    if (!clickedInsideDropdown && !clickedButton) {
-        ['entity-filter', 'team-filter', 'position-filter'].forEach(id => {
-            const dropdown = document.getElementById(`${id}-dropdown`);
-            if (dropdown) dropdown.classList.add('hidden');
-        });
-    }
-});
-
-function updateTestStatusFilter(filterType, clickedCheckbox) {
-    // Prevent event propagation
-    event.stopPropagation();
-    
-    const checkboxes = document.querySelectorAll(`.${filterType}-filter-checkbox`);
-    const allCheckbox = Array.from(checkboxes).find(cb => cb.value === 'ALL');
-    const otherCheckboxes = Array.from(checkboxes).filter(cb => cb.value !== 'ALL');
-    
-    // Handle "All" checkbox click
-    if (clickedCheckbox && clickedCheckbox.value === 'ALL') {
-        const shouldCheckAll = clickedCheckbox.checked;
-        otherCheckboxes.forEach(cb => cb.checked = shouldCheckAll);
-    } else {
-        // Individual checkbox clicked - update "All" checkbox state
-        if (allCheckbox) {
-            allCheckbox.checked = otherCheckboxes.every(cb => cb.checked);
-        }
-    }
-    
-    // Update filter state
-    const selectedValues = otherCheckboxes.filter(cb => cb.checked).map(cb => cb.value);
-    
-    if (filterType === 'entity') {
-        testStatusFilters.entities = new Set(selectedValues.length > 0 ? selectedValues : ['CSVN', 'CSCN', 'CSTW']);
-        // When entity changes, update team dropdown
-        updateTeamDropdown();
-    } else if (filterType === 'team') {
-        testStatusFilters.teams = new Set(selectedValues);
-        // When team changes, update position dropdown
-        updatePositionDropdown();
-    } else if (filterType === 'position') {
-        testStatusFilters.positions = new Set(selectedValues);
-    }
-    
-    // Update label
-    updateFilterLabel(filterType);
+    // Update position filters
+    const positionCheckboxes = document.querySelectorAll('.test-position-checkbox');
+    testStatusFilters.positions = new Set();
+    positionCheckboxes.forEach(cb => {
+        if (cb.checked) testStatusFilters.positions.add(cb.value);
+    });
     
     // Re-render chart
     renderTestStatusChart();
 }
 
-function updateTeamDropdown() {
-    // Get workers by selected entities
-    axios.get('/api/workers').then(response => {
-        const workers = response.data;
-        
-        // Filter workers by selected entities
-        const selectedEntities = Array.from(testStatusFilters.entities);
-        const filteredWorkers = workers.filter(w => selectedEntities.includes(w.entity));
-        
-        // Get unique teams that have Written Test positions
-        const teams = new Set();
-        filteredWorkers.forEach(worker => {
-            if (worker.team && WRITTEN_TEST_TEAM_POSITIONS[worker.team]) {
-                teams.add(worker.team);
-            }
-        });
-        
-        // Sort teams by defined order
-        const sortedTeams = WRITTEN_TEST_TEAM_ORDER.filter(team => teams.has(team));
-        
-        // Repopulate team dropdown
-        const teamDropdown = document.getElementById('team-filter-dropdown');
-        teamDropdown.innerHTML = `
-            <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" value="ALL" checked onchange="updateTestStatusFilter('team', this)" class="team-filter-checkbox mr-2">
-                <span class="text-sm">All</span>
-            </label>
-        `;
-        
-        sortedTeams.forEach(team => {
-            teamDropdown.innerHTML += `
-                <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                    <input type="checkbox" value="${team}" checked onchange="updateTestStatusFilter('team', this)" class="team-filter-checkbox mr-2">
-                    <span class="text-sm">${team}</span>
-                </label>
-            `;
-        });
-        
-        // Update teams filter state
-        testStatusFilters.teams = new Set(sortedTeams);
-        updateFilterLabel('team');
-        
-        // Update position dropdown based on new teams
-        updatePositionDropdown();
-    });
-}
-
-function updatePositionDropdown() {
-    // Get positions for selected teams
-    const selectedTeams = Array.from(testStatusFilters.teams);
-    const positions = new Set();
+// Team 체크박스 변경 시 하위 Position들 제어 (Written Test Results)
+function onTestTeamCheckboxChange(team) {
+    const teamCheckbox = document.querySelector(`.test-team-checkbox[value="${team}"]`);
+    const isChecked = teamCheckbox.checked;
     
-    selectedTeams.forEach(team => {
-        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
-            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(pos => positions.add(pos));
+    // 해당 팀의 모든 Position 체크박스 찾기
+    const positionCheckboxes = document.querySelectorAll(`.test-position-checkbox[data-team="${team}"]`);
+    
+    positionCheckboxes.forEach(checkbox => {
+        if (isChecked) {
+            // Team이 체크되면: Position 활성화하고 체크
+            checkbox.disabled = false;
+            checkbox.checked = true;
+            checkbox.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.add('cursor-pointer');
+        } else {
+            // Team이 체크 해제되면: Position 비활성화하고 체크 해제
+            checkbox.disabled = true;
+            checkbox.checked = false;
+            checkbox.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.remove('cursor-pointer');
         }
     });
     
-    // Keep order from team definitions
-    const orderedPositions = [];
-    selectedTeams.forEach(team => {
-        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
-            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(pos => {
-                if (!orderedPositions.includes(pos)) {
-                    orderedPositions.push(pos);
-                }
-            });
-        }
-    });
-    
-    // Repopulate position dropdown
-    const positionDropdown = document.getElementById('position-filter-dropdown');
-    positionDropdown.innerHTML = `
-        <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-            <input type="checkbox" value="ALL" checked onchange="updateTestStatusFilter('position', this)" class="position-filter-checkbox mr-2">
-            <span class="text-sm">All</span>
-        </label>
-    `;
-    
-    orderedPositions.forEach(position => {
-        positionDropdown.innerHTML += `
-            <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" value="${position}" checked onchange="updateTestStatusFilter('position', this)" class="position-filter-checkbox mr-2">
-                <span class="text-sm">${position}</span>
-            </label>
-        `;
-    });
-    
-    // Update positions filter state
-    testStatusFilters.positions = new Set(orderedPositions);
-    updateFilterLabel('position');
-}
-
-function updateFilterLabel(filterType) {
-    const checkboxes = document.querySelectorAll(`.${filterType}-filter-checkbox`);
-    const selected = Array.from(checkboxes).filter(cb => cb.checked && cb.value !== 'ALL');
-    const label = document.getElementById(`${filterType}-filter-label`);
-    
-    if (selected.length === 0) {
-        label.textContent = 'None';
-    } else if (selected.length === checkboxes.length - 1 || selected.length > 3) {
-        label.textContent = 'All';
-    } else {
-        label.textContent = `${selected.length} selected`;
-    }
+    // 필터 업데이트
+    updateTestStatusFilter();
 }
 
 function populateTestStatusFilters() {
-    // Initialize with all Written Test teams
-    const teamDropdown = document.getElementById('team-filter-dropdown');
-    teamDropdown.innerHTML = `
-        <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-            <input type="checkbox" value="ALL" checked onchange="updateTestStatusFilter('team', this)" class="team-filter-checkbox mr-2">
-            <span class="text-sm">All</span>
-        </label>
-    `;
+    // Populate team checkboxes
+    const teamContainer = document.getElementById('test-team-checkboxes');
+    teamContainer.innerHTML = '';
     
     WRITTEN_TEST_TEAM_ORDER.forEach(team => {
-        teamDropdown.innerHTML += `
-            <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" value="${team}" checked onchange="updateTestStatusFilter('team', this)" class="team-filter-checkbox mr-2">
-                <span class="text-sm">${team}</span>
+        teamContainer.innerHTML += `
+            <label class="inline-flex items-center cursor-pointer">
+                <input type="checkbox" value="${team}" checked onchange="onTestTeamCheckboxChange('${team}')" class="test-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                <span class="text-sm font-semibold">${team}</span>
             </label>
         `;
         testStatusFilters.teams.add(team);
     });
     
-    // Initialize with all positions from all teams (in order)
-    const positionDropdown = document.getElementById('position-filter-dropdown');
-    positionDropdown.innerHTML = `
-        <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-            <input type="checkbox" value="ALL" checked onchange="updateTestStatusFilter('position', this)" class="position-filter-checkbox mr-2">
-            <span class="text-sm">All</span>
-        </label>
-    `;
+    // Populate position checkboxes with hierarchical grouping
+    const positionContainer = document.getElementById('test-position-checkboxes');
+    positionContainer.innerHTML = '';
     
-    const allPositions = [];
     WRITTEN_TEST_TEAM_ORDER.forEach(team => {
         if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
-            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(pos => {
-                if (!allPositions.includes(pos)) {
-                    allPositions.push(pos);
-                }
+            // Create team group
+            const teamGroup = document.createElement('div');
+            teamGroup.className = 'w-full mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200';
+            teamGroup.dataset.team = team;
+            
+            // Team header
+            const teamHeader = document.createElement('div');
+            teamHeader.className = 'font-semibold text-sm text-gray-700 mb-2 flex items-center';
+            teamHeader.innerHTML = `
+                <i class="fas fa-layer-group mr-2 text-blue-500"></i>
+                ${team}
+            `;
+            teamGroup.appendChild(teamHeader);
+            
+            // Position checkboxes for this team
+            const positionsWrapper = document.createElement('div');
+            positionsWrapper.className = 'flex flex-wrap gap-3 ml-6';
+            
+            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
+                const label = document.createElement('label');
+                label.className = 'inline-flex items-center cursor-pointer';
+                label.innerHTML = `
+                    <input type="checkbox" 
+                           value="${position}" 
+                           data-team="${team}"
+                           checked 
+                           onchange="updateTestStatusFilter()" 
+                           class="test-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                    <span class="text-xs text-gray-700">${position}</span>
+                `;
+                positionsWrapper.appendChild(label);
+                testStatusFilters.positions.add(position);
             });
+            
+            teamGroup.appendChild(positionsWrapper);
+            positionContainer.appendChild(teamGroup);
         }
-    });
-    
-    allPositions.forEach(position => {
-        positionDropdown.innerHTML += `
-            <label class="flex items-center px-3 py-2 hover:bg-gray-50 cursor-pointer">
-                <input type="checkbox" value="${position}" checked onchange="updateTestStatusFilter('position', this)" class="position-filter-checkbox mr-2">
-                <span class="text-sm">${position}</span>
-            </label>
-        `;
-        testStatusFilters.positions.add(position);
     });
 }
 
@@ -2232,9 +2173,20 @@ function renderAssessmentChart() {
     
     const data = dashboardData.supervisor_assessment_by_level;
     
+    // Apply filters - filter by teams and positions
+    let filteredData = data;
+    
+    // Get selected teams and positions
+    const selectedTeams = Array.from(assessmentFilters.teams);
+    const selectedPositions = Array.from(assessmentFilters.positions);
+    
+    // Filter data if needed (note: current data structure doesn't include team/position)
+    // For now, we'll keep the data as-is since the API doesn't provide team/position breakdown
+    // In the future, the API should be updated to include team and position in assessment data
+    
     // 법인별로 그룹화
-    const entities = [...new Set(data.map(d => d.entity))];
-    const levels = [...new Set(data.map(d => d.level))].sort();
+    const entities = [...new Set(filteredData.map(d => d.entity))];
+    const levels = [...new Set(filteredData.map(d => d.level))].sort();
     
     const datasets = entities.map((entity, index) => {
         const colors = [
@@ -2248,7 +2200,7 @@ function renderAssessmentChart() {
         return {
             label: entity,
             data: levels.map(level => {
-                const item = data.find(d => d.entity === entity && d.level === level);
+                const item = filteredData.find(d => d.entity === entity && d.level === level);
                 return item ? item.count : 0;
             }),
             backgroundColor: colors[index % colors.length],
