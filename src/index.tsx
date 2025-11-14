@@ -1225,6 +1225,102 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
   })
 }))
 
+// Assessment Level 재계산 API - 작업자별로 Level 2/3/4의 모든 항목 만족 여부를 확인
+app.post('/api/results/assessment/recalculate-levels', errorHandler(async (c) => {
+  const db = c.env.DB
+  
+  // 모든 작업자 가져오기
+  const workers = await db.prepare('SELECT id, employee_id FROM workers').all()
+  let updatedCount = 0
+  const results: any[] = []
+  
+  for (const worker of (workers.results || [])) {
+    const workerId = (worker as any).id
+    const employeeId = (worker as any).employee_id
+    
+    // Level 2 항목 체크
+    const level2Items = await db.prepare(`
+      SELECT COUNT(*) as total
+      FROM supervisor_assessment_items
+      WHERE category = 'Level 2'
+    `).first()
+    
+    const level2Satisfied = await db.prepare(`
+      SELECT COUNT(*) as count
+      FROM supervisor_assessments sa
+      JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
+      WHERE sa.worker_id = ? AND sai.category = 'Level 2' AND sa.level >= 2
+    `).bind(workerId).first()
+    
+    const hasAllLevel2 = level2Items && level2Satisfied && 
+      (level2Items as any).total > 0 &&
+      (level2Satisfied as any).count === (level2Items as any).total
+    
+    // Level 3 항목 체크
+    const level3Items = await db.prepare(`
+      SELECT COUNT(*) as total
+      FROM supervisor_assessment_items
+      WHERE category = 'Level 3'
+    `).first()
+    
+    const level3Satisfied = await db.prepare(`
+      SELECT COUNT(*) as count
+      FROM supervisor_assessments sa
+      JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
+      WHERE sa.worker_id = ? AND sai.category = 'Level 3' AND sa.level >= 3
+    `).bind(workerId).first()
+    
+    const hasAllLevel3 = hasAllLevel2 && level3Items && level3Satisfied && 
+      (level3Items as any).total > 0 &&
+      (level3Satisfied as any).count === (level3Items as any).total
+    
+    // Level 4 항목 체크
+    const level4Items = await db.prepare(`
+      SELECT COUNT(*) as total
+      FROM supervisor_assessment_items
+      WHERE category = 'Level 4'
+    `).first()
+    
+    const level4Satisfied = await db.prepare(`
+      SELECT COUNT(*) as count
+      FROM supervisor_assessments sa
+      JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
+      WHERE sa.worker_id = ? AND sai.category = 'Level 4' AND sa.level >= 4
+    `).bind(workerId).first()
+    
+    const hasAllLevel4 = hasAllLevel2 && hasAllLevel3 && level4Items && level4Satisfied && 
+      (level4Items as any).total > 0 &&
+      (level4Satisfied as any).count === (level4Items as any).total
+    
+    // 최종 Level 결정
+    let finalLevel = 1
+    if (hasAllLevel2) finalLevel = 2
+    if (hasAllLevel3) finalLevel = 3
+    if (hasAllLevel4) finalLevel = 4
+    
+    results.push({
+      employee_id: employeeId,
+      final_level: finalLevel,
+      level2_count: (level2Satisfied as any)?.count || 0,
+      level2_total: (level2Items as any)?.total || 0,
+      level3_count: (level3Satisfied as any)?.count || 0,
+      level3_total: (level3Items as any)?.total || 0,
+      level4_count: (level4Satisfied as any)?.count || 0,
+      level4_total: (level4Items as any)?.total || 0
+    })
+    
+    console.log(`Worker ${employeeId}: Level ${finalLevel}`)
+    updatedCount++
+  }
+  
+  return c.json({ 
+    success: true,
+    message: `Calculated levels for ${updatedCount} workers`,
+    updatedCount,
+    results: results.slice(0, 20) // Return first 20 for debugging
+  })
+}))
+
 // ==================== Main Page ====================
 
 app.get('/', (c) => {
