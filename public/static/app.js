@@ -5688,9 +5688,9 @@ async function uploadAssessmentResults() {
                         skippedCount: response.data.skipped
                     };
                 } catch (error) {
-                    // If 503 error and retries remaining, retry after delay
-                    if (error.response?.status === 503 && retryCount < MAX_RETRIES) {
-                        console.warn(`⚠️ Batch ${batchIndex + 1} failed (503), retrying in ${RETRY_DELAY/1000}s... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
+                    // If 500 or 503 error and retries remaining, retry after delay
+                    if ((error.response?.status === 503 || error.response?.status === 500) && retryCount < MAX_RETRIES) {
+                        console.warn(`⚠️ Batch ${batchIndex + 1} failed (${error.response?.status}), retrying in ${RETRY_DELAY/1000}s... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
                         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
                         return uploadBatchWithRetry(batchIndex, batch, retryCount + 1);
                     }
@@ -5821,20 +5821,16 @@ async function retryFailedAssessmentBatches() {
     // Helper function to upload a single batch with retry
     async function uploadBatchWithRetry(batchData, retryCount = 0) {
         try {
-            const response = await axios.post('/api/supervisor-assessment-results/bulk', {
-                results: batchData.batch,
-                batchIndex: batchData.batchIndex,
-                totalBatches: batchData.batch.length
-            });
+            const response = await axios.post('/api/results/assessment/bulk', batchData.batch);
             
             return {
                 success: true,
-                successCount: response.data.success,
+                successCount: response.data.succeeded,
                 skippedCount: response.data.skipped
             };
         } catch (error) {
-            if (error.response?.status === 503 && retryCount < MAX_RETRIES) {
-                console.warn(`⚠️ Retry batch ${batchData.batchIndex + 1} failed (503), retrying in ${RETRY_DELAY/1000}s... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
+            if ((error.response?.status === 503 || error.response?.status === 500) && retryCount < MAX_RETRIES) {
+                console.warn(`⚠️ Retry batch ${batchData.batchIndex + 1} failed (${error.response?.status}), retrying in ${RETRY_DELAY/1000}s... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
                 await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
                 return uploadBatchWithRetry(batchData, retryCount + 1);
             }
