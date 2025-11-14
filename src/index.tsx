@@ -1144,7 +1144,7 @@ app.post('/api/results/written-test/bulk', errorHandler(async (c) => {
   })
 }))
 
-// Assessment 결과 일괄 업로드
+// Assessment 결과 일괄 업로드 - RESULT 컬럼 기반 자동 Level 계산
 app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
   const db = c.env.DB
   const results: any[] = await c.req.json()
@@ -1152,6 +1152,7 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
   let successCount = 0
   let skippedCount = 0
   const skippedReasons: string[] = []
+  const processedWorkers = new Set<number>() // 처리된 작업자 추적
   
   for (const result of results) {
     // 작업자 찾기
@@ -1165,14 +1166,17 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
       continue
     }
     
-    // 평가 항목 찾기
-    const item = await db.prepare('SELECT id FROM supervisor_assessment_items WHERE category = ? AND item_name = ?')
-      .bind(result.category, result.item_name).first()
+    // 평가 항목 찾기 (LV CATEGORY를 category로, ASSESSMENT ITEM을 item_name으로 매칭)
+    const category = result.lv_category || result.category || result['LV CATEGORY']
+    const itemName = result.assessment_item || result.item_name || result['ASSESSMENT ITEM']
+    
+    const item = await db.prepare('SELECT id, category FROM supervisor_assessment_items WHERE category = ? AND item_name = ?')
+      .bind(category, itemName).first()
     
     if (!item) {
-      console.log(`Assessment item not found: ${result.category} - ${result.item_name}`)
+      console.log(`Assessment item not found: ${category} - ${itemName}`)
       skippedCount++
-      skippedReasons.push(`Item not found: ${result.category} - ${result.item_name}`)
+      skippedReasons.push(`Item not found: ${category} - ${itemName}`)
       continue
     }
     
@@ -1181,29 +1185,45 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
       SELECT id FROM supervisor_assessments 
       WHERE worker_id = ? AND item_id = ?
       ORDER BY assessment_date DESC LIMIT 1
-    `).bind(worker.id, item.id).first()
+    `).bind(worker.id, (item as any).id).first()
     
     if (existing) {
-      console.log(`Duplicate assessment: ${result.employee_id} - ${result.category} - ${result.item_name}`)
+      console.log(`Duplicate assessment: ${result.employee_id} - ${category} - ${itemName}`)
       skippedCount++
-      skippedReasons.push(`Duplicate: ${result.employee_id} - ${result.item_name}`)
+      skippedReasons.push(`Duplicate: ${result.employee_id} - ${itemName}`)
       continue
     }
     
     try {
+      // RESULT 컬럼 값 파싱 (TRUE/FALSE)
+      const resultValue = result.result || result['RESULT']
+      const isSatisfied = resultValue === true || resultValue === 'TRUE' || resultValue === 'true' || resultValue === 1
+      
+      // Level 값은 RESULT가 TRUE면 해당 카테고리의 레벨, FALSE면 1
+      // 예: Level2 항목이고 RESULT가 TRUE면 level=2, FALSE면 level=1
+      let levelValue = 1
+      if (isSatisfied) {
+        if ((item as any).category === 'Level2') levelValue = 2
+        else if ((item as any).category === 'Level3') levelValue = 3
+        else if ((item as any).category === 'Level4') levelValue = 4
+      }
+      
       // 결과 저장
       await db.prepare(`
         INSERT INTO supervisor_assessments (worker_id, item_id, level, assessed_by, assessment_date, comments)
         VALUES (?, ?, ?, ?, ?, ?)
       `).bind(
-        worker.id,
-        item.id,
-        result.level,
+        (worker as any).id,
+        (item as any).id,
+        levelValue,
         result.assessed_by || 'Supervisor',
         result.assessment_date || new Date().toISOString(),
         result.comments || ''
       ).run()
       successCount++
+      
+      // 처리된 작업자 추적
+      processedWorkers.add((worker as any).id)
     } catch (error) {
       console.error(`Error inserting assessment for ${result.employee_id}:`, error)
       skippedCount++
@@ -1211,9 +1231,71 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
     }
   }
   
+  // 각 작업자별 최종 Level 계산
+  const workerLevels: Record<string, number> = {}
+  
+  for (const workerId of Array.from(processedWorkers)) {
+    // Level 2 체크: 모든 Level 2 항목이 만족(level >= 2)인가?
+    const level2Check = await db.prepare(`
+      SELECT 
+        COUNT(DISTINCT sai.id) as total_items,
+        COUNT(DISTINCT CASE WHEN sa.level >= 2 THEN sai.id END) as satisfied_items
+      FROM supervisor_assessment_items sai
+      LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
+      WHERE sai.category = 'Level2'
+    `).bind(workerId).first()
+    
+    const hasAllLevel2 = level2Check && 
+      (level2Check as any).total_items > 0 &&
+      (level2Check as any).satisfied_items === (level2Check as any).total_items
+    
+    // Level 3 체크
+    const level3Check = await db.prepare(`
+      SELECT 
+        COUNT(DISTINCT sai.id) as total_items,
+        COUNT(DISTINCT CASE WHEN sa.level >= 3 THEN sai.id END) as satisfied_items
+      FROM supervisor_assessment_items sai
+      LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
+      WHERE sai.category = 'Level3'
+    `).bind(workerId).first()
+    
+    const hasAllLevel3 = hasAllLevel2 && level3Check && 
+      (level3Check as any).total_items > 0 &&
+      (level3Check as any).satisfied_items === (level3Check as any).total_items
+    
+    // Level 4 체크
+    const level4Check = await db.prepare(`
+      SELECT 
+        COUNT(DISTINCT sai.id) as total_items,
+        COUNT(DISTINCT CASE WHEN sa.level >= 4 THEN sai.id END) as satisfied_items
+      FROM supervisor_assessment_items sai
+      LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
+      WHERE sai.category = 'Level4'
+    `).bind(workerId).first()
+    
+    const hasAllLevel4 = hasAllLevel2 && hasAllLevel3 && level4Check && 
+      (level4Check as any).total_items > 0 &&
+      (level4Check as any).satisfied_items === (level4Check as any).total_items
+    
+    // 최종 Level 결정
+    let finalLevel = 1
+    if (hasAllLevel2) finalLevel = 2
+    if (hasAllLevel3) finalLevel = 3
+    if (hasAllLevel4) finalLevel = 4
+    
+    // 작업자 ID로 employee_id 조회
+    const workerInfo = await db.prepare('SELECT employee_id FROM workers WHERE id = ?')
+      .bind(workerId).first()
+    
+    if (workerInfo) {
+      workerLevels[(workerInfo as any).employee_id] = finalLevel
+      console.log(`Worker ${(workerInfo as any).employee_id}: Final Level ${finalLevel}`)
+    }
+  }
+  
   console.log(`Assessment Bulk Upload: ${successCount} succeeded, ${skippedCount} skipped`)
   if (skippedCount > 0) {
-    console.log('Skipped reasons:', skippedReasons.slice(0, 10)) // Log first 10 reasons
+    console.log('Skipped reasons:', skippedReasons.slice(0, 10))
   }
   
   return c.json({ 
@@ -1221,7 +1303,8 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
     total: results.length,
     succeeded: successCount,
     skipped: skippedCount,
-    skippedReasons: skippedReasons.slice(0, 10) // Return first 10 reasons
+    skippedReasons: skippedReasons.slice(0, 10),
+    workerLevels: workerLevels // 각 작업자의 계산된 최종 Level
   })
 }))
 
