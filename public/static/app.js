@@ -438,8 +438,13 @@ function getDashboardHTML() {
                     </button>
                 </div>
                 
-                <!-- Filters (Dynamic based on mode) -->
-                <div id="analysis-filters" class="mb-6">
+                <!-- Chart Area (Above Filters) -->
+                <div id="analysis-chart-container" class="mb-6">
+                    <canvas id="analysis-chart"></canvas>
+                </div>
+                
+                <!-- Filters (Between Chart and Table) -->
+                <div id="analysis-filters" class="mb-6 pt-6 border-t border-gray-200">
                     <!-- Entity Filter -->
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
@@ -476,12 +481,7 @@ function getDashboardHTML() {
                     </div>
                 </div>
                 
-                <!-- Chart Area -->
-                <div id="analysis-chart-container">
-                    <canvas id="analysis-chart"></canvas>
-                </div>
-                
-                <!-- Additional Info Area (for tables, alerts, etc.) -->
+                <!-- Additional Info Area (Tables, etc. - Below Filters) -->
                 <div id="analysis-info-container" class="mt-6">
                     <!-- Dynamic content based on analysis mode -->
                 </div>
@@ -490,8 +490,11 @@ function getDashboardHTML() {
                 <!-- Supervisor Assessment 탭 컨텐츠 -->
                 <div id="dashboard-content-assessment" class="dashboard-content hidden">
                 
-                <!-- Filters -->
-                <div id="assessment-filters" class="mb-6">
+                <!-- Chart (Above Filters) -->
+                <canvas id="assessment-chart" class="mb-6"></canvas>
+                
+                <!-- Filters (Below Chart) -->
+                <div id="assessment-filters" class="mt-6 pt-6 border-t border-gray-200">
                     <!-- Team Filter -->
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
@@ -508,8 +511,6 @@ function getDashboardHTML() {
                         </div>
                     </div>
                 </div>
-                
-                <canvas id="assessment-chart"></canvas>
                 </div>
             </div>
         </div>
