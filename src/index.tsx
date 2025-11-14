@@ -1180,19 +1180,12 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
       continue
     }
     
-    // 중복 체크
+    // 중복 체크 및 업데이트 또는 삽입
     const existing = await db.prepare(`
       SELECT id FROM supervisor_assessments 
       WHERE worker_id = ? AND item_id = ?
       ORDER BY assessment_date DESC LIMIT 1
     `).bind(worker.id, (item as any).id).first()
-    
-    if (existing) {
-      console.log(`Duplicate assessment: ${result.employee_id} - ${category} - ${itemName}`)
-      skippedCount++
-      skippedReasons.push(`Duplicate: ${result.employee_id} - ${itemName}`)
-      continue
-    }
     
     try {
       // RESULT 컬럼 값 파싱 (TRUE/FALSE)
@@ -1208,26 +1201,43 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
         else if ((item as any).category === 'Level4') levelValue = 4
       }
       
-      // 결과 저장
-      await db.prepare(`
-        INSERT INTO supervisor_assessments (worker_id, item_id, level, assessed_by, assessment_date, comments)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).bind(
-        (worker as any).id,
-        (item as any).id,
-        levelValue,
-        result.assessed_by || 'Supervisor',
-        result.assessment_date || new Date().toISOString(),
-        result.comments || ''
-      ).run()
+      if (existing) {
+        // 기존 데이터 업데이트
+        await db.prepare(`
+          UPDATE supervisor_assessments 
+          SET level = ?, assessed_by = ?, assessment_date = ?, comments = ?
+          WHERE id = ?
+        `).bind(
+          levelValue,
+          result.assessed_by || 'Supervisor',
+          result.assessment_date || new Date().toISOString(),
+          result.comments || '',
+          (existing as any).id
+        ).run()
+        console.log(`Updated assessment: ${result.employee_id} - ${category} - ${itemName}`)
+      } else {
+        // 신규 데이터 삽입
+        await db.prepare(`
+          INSERT INTO supervisor_assessments (worker_id, item_id, level, assessed_by, assessment_date, comments)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).bind(
+          (worker as any).id,
+          (item as any).id,
+          levelValue,
+          result.assessed_by || 'Supervisor',
+          result.assessment_date || new Date().toISOString(),
+          result.comments || ''
+        ).run()
+      }
+      
       successCount++
       
       // 처리된 작업자 추적
       processedWorkers.add((worker as any).id)
     } catch (error) {
-      console.error(`Error inserting assessment for ${result.employee_id}:`, error)
+      console.error(`Error inserting/updating assessment for ${result.employee_id}:`, error)
       skippedCount++
-      skippedReasons.push(`Insert error: ${result.employee_id}`)
+      skippedReasons.push(`Insert/Update error: ${result.employee_id}`)
     }
   }
   
