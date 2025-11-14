@@ -360,31 +360,34 @@ function getDashboardHTML() {
                 <!-- Written Test Results 탭 컨텐츠 -->
                 <div id="dashboard-content-test-results" class="dashboard-content">
                 
-                <!-- Filters -->
-                <div class="mb-6">
-                    <!-- Pass Score Threshold -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            <i class="fas fa-trophy mr-1 text-yellow-500"></i>
-                            Pass Score
-                        </label>
-                        <div class="w-48">
-                            <select id="pass-threshold-select" onchange="updatePassThreshold()" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500">
-                                <option value="50">50점</option>
-                                <option value="55">55점</option>
-                                <option value="60">60점</option>
-                                <option value="65">65점</option>
-                                <option value="70" selected>70점 (기본)</option>
-                                <option value="75">75점</option>
-                                <option value="80">80점</option>
-                                <option value="85">85점</option>
-                                <option value="90">90점</option>
-                                <option value="95">95점</option>
-                                <option value="100">100점</option>
-                            </select>
-                        </div>
+                <!-- Pass Score Threshold (Above Chart) -->
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        <i class="fas fa-trophy mr-1 text-yellow-500"></i>
+                        Pass Score
+                    </label>
+                    <div class="w-48">
+                        <select id="pass-threshold-select" onchange="updatePassThreshold()" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500">
+                            <option value="50">50점</option>
+                            <option value="55">55점</option>
+                            <option value="60">60점</option>
+                            <option value="65">65점</option>
+                            <option value="70" selected>70점 (기본)</option>
+                            <option value="75">75점</option>
+                            <option value="80">80점</option>
+                            <option value="85">85점</option>
+                            <option value="90">90점</option>
+                            <option value="95">95점</option>
+                            <option value="100">100점</option>
+                        </select>
                     </div>
-                    
+                </div>
+                
+                <!-- Chart -->
+                <canvas id="test-status-chart" class="mb-6"></canvas>
+                
+                <!-- Filters (Below Chart) -->
+                <div class="mt-6 pt-6 border-t border-gray-200">
                     <!-- Entity Filter -->
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
@@ -420,8 +423,6 @@ function getDashboardHTML() {
                         </div>
                     </div>
                 </div>
-                    
-                    <canvas id="test-status-chart"></canvas>
                 </div>
                 
                 <!-- Written Test Analysis 탭 컨텐츠 -->
