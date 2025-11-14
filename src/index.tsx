@@ -145,14 +145,16 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     const avg_score_by_process = avgScoreResult.results || []
 
     // Level별 법인 현황 (프로세스/팀 필터 추가)
+    // IMPORTANT: Count unique workers, not assessment records
+    // Each worker may have multiple assessment items, but should only be counted once per level
     let assessmentByLevelResult
     
-    // 동적 쿼리 빌드
+    // 동적 쿼리 빌드 - DISTINCT worker_id로 직원별 1명만 카운트
     let levelQuery = `
       SELECT 
         sa.level,
         w.entity,
-        COUNT(*) as count
+        COUNT(DISTINCT sa.worker_id) as count
       FROM supervisor_assessments sa
       JOIN workers w ON sa.worker_id = w.id
       JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
