@@ -1180,6 +1180,9 @@ app.get('/', (c) => {
                     <button onclick="showPage('dashboard')" class="hover:underline">
                         <i class="fas fa-home mr-1"></i>DASHBOARD
                     </button>
+                    <button onclick="showPage('worker-upload')" class="hover:underline">
+                        <i class="fas fa-users mr-1"></i>WORKER REGISTRATION
+                    </button>
                     <button onclick="showPage('test-page')" class="hover:underline">
                         <i class="fas fa-pencil-alt mr-1"></i>WRITTEN TEST
                     </button>
