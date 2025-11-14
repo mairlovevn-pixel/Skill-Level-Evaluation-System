@@ -1153,7 +1153,7 @@ app.get('/', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>작업자 Skill Level 평가 대시보드</title>
+        <title>SKILL LEVEL SYSTEM</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <link href="/static/styles.css" rel="stylesheet">
@@ -1174,35 +1174,32 @@ app.get('/', (c) => {
             <div class="container mx-auto flex justify-between items-center">
                 <h1 class="text-2xl font-bold">
                     <i class="fas fa-chart-line mr-2"></i>
-                    Skill Level 평가 시스템
+                    SKILL LEVEL SYSTEM
                 </h1>
                 <div class="space-x-4">
-                    <button onclick="showPage('worker-upload')" class="hover:underline">
-                        <i class="fas fa-users mr-1"></i>Worker Registration
-                    </button>
                     <button onclick="showPage('dashboard')" class="hover:underline">
-                        <i class="fas fa-home mr-1"></i>Dashboard
-                    </button>
-                    <button onclick="showPage('quiz-upload')" class="hover:underline">
-                        <i class="fas fa-question-circle mr-1"></i>Quiz Registration
-                    </button>
-                    <button onclick="showPage('assessment-upload')" class="hover:underline">
-                        <i class="fas fa-clipboard-check mr-1"></i>Assessment Registration
-                    </button>
-                    <button onclick="showPage('supervisor-assessment')" class="hover:underline">
-                        <i class="fas fa-user-check mr-1"></i>Supervisor Assessment
+                        <i class="fas fa-home mr-1"></i>DASHBOARD
                     </button>
                     <button onclick="showPage('test-page')" class="hover:underline">
-                        <i class="fas fa-pencil-alt mr-1"></i>Written Test
+                        <i class="fas fa-pencil-alt mr-1"></i>WRITTEN TEST
+                    </button>
+                    <button onclick="showPage('supervisor-assessment')" class="hover:underline">
+                        <i class="fas fa-user-check mr-1"></i>SUPERVISOR ASSESSMENT
+                    </button>
+                    <button onclick="showPage('quiz-upload')" class="hover:underline">
+                        <i class="fas fa-question-circle mr-1"></i>QUIZ REGISTRATION
+                    </button>
+                    <button onclick="showPage('assessment-upload')" class="hover:underline">
+                        <i class="fas fa-clipboard-check mr-1"></i>ASSESSMENT REGISTRATION
                     </button>
                     <button onclick="showPage('analysis-page')" class="hover:underline">
-                        <i class="fas fa-chart-line mr-1"></i>Result Analysis
+                        <i class="fas fa-chart-line mr-1"></i>RESULT ANALYSIS
                     </button>
                     <button onclick="showPage('result-management')" class="hover:underline">
-                        <i class="fas fa-file-excel mr-1"></i>Result Management
+                        <i class="fas fa-file-excel mr-1"></i>RESULT MANAGEMENT
                     </button>
                     <button onclick="showPage('chatbot')" class="hover:underline">
-                        <i class="fas fa-comments mr-1"></i>Chatbot
+                        <i class="fas fa-comments mr-1"></i>CHATBOT
                     </button>
                 </div>
             </div>
