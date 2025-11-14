@@ -342,14 +342,23 @@ function getDashboardHTML() {
                 </div>
             </div>
             
-            <!-- Written Test 현황 차트 (전체 너비) -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-                <div class="flex justify-between items-start mb-4">
-                    <h3 class="text-xl font-bold text-gray-800">
-                        <i class="fas fa-chart-bar mr-2"></i>
-                        Written Test Results
-                    </h3>
+            <!-- 통합 대시보드 탭 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <!-- 탭 헤더 -->
+                <div class="flex gap-2 mb-6 border-b border-gray-200">
+                    <button onclick="switchDashboardTab('test-results')" id="dashboard-tab-test-results" class="dashboard-tab px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600">
+                        <i class="fas fa-chart-bar mr-2"></i>Written Test Results
+                    </button>
+                    <button onclick="switchDashboardTab('test-analysis')" id="dashboard-tab-test-analysis" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-magnifying-glass-chart mr-2"></i>Written Test Analysis
+                    </button>
+                    <button onclick="switchDashboardTab('assessment')" id="dashboard-tab-assessment" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-star mr-2"></i>Supervisor Assessment
+                    </button>
                 </div>
+                
+                <!-- Written Test Results 탭 컨텐츠 -->
+                <div id="dashboard-content-test-results" class="dashboard-content">
                 
                 <!-- Filters -->
                 <div class="grid grid-cols-4 gap-3 mb-4">
@@ -428,14 +437,9 @@ function getDashboardHTML() {
                     
                     <canvas id="test-status-chart"></canvas>
                 </div>
-            </div>
-            
-            <!-- Written Test Analysis (전체 너비) -->
-            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-                <h3 class="text-xl font-bold text-gray-800 mb-4">
-                    <i class="fas fa-magnifying-glass-chart mr-2"></i>
-                    Written Test Analysis
-                </h3>
+                
+                <!-- Written Test Analysis 탭 컨텐츠 -->
+                <div id="dashboard-content-test-analysis" class="dashboard-content hidden">
                 
                 <!-- Analysis Mode Tabs -->
                 <div class="flex gap-2 mb-6 border-b border-gray-200">
@@ -497,15 +501,11 @@ function getDashboardHTML() {
                 <div id="analysis-info-container" class="mt-6">
                     <!-- Dynamic content based on analysis mode -->
                 </div>
-            </div>
-            
-            <!-- Supervisor Assessment 현황 -->
-            <div class="bg-white rounded-lg shadow-md p-6">
+                </div>
+                
+                <!-- Supervisor Assessment 탭 컨텐츠 -->
+                <div id="dashboard-content-assessment" class="dashboard-content hidden">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-gray-800">
-                        <i class="fas fa-star mr-2"></i>
-                        Level별 법인 현황 (Supervisor Assessment)
-                    </h3>
                     <div class="flex gap-2">
                         <div class="w-36">
                             <select id="assessment-team-select" class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-2 focus:ring-blue-500" onchange="onAssessmentTeamChange()">
@@ -520,9 +520,39 @@ function getDashboardHTML() {
                     </div>
                 </div>
                 <canvas id="assessment-chart"></canvas>
+                </div>
             </div>
         </div>
     `;
+}
+
+// 대시보드 탭 전환 함수
+function switchDashboardTab(tabName) {
+    // 모든 탭 버튼 스타일 초기화
+    document.querySelectorAll('.dashboard-tab').forEach(tab => {
+        tab.classList.remove('text-blue-600', 'border-blue-600', 'border-b-2');
+        tab.classList.add('text-gray-500');
+    });
+    
+    // 선택된 탭 버튼 활성화
+    const activeTab = document.getElementById(`dashboard-tab-${tabName}`);
+    if (activeTab) {
+        activeTab.classList.remove('text-gray-500');
+        activeTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+    }
+    
+    // 모든 컨텐츠 숨기기
+    document.querySelectorAll('.dashboard-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // 선택된 컨텐츠만 표시
+    const activeContent = document.getElementById(`dashboard-content-${tabName}`);
+    if (activeContent) {
+        activeContent.classList.remove('hidden');
+    }
+    
+    console.log(`✅ Switched to dashboard tab: ${tabName}`);
 }
 
 // 레거시 전역 변수 (AppState로 점진적 마이그레이션 예정)
