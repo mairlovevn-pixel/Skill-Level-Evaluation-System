@@ -133,7 +133,8 @@ const CHART_SCALE_DEFAULTS = {
     y: {
         beginAtZero: true,
         ticks: {
-            stepSize: 1
+            // Let Chart.js automatically determine step size for better performance
+            // stepSize will be calculated based on data range
         }
     }
 };
@@ -480,11 +481,51 @@ function getDashboardHTML() {
                 <!-- Supervisor Assessment 탭 컨텐츠 -->
                 <div id="dashboard-content-assessment" class="dashboard-content hidden">
                 
-                <!-- Chart (Above Filters) -->
-                <canvas id="assessment-chart" class="mb-6"></canvas>
+                <!-- Chart and Stats Container -->
+                <div class="flex gap-6 mb-6">
+                    <!-- Chart -->
+                    <div class="flex-1">
+                        <canvas id="assessment-chart"></canvas>
+                    </div>
+                    
+                    <!-- Level Statistics (Toggle) -->
+                    <div id="level-stats-container" class="w-80">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">
+                                <i class="fas fa-layer-group mr-2"></i>Level별 통계
+                            </h3>
+                            <button onclick="toggleLevelStats()" class="text-sm text-blue-600 hover:text-blue-800">
+                                <i id="level-stats-icon" class="fas fa-eye-slash mr-1"></i>
+                                <span id="level-stats-text">숨기기</span>
+                            </button>
+                        </div>
+                        <div id="level-stats-content">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Filters (Below Chart) -->
                 <div id="assessment-filters" class="mt-6 pt-6 border-t border-gray-200">
+                    <!-- Entity Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
+                        <div class="flex gap-4">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSVN" checked onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSVN</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSCN" checked onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSCN</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSTW" checked onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSTW</span>
+                            </label>
+                        </div>
+                    </div>
+                    
                     <!-- Team Filter -->
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
@@ -1823,6 +1864,13 @@ async function filterAvgScoreChart() {
 
 // Update Assessment filters
 async function updateAssessmentFilter() {
+    // Update entity filters
+    const entityCheckboxes = document.querySelectorAll('.assessment-entity-checkbox');
+    assessmentFilters.entities = new Set();
+    entityCheckboxes.forEach(cb => {
+        if (cb.checked) assessmentFilters.entities.add(cb.value);
+    });
+    
     // Update team filters
     const teamCheckboxes = document.querySelectorAll('.assessment-team-checkbox');
     assessmentFilters.teams = new Set();
@@ -1850,6 +1898,7 @@ let testStatusFilters = {
 
 // Assessment Chart Filters State
 let assessmentFilters = {
+    entities: new Set(['CSVN', 'CSCN', 'CSTW']),
     teams: new Set(),
     positions: new Set()
 };
@@ -2155,7 +2204,7 @@ function renderAvgScoreChart() {
 
 function renderAssessmentChart() {
     const ctx = document.getElementById('assessment-chart');
-    if (!ctx) return; // Canvas element not found
+    if (!ctx) return;
     
     // Destroy existing chart first
     if (currentAssessmentChart) {
@@ -2165,42 +2214,34 @@ function renderAssessmentChart() {
     
     const data = dashboardData.supervisor_assessment_by_level;
     
-    // Apply filters - filter by teams and positions
-    let filteredData = data;
+    // Apply entity filter
+    const selectedEntities = Array.from(assessmentFilters.entities);
+    let filteredData = data.filter(d => selectedEntities.includes(d.entity));
     
-    // Get selected teams and positions
-    const selectedTeams = Array.from(assessmentFilters.teams);
-    const selectedPositions = Array.from(assessmentFilters.positions);
+    // Group by level (X-axis: Level 1, 2, 3, 4)
+    const levels = [1, 2, 3, 4];
     
-    // Filter data if needed (note: current data structure doesn't include team/position)
-    // For now, we'll keep the data as-is since the API doesn't provide team/position breakdown
-    // In the future, the API should be updated to include team and position in assessment data
+    // Create datasets by entity (each entity = different color bar)
+    const entityColors = {
+        'CSVN': 'rgba(239, 68, 68, 0.7)',      // Red
+        'CSCN': 'rgba(59, 130, 246, 0.7)',     // Blue
+        'CSTW': 'rgba(34, 197, 94, 0.7)'       // Green
+    };
     
-    // 법인별로 그룹화
-    const entities = [...new Set(filteredData.map(d => d.entity))];
-    const levels = [...new Set(filteredData.map(d => d.level))].sort();
-    
-    const datasets = entities.map((entity, index) => {
-        const colors = [
-            'rgba(239, 68, 68, 0.6)',
-            'rgba(59, 130, 246, 0.6)',
-            'rgba(34, 197, 94, 0.6)',
-            'rgba(234, 179, 8, 0.6)',
-            'rgba(168, 85, 247, 0.6)'
-        ];
-        
+    const datasets = selectedEntities.map(entity => {
         return {
             label: entity,
             data: levels.map(level => {
                 const item = filteredData.find(d => d.entity === entity && d.level === level);
                 return item ? item.count : 0;
             }),
-            backgroundColor: colors[index % colors.length],
-            borderColor: colors[index % colors.length].replace('0.6', '1'),
+            backgroundColor: entityColors[entity] || 'rgba(156, 163, 175, 0.7)',
+            borderColor: (entityColors[entity] || 'rgba(156, 163, 175, 0.7)').replace('0.7', '1'),
             borderWidth: 1
         };
     });
     
+    // Create chart
     currentAssessmentChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -2208,20 +2249,119 @@ function renderAssessmentChart() {
             datasets: datasets
         },
         options: {
-            ...CHART_DEFAULTS,
-            scales: CHART_SCALE_DEFAULTS,
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0,
+                        stepSize: 50
+                    },
+                    title: {
+                        display: true,
+                        text: '직원 수 (명)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Level'
+                    }
+                }
+            },
             plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
                 datalabels: {
                     anchor: 'end',
-                    align: 'end',
-                    formatter: (value) => value,
+                    align: 'top',
+                    formatter: (value) => value > 0 ? value : '',
                     font: {
-                        weight: 'bold'
+                        weight: 'bold',
+                        size: 10
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.y}명`;
+                        }
                     }
                 }
             }
         }
     });
+    
+    // Render level statistics
+    renderLevelStatistics(filteredData, levels);
+}
+
+// Render level statistics panel
+function renderLevelStatistics(data, levels) {
+    const statsContent = document.getElementById('level-stats-content');
+    if (!statsContent) return;
+    
+    // Calculate statistics for each level
+    const levelColors = {
+        1: 'text-red-600 bg-red-50 border-red-200',
+        2: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+        3: 'text-blue-600 bg-blue-50 border-blue-200',
+        4: 'text-green-600 bg-green-50 border-green-200'
+    };
+    
+    let statsHTML = '';
+    
+    levels.forEach(level => {
+        // Calculate total count for this level
+        const levelData = data.filter(d => d.level === level);
+        const totalCount = levelData.reduce((sum, d) => sum + d.count, 0);
+        
+        // Note: Average tenure data is not available in current API
+        // For now, showing placeholder
+        const avgTenure = '데이터 없음';
+        
+        statsHTML += `
+            <div class="mb-3 p-4 border-l-4 rounded-lg ${levelColors[level]}">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="font-bold text-lg">● Level ${level}</span>
+                </div>
+                <div class="space-y-1 text-sm">
+                    <div class="flex justify-between">
+                        <span>총 인원:</span>
+                        <span class="font-bold">${totalCount}명</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>전체 평균:</span>
+                        <span class="font-semibold">${totalCount > 0 ? ((totalCount / data.reduce((sum, d) => sum + d.count, 0)) * 100).toFixed(1) + '%' : '0%'}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    statsContent.innerHTML = statsHTML;
+}
+
+// Toggle level statistics visibility
+function toggleLevelStats() {
+    const content = document.getElementById('level-stats-content');
+    const icon = document.getElementById('level-stats-icon');
+    const text = document.getElementById('level-stats-text');
+    
+    if (!content || !icon || !text) return;
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.className = 'fas fa-eye-slash mr-1';
+        text.textContent = '숨기기';
+    } else {
+        content.style.display = 'none';
+        icon.className = 'fas fa-eye mr-1';
+        text.textContent = '보이기';
+    }
 }
 
 // ==================== Quiz 등록 페이지 ====================
