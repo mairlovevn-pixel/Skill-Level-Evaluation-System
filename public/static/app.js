@@ -3238,7 +3238,7 @@ function getAssessmentUploadHTML() {
             </div>
             
             <!-- 업로드 섹션 -->
-            <div class="bg-white rounded-lg shadow-md p-8">
+            <div id="assessment-upload-container" class="bg-white rounded-lg shadow-md p-8">
                 <h2 class="text-3xl font-bold text-gray-800 mb-6">
                     <i class="fas fa-clipboard-check mr-2"></i>
                     Supervisor Assessment Item Registration
@@ -5518,10 +5518,47 @@ async function uploadAssessmentResults() {
             // Upload to server in batches to avoid Cloudflare Workers subrequest limit
             const BATCH_SIZE = 100; // Process 100 items per batch
             const totalBatches = Math.ceil(results.length / BATCH_SIZE);
+            const MAX_RETRIES = 3; // Maximum retry attempts per batch
+            const RETRY_DELAY = 2000; // 2 seconds delay between retries
             
             let totalSuccess = 0;
             let totalSkipped = 0;
+            let failedBatches = []; // Track failed batches for later retry
             
+            // Helper function to upload a single batch with retry
+            async function uploadBatchWithRetry(batchIndex, batch, retryCount = 0) {
+                try {
+                    const response = await axios.post('/api/supervisor-assessment-results/bulk', {
+                        results: batch,
+                        batchIndex: batchIndex,
+                        totalBatches: totalBatches
+                    });
+                    
+                    return {
+                        success: true,
+                        successCount: response.data.success,
+                        skippedCount: response.data.skipped
+                    };
+                } catch (error) {
+                    // If 503 error and retries remaining, retry after delay
+                    if (error.response?.status === 503 && retryCount < MAX_RETRIES) {
+                        console.warn(`⚠️ Batch ${batchIndex + 1} failed (503), retrying in ${RETRY_DELAY/1000}s... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
+                        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                        return uploadBatchWithRetry(batchIndex, batch, retryCount + 1);
+                    }
+                    
+                    // If all retries exhausted or other error
+                    console.error(`❌ Batch ${batchIndex + 1} failed after ${retryCount} retries:`, error);
+                    return {
+                        success: false,
+                        error: error.response?.data?.error || error.message,
+                        batch: batch,
+                        batchIndex: batchIndex
+                    };
+                }
+            }
+            
+            // Upload all batches
             for (let i = 0; i < totalBatches; i++) {
                 const start = i * BATCH_SIZE;
                 const end = Math.min(start + BATCH_SIZE, results.length);
@@ -5529,31 +5566,40 @@ async function uploadAssessmentResults() {
                 
                 console.log(`📤 Uploading batch ${i + 1}/${totalBatches} (${batch.length} items)...`);
                 
-                try {
-                    const response = await axios.post('/api/supervisor-assessment-results/bulk', {
-                        results: batch,
-                        batchIndex: i,
-                        totalBatches: totalBatches
-                    });
-                    
-                    totalSuccess += response.data.success;
-                    totalSkipped += response.data.skipped;
-                    
-                    console.log(`✅ Batch ${i + 1}/${totalBatches}: ${response.data.success} succeeded, ${response.data.skipped} skipped`);
-                    
-                    // Update progress message
-                    const progressMessage = `Processing batch ${i + 1}/${totalBatches}...\n\n✅ ${totalSuccess} succeeded\n⚠️ ${totalSkipped} skipped`;
-                    
-                    // Show progress in console
-                    console.log(progressMessage);
-                    
-                } catch (error) {
-                    console.error(`❌ Batch ${i + 1} failed:`, error);
-                    alert(`❌ Batch ${i + 1}/${totalBatches} failed.\n\nError: ${error.response?.data?.error || error.message}\n\nContinuing with next batch...`);
+                const result = await uploadBatchWithRetry(i, batch);
+                
+                if (result.success) {
+                    totalSuccess += result.successCount;
+                    totalSkipped += result.skippedCount;
+                    console.log(`✅ Batch ${i + 1}/${totalBatches}: ${result.successCount} succeeded, ${result.skippedCount} skipped`);
+                } else {
+                    failedBatches.push(result);
+                    console.error(`❌ Batch ${i + 1}/${totalBatches} permanently failed`);
                 }
+                
+                // Update progress message
+                const progressMessage = `Processing batch ${i + 1}/${totalBatches}...\n\n✅ ${totalSuccess} succeeded\n⚠️ ${totalSkipped} skipped\n❌ ${failedBatches.length} batches failed`;
+                console.log(progressMessage);
             }
             
-            alert(`✅ Assessment Upload Complete!\n\n✅ ${totalSuccess} items succeeded\n⚠️ ${totalSkipped} items skipped\n\nTotal batches processed: ${totalBatches}`);
+            // Store failed batches in global variable for retry
+            window.failedAssessmentBatches = failedBatches;
+            
+            // Show completion message
+            let completionMessage = `✅ Assessment Upload Complete!\n\n✅ ${totalSuccess} items succeeded\n⚠️ ${totalSkipped} items skipped\n\nTotal batches processed: ${totalBatches}`;
+            
+            if (failedBatches.length > 0) {
+                completionMessage += `\n\n❌ ${failedBatches.length} batches failed (${failedBatches.length * BATCH_SIZE} items)\nFailed batch numbers: ${failedBatches.map(b => b.batchIndex + 1).join(', ')}`;
+                completionMessage += `\n\nYou can retry failed batches by clicking "Retry Failed Batches" button.`;
+            }
+            
+            alert(completionMessage);
+            
+            // Show retry button if there are failed batches
+            if (failedBatches.length > 0) {
+                showRetryFailedBatchesButton();
+            }
+            
             fileInput.value = '';
             
             // Refresh page to update dashboard
@@ -5569,6 +5615,116 @@ async function uploadAssessmentResults() {
     };
     
     reader.readAsArrayBuffer(file);
+}
+
+// Show retry button for failed batches
+function showRetryFailedBatchesButton() {
+    const container = document.getElementById('assessment-upload-container');
+    if (!container) return;
+    
+    // Remove existing retry button if any
+    const existingButton = document.getElementById('retry-failed-batches-btn');
+    if (existingButton) existingButton.remove();
+    
+    // Create retry button
+    const retryButton = document.createElement('button');
+    retryButton.id = 'retry-failed-batches-btn';
+    retryButton.className = 'mt-4 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition';
+    retryButton.innerHTML = '<i class="fas fa-redo mr-2"></i>Retry Failed Batches';
+    retryButton.onclick = retryFailedAssessmentBatches;
+    
+    container.appendChild(retryButton);
+}
+
+// Retry failed assessment batches
+async function retryFailedAssessmentBatches() {
+    if (!window.failedAssessmentBatches || window.failedAssessmentBatches.length === 0) {
+        alert('No failed batches to retry.');
+        return;
+    }
+    
+    const failedBatches = window.failedAssessmentBatches;
+    const totalBatches = failedBatches.length;
+    
+    console.log(`🔄 Retrying ${totalBatches} failed batches...`);
+    
+    let totalSuccess = 0;
+    let totalSkipped = 0;
+    let stillFailedBatches = [];
+    
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 2000;
+    
+    // Helper function to upload a single batch with retry
+    async function uploadBatchWithRetry(batchData, retryCount = 0) {
+        try {
+            const response = await axios.post('/api/supervisor-assessment-results/bulk', {
+                results: batchData.batch,
+                batchIndex: batchData.batchIndex,
+                totalBatches: batchData.batch.length
+            });
+            
+            return {
+                success: true,
+                successCount: response.data.success,
+                skippedCount: response.data.skipped
+            };
+        } catch (error) {
+            if (error.response?.status === 503 && retryCount < MAX_RETRIES) {
+                console.warn(`⚠️ Retry batch ${batchData.batchIndex + 1} failed (503), retrying in ${RETRY_DELAY/1000}s... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                return uploadBatchWithRetry(batchData, retryCount + 1);
+            }
+            
+            return {
+                success: false,
+                error: error.response?.data?.error || error.message,
+                batch: batchData.batch,
+                batchIndex: batchData.batchIndex
+            };
+        }
+    }
+    
+    // Retry all failed batches
+    for (let i = 0; i < totalBatches; i++) {
+        const batchData = failedBatches[i];
+        console.log(`🔄 Retrying batch ${batchData.batchIndex + 1} (${i + 1}/${totalBatches})...`);
+        
+        const result = await uploadBatchWithRetry(batchData);
+        
+        if (result.success) {
+            totalSuccess += result.successCount;
+            totalSkipped += result.skippedCount;
+            console.log(`✅ Retry batch ${batchData.batchIndex + 1}: ${result.successCount} succeeded, ${result.skippedCount} skipped`);
+        } else {
+            stillFailedBatches.push(batchData);
+            console.error(`❌ Retry batch ${batchData.batchIndex + 1} still failed`);
+        }
+    }
+    
+    // Update failed batches
+    window.failedAssessmentBatches = stillFailedBatches;
+    
+    // Show result
+    let message = `🔄 Retry Complete!\n\n✅ ${totalSuccess} items succeeded\n⚠️ ${totalSkipped} items skipped`;
+    
+    if (stillFailedBatches.length > 0) {
+        message += `\n\n❌ ${stillFailedBatches.length} batches still failed\nFailed batch numbers: ${stillFailedBatches.map(b => b.batchIndex + 1).join(', ')}`;
+    } else {
+        message += `\n\n🎉 All failed batches successfully retried!`;
+        // Remove retry button
+        const retryButton = document.getElementById('retry-failed-batches-btn');
+        if (retryButton) retryButton.remove();
+    }
+    
+    alert(message);
+    
+    // Refresh page if any success
+    if (totalSuccess > 0) {
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+    }
 }
 
 // ==================== 시험 응시 페이지 ====================
