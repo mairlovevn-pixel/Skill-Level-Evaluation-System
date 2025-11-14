@@ -449,9 +449,6 @@ function getDashboardHTML() {
                     <button onclick="switchAnalysisMode('weakness')" id="tab-weakness" class="analysis-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
                         <i class="fas fa-triangle-exclamation mr-2"></i>Weakness Analysis
                     </button>
-                    <button onclick="switchAnalysisMode('summary')" id="tab-summary" class="analysis-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
-                        <i class="fas fa-gauge-high mr-2"></i>Summary KPI
-                    </button>
                 </div>
                 
                 <!-- Filters (Dynamic based on mode) -->
@@ -785,9 +782,6 @@ function renderAnalysis() {
             break;
         case 'weakness':
             renderWeaknessAnalysis();
-            break;
-        case 'summary':
-            renderSummaryKPI();
             break;
     }
 }
