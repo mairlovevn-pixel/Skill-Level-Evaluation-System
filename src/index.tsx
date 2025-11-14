@@ -1299,13 +1299,13 @@ app.post('/api/supervisor-assessment-results/bulk', errorHandler(async (c) => {
           'UPDATE supervisor_assessments SET is_satisfied = ?, process_id = ? WHERE id = ?'
         ).bind(result.is_satisfied, processId, existingResult.id).run()
       } else {
-        // 새로운 데이터 삽입
+        // 새로운 데이터 삽입 (Level 1이 기본값 - 평가 없음)
         await db.prepare(
           'INSERT INTO supervisor_assessments (worker_id, item_id, level, assessed_by, assessment_date, is_satisfied, process_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
         ).bind(
           workerId,
           itemId,
-          0, // level은 나중에 계산
+          1, // Level 1이 기본값 (평가 없음), Level 계산 후 업데이트됨
           'System',
           result.assessment_date,
           result.is_satisfied,
@@ -1321,14 +1321,20 @@ app.post('/api/supervisor-assessment-results/bulk', errorHandler(async (c) => {
     }
   }
   
-  // 5. Calculate levels for all affected workers
-  const affectedWorkers = new Set(
-    results
-      .filter((_, idx) => idx < successCount)
-      .map(r => r.employee_id)
-  )
+  // 5. Calculate levels for all affected workers (only on last batch)
+  const isLastBatch = batchIndex === totalBatches - 1
   
-  for (const employeeId of affectedWorkers) {
+  if (isLastBatch) {
+    console.log('📊 Last batch completed. Calculating levels for all workers...')
+    
+    // Get all unique workers from ALL batches (not just current batch)
+    const allWorkersResult = await db.prepare(
+      'SELECT DISTINCT w.employee_id FROM supervisor_assessments sa JOIN workers w ON sa.worker_id = w.id'
+    ).all()
+    
+    const affectedWorkers = allWorkersResult.results.map(r => r.employee_id as string)
+  
+    for (const employeeId of affectedWorkers) {
     try {
       // Get worker ID
       const workerResult = await db.prepare(
@@ -1401,6 +1407,11 @@ app.post('/api/supervisor-assessment-results/bulk', errorHandler(async (c) => {
     } catch (error: any) {
       console.error(`Failed to calculate level for worker ${employeeId}:`, error)
     }
+    }
+    
+    console.log(`✅ Level calculation completed for ${affectedWorkers.length} workers`)
+  } else {
+    console.log(`⏭️ Batch ${batchIndex + 1}/${totalBatches} completed. Level calculation will run after last batch.`)
   }
   
   return c.json({
