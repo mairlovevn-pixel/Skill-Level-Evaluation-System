@@ -144,46 +144,112 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     avgScoreResult = await db.prepare(avgScoreQuery).bind(...avgScoreParams).all()
     const avg_score_by_process = avgScoreResult.results || []
 
-    // Level별 법인 현황 (프로세스/팀 필터 추가)
-    // IMPORTANT: Count unique workers, not assessment records
-    // Each worker may have multiple assessment items, but should only be counted once per level
-    let assessmentByLevelResult
-    
-    // 동적 쿼리 빌드 - DISTINCT worker_id로 직원별 1명만 카운트
-    let levelQuery = `
-      SELECT 
-        sa.level,
-        w.entity,
-        COUNT(DISTINCT sa.worker_id) as count
-      FROM supervisor_assessments sa
-      JOIN workers w ON sa.worker_id = w.id
-      JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
+    // Level별 법인 현황 - 작업자별 최종 Level 계산
+    // 로직: Level 2/3/4의 모든 항목이 만족(level >= 해당 레벨)인지 확인
+    let workersQuery = `
+      SELECT DISTINCT w.id, w.entity
+      FROM workers w
+      JOIN supervisor_assessments sa ON sa.worker_id = w.id
       WHERE 1=1
     `
     const params: any[] = []
     
     if (entity) {
-      levelQuery += ' AND w.entity = ?'
+      workersQuery += ' AND w.entity = ?'
       params.push(entity)
     }
     
-    if (processId) {
-      levelQuery += ' AND sai.process_id = ?'
-      params.push(processId)
-    }
-    
     if (team) {
-      levelQuery += ' AND w.team = ?'
+      workersQuery += ' AND w.team = ?'
       params.push(team)
     }
     
-    levelQuery += `
-      GROUP BY sa.level, w.entity
-      ORDER BY sa.level, w.entity
-    `
+    if (processId) {
+      workersQuery += ' AND sa.item_id IN (SELECT id FROM supervisor_assessment_items WHERE process_id = ?)'
+      params.push(processId)
+    }
     
-    assessmentByLevelResult = await db.prepare(levelQuery).bind(...params).all()
-    const supervisor_assessment_by_level = assessmentByLevelResult.results || []
+    const workersResult = await db.prepare(workersQuery).bind(...params).all()
+    const workers = workersResult.results || []
+    
+    // 각 작업자의 최종 Level 계산
+    const levelCounts: Record<string, Record<number, number>> = {}
+    
+    for (const worker of workers) {
+      const workerId = (worker as any).id
+      const workerEntity = (worker as any).entity
+      
+      // Level 2 체크
+      const level2Check = await db.prepare(`
+        SELECT 
+          COUNT(DISTINCT sai.id) as total_items,
+          COUNT(DISTINCT CASE WHEN sa.level >= 2 THEN sai.id END) as satisfied_items
+        FROM supervisor_assessment_items sai
+        LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
+        WHERE sai.category = 'Level2'
+        ${processId ? 'AND sai.process_id = ?' : ''}
+      `).bind(processId ? [workerId, processId] : [workerId]).first()
+      
+      const hasAllLevel2 = level2Check && 
+        (level2Check as any).total_items > 0 &&
+        (level2Check as any).satisfied_items === (level2Check as any).total_items
+      
+      // Level 3 체크
+      const level3Check = await db.prepare(`
+        SELECT 
+          COUNT(DISTINCT sai.id) as total_items,
+          COUNT(DISTINCT CASE WHEN sa.level >= 3 THEN sai.id END) as satisfied_items
+        FROM supervisor_assessment_items sai
+        LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
+        WHERE sai.category = 'Level3'
+        ${processId ? 'AND sai.process_id = ?' : ''}
+      `).bind(processId ? [workerId, processId] : [workerId]).first()
+      
+      const hasAllLevel3 = hasAllLevel2 && level3Check && 
+        (level3Check as any).total_items > 0 &&
+        (level3Check as any).satisfied_items === (level3Check as any).total_items
+      
+      // Level 4 체크
+      const level4Check = await db.prepare(`
+        SELECT 
+          COUNT(DISTINCT sai.id) as total_items,
+          COUNT(DISTINCT CASE WHEN sa.level >= 4 THEN sai.id END) as satisfied_items
+        FROM supervisor_assessment_items sai
+        LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
+        WHERE sai.category = 'Level4'
+        ${processId ? 'AND sai.process_id = ?' : ''}
+      `).bind(processId ? [workerId, processId] : [workerId]).first()
+      
+      const hasAllLevel4 = hasAllLevel2 && hasAllLevel3 && level4Check && 
+        (level4Check as any).total_items > 0 &&
+        (level4Check as any).satisfied_items === (level4Check as any).total_items
+      
+      // 최종 Level 결정
+      let finalLevel = 1
+      if (hasAllLevel2) finalLevel = 2
+      if (hasAllLevel3) finalLevel = 3
+      if (hasAllLevel4) finalLevel = 4
+      
+      // 집계
+      if (!levelCounts[workerEntity]) {
+        levelCounts[workerEntity] = { 1: 0, 2: 0, 3: 0, 4: 0 }
+      }
+      levelCounts[workerEntity][finalLevel]++
+    }
+    
+    // 결과 포맷팅
+    const supervisor_assessment_by_level: any[] = []
+    for (const [entity, levels] of Object.entries(levelCounts)) {
+      for (const [level, count] of Object.entries(levels)) {
+        if (count > 0) {
+          supervisor_assessment_by_level.push({
+            level: parseInt(level),
+            entity: entity,
+            count: count
+          })
+        }
+      }
+    }
 
     const stats: DashboardStats = {
       total_workers,
