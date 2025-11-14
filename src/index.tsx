@@ -145,69 +145,102 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     const avg_score_by_process = avgScoreResult.results || []
 
     // Level별 법인 현황 - 올바른 계층적 Level 계산
-    // Level X 달성 = 모든 Level2 ~ LevelX 항목의 level >= X
+    // 각 작업자가 평가받은 항목들만 기준으로 Level 계산 (Process별로 항목이 다름)
     let levelQuery = `
       SELECT 
         w.id,
         w.entity,
         CASE
-          -- Level 4: 모든 Level2, Level3, Level4 항목이 level >= 각 요구사항
+          -- Level 4: 평가받은 모든 Level2, Level3, Level4 항목을 만족
           WHEN (
-            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level2'
-          ) = (
-            SELECT COUNT(*) FROM supervisor_assessments sa2 
-            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
-            WHERE sa2.worker_id = w.id AND sai2.category = 'Level2' AND sa2.level >= 2
-          )
-          AND (
-            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level3'
-          ) = (
-            SELECT COUNT(*) FROM supervisor_assessments sa2 
-            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
-            WHERE sa2.worker_id = w.id AND sai2.category = 'Level3' AND sa2.level >= 3
-          )
-          AND (
-            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level4'
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level2', 'Level 2')
           ) > 0
           AND (
-            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level4'
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level2', 'Level 2') AND sa2.level >= 2
           ) = (
-            SELECT COUNT(*) FROM supervisor_assessments sa2 
-            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
-            WHERE sa2.worker_id = w.id AND sai2.category = 'Level4' AND sa2.level >= 4
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level2', 'Level 2')
+          )
+          AND (
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level3', 'Level 3')
+          ) > 0
+          AND (
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level3', 'Level 3') AND sa2.level >= 3
+          ) = (
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level3', 'Level 3')
+          )
+          AND (
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level4', 'Level 4')
+          ) > 0
+          AND (
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level4', 'Level 4') AND sa2.level >= 4
+          ) = (
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level4', 'Level 4')
           )
           THEN 4
           
-          -- Level 3: 모든 Level2, Level3 항목 만족
+          -- Level 3: 평가받은 모든 Level2, Level3 항목을 만족
           WHEN (
-            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level2'
-          ) = (
-            SELECT COUNT(*) FROM supervisor_assessments sa2 
-            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
-            WHERE sa2.worker_id = w.id AND sai2.category = 'Level2' AND sa2.level >= 2
-          )
-          AND (
-            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level3'
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level2', 'Level 2')
           ) > 0
           AND (
-            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level3'
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level2', 'Level 2') AND sa2.level >= 2
           ) = (
-            SELECT COUNT(*) FROM supervisor_assessments sa2 
-            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
-            WHERE sa2.worker_id = w.id AND sai2.category = 'Level3' AND sa2.level >= 3
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level2', 'Level 2')
+          )
+          AND (
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level3', 'Level 3')
+          ) > 0
+          AND (
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level3', 'Level 3') AND sa2.level >= 3
+          ) = (
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level3', 'Level 3')
           )
           THEN 3
           
-          -- Level 2: 모든 Level2 항목 만족
+          -- Level 2: 평가받은 모든 Level2 항목을 만족
           WHEN (
-            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level2'
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level2', 'Level 2')
           ) > 0
           AND (
-            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level2'
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level2', 'Level 2') AND sa2.level >= 2
           ) = (
-            SELECT COUNT(*) FROM supervisor_assessments sa2 
-            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
-            WHERE sa2.worker_id = w.id AND sai2.category = 'Level2' AND sa2.level >= 2
+            SELECT COUNT(DISTINCT sai.id) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai ON sa2.item_id = sai.id 
+            WHERE sa2.worker_id = w.id AND sai.category IN ('Level2', 'Level 2')
           )
           THEN 2
           
