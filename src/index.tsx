@@ -144,109 +144,92 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     avgScoreResult = await db.prepare(avgScoreQuery).bind(...avgScoreParams).all()
     const avg_score_by_process = avgScoreResult.results || []
 
-    // Level별 법인 현황 - 평가받은 작업자 + 평가받지 않은 작업자(Level 1)
-    // Step 1: 모든 평가받은 작업자 가져오기
-    let workerQuery = `
-      SELECT DISTINCT w.id, w.entity
+    // Level별 법인 현황 - 올바른 계층적 Level 계산
+    // Level X 달성 = 모든 Level2 ~ LevelX 항목의 level >= X
+    let levelQuery = `
+      SELECT 
+        w.id,
+        w.entity,
+        CASE
+          -- Level 4: 모든 Level2, Level3, Level4 항목이 level >= 각 요구사항
+          WHEN (
+            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level2'
+          ) = (
+            SELECT COUNT(*) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
+            WHERE sa2.worker_id = w.id AND sai2.category = 'Level2' AND sa2.level >= 2
+          )
+          AND (
+            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level3'
+          ) = (
+            SELECT COUNT(*) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
+            WHERE sa2.worker_id = w.id AND sai2.category = 'Level3' AND sa2.level >= 3
+          )
+          AND (
+            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level4'
+          ) > 0
+          AND (
+            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level4'
+          ) = (
+            SELECT COUNT(*) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
+            WHERE sa2.worker_id = w.id AND sai2.category = 'Level4' AND sa2.level >= 4
+          )
+          THEN 4
+          
+          -- Level 3: 모든 Level2, Level3 항목 만족
+          WHEN (
+            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level2'
+          ) = (
+            SELECT COUNT(*) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
+            WHERE sa2.worker_id = w.id AND sai2.category = 'Level2' AND sa2.level >= 2
+          )
+          AND (
+            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level3'
+          ) > 0
+          AND (
+            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level3'
+          ) = (
+            SELECT COUNT(*) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
+            WHERE sa2.worker_id = w.id AND sai2.category = 'Level3' AND sa2.level >= 3
+          )
+          THEN 3
+          
+          -- Level 2: 모든 Level2 항목 만족
+          WHEN (
+            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level2'
+          ) > 0
+          AND (
+            SELECT COUNT(*) FROM supervisor_assessment_items sai WHERE sai.category = 'Level2'
+          ) = (
+            SELECT COUNT(*) FROM supervisor_assessments sa2 
+            JOIN supervisor_assessment_items sai2 ON sa2.item_id = sai2.id 
+            WHERE sa2.worker_id = w.id AND sai2.category = 'Level2' AND sa2.level >= 2
+          )
+          THEN 2
+          
+          ELSE 1
+        END as final_level
       FROM workers w
-      JOIN supervisor_assessments sa ON sa.worker_id = w.id
-      WHERE 1=1
+      WHERE EXISTS (SELECT 1 FROM supervisor_assessments sa WHERE sa.worker_id = w.id)
     `
     const params: any[] = []
     
     if (entity) {
-      workerQuery += ' AND w.entity = ?'
+      levelQuery += ' AND w.entity = ?'
       params.push(entity)
     }
     
     if (team) {
-      workerQuery += ' AND w.team = ?'
+      levelQuery += ' AND w.team = ?'
       params.push(team)
     }
     
-    const assessedWorkersResult = await db.prepare(workerQuery).bind(...params).all()
-    const assessedWorkers = assessedWorkersResult.results || []
-    
-    // Step 2: 각 작업자의 최종 Level 계산
-    const workerLevels: Array<{ id: number; entity: string; final_level: number }> = []
-    
-    for (const worker of assessedWorkers) {
-      const workerId = (worker as any).id
-      const workerEntity = (worker as any).entity
-      
-      // Level 2 체크: 모든 Level 2 항목이 만족(level >= 2)인가?
-      let level2Query = `
-        SELECT 
-          COUNT(DISTINCT sai.id) as total_items,
-          COUNT(DISTINCT CASE WHEN sa.level >= 2 THEN sai.id END) as satisfied_items
-        FROM supervisor_assessment_items sai
-        LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
-        WHERE sai.category = 'Level2'
-      `
-      
-      if (processId) {
-        level2Query += ' AND sai.process_id = ?'
-      }
-      
-      const level2Params = processId ? [workerId, processId] : [workerId]
-      const level2Check = await db.prepare(level2Query).bind(...level2Params).first()
-      
-      const hasAllLevel2 = level2Check && 
-        (level2Check as any).total_items > 0 &&
-        (level2Check as any).satisfied_items === (level2Check as any).total_items
-      
-      // Level 3 체크
-      let level3Query = `
-        SELECT 
-          COUNT(DISTINCT sai.id) as total_items,
-          COUNT(DISTINCT CASE WHEN sa.level >= 3 THEN sai.id END) as satisfied_items
-        FROM supervisor_assessment_items sai
-        LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
-        WHERE sai.category = 'Level3'
-      `
-      
-      if (processId) {
-        level3Query += ' AND sai.process_id = ?'
-      }
-      
-      const level3Check = await db.prepare(level3Query).bind(...level2Params).first()
-      
-      const hasAllLevel3 = hasAllLevel2 && level3Check && 
-        (level3Check as any).total_items > 0 &&
-        (level3Check as any).satisfied_items === (level3Check as any).total_items
-      
-      // Level 4 체크
-      let level4Query = `
-        SELECT 
-          COUNT(DISTINCT sai.id) as total_items,
-          COUNT(DISTINCT CASE WHEN sa.level >= 4 THEN sai.id END) as satisfied_items
-        FROM supervisor_assessment_items sai
-        LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
-        WHERE sai.category = 'Level4'
-      `
-      
-      if (processId) {
-        level4Query += ' AND sai.process_id = ?'
-      }
-      
-      const level4Check = await db.prepare(level4Query).bind(...level2Params).first()
-      
-      const hasAllLevel4 = hasAllLevel2 && hasAllLevel3 && level4Check && 
-        (level4Check as any).total_items > 0 &&
-        (level4Check as any).satisfied_items === (level4Check as any).total_items
-      
-      // 최종 Level 결정
-      let finalLevel = 1
-      if (hasAllLevel2) finalLevel = 2
-      if (hasAllLevel3) finalLevel = 3
-      if (hasAllLevel4) finalLevel = 4
-      
-      workerLevels.push({
-        id: workerId,
-        entity: workerEntity,
-        final_level: finalLevel
-      })
-    }
+    const workerLevelsResult = await db.prepare(levelQuery).bind(...params).all()
+    const workerLevels = workerLevelsResult.results || []
     
     // Step 2: 필터링된 전체 작업자 수 조회 (평가받지 않은 작업자 계산용)
     let totalFilteredQuery = `SELECT COUNT(*) as count FROM workers w WHERE 1=1`
@@ -271,9 +254,9 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     
     // 평가받은 작업자 집계
     for (const worker of workerLevels) {
-      const workerEntity = worker.entity
-      const workerId = worker.id
-      const finalLevel = worker.final_level
+      const workerEntity = (worker as any).entity
+      const workerId = (worker as any).id
+      const finalLevel = (worker as any).final_level || 1
       
       assessedWorkerIds.add(workerId)
       
