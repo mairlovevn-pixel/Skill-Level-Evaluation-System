@@ -180,45 +180,60 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
       const workerEntity = (worker as any).entity
       
       // Level 2 체크
-      const level2Check = await db.prepare(`
+      let level2Query = `
         SELECT 
           COUNT(DISTINCT sai.id) as total_items,
           COUNT(DISTINCT CASE WHEN sa.level >= 2 THEN sai.id END) as satisfied_items
         FROM supervisor_assessment_items sai
         LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
         WHERE sai.category = 'Level2'
-        ${processId ? 'AND sai.process_id = ?' : ''}
-      `).bind(processId ? [workerId, processId] : [workerId]).first()
+      `
+      const level2Params = [workerId]
+      if (processId) {
+        level2Query += ' AND sai.process_id = ?'
+        level2Params.push(processId)
+      }
+      const level2Check = await db.prepare(level2Query).bind(...level2Params).first()
       
       const hasAllLevel2 = level2Check && 
         (level2Check as any).total_items > 0 &&
         (level2Check as any).satisfied_items === (level2Check as any).total_items
       
       // Level 3 체크
-      const level3Check = await db.prepare(`
+      let level3Query = `
         SELECT 
           COUNT(DISTINCT sai.id) as total_items,
           COUNT(DISTINCT CASE WHEN sa.level >= 3 THEN sai.id END) as satisfied_items
         FROM supervisor_assessment_items sai
         LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
         WHERE sai.category = 'Level3'
-        ${processId ? 'AND sai.process_id = ?' : ''}
-      `).bind(processId ? [workerId, processId] : [workerId]).first()
+      `
+      const level3Params = [workerId]
+      if (processId) {
+        level3Query += ' AND sai.process_id = ?'
+        level3Params.push(processId)
+      }
+      const level3Check = await db.prepare(level3Query).bind(...level3Params).first()
       
       const hasAllLevel3 = hasAllLevel2 && level3Check && 
         (level3Check as any).total_items > 0 &&
         (level3Check as any).satisfied_items === (level3Check as any).total_items
       
       // Level 4 체크
-      const level4Check = await db.prepare(`
+      let level4Query = `
         SELECT 
           COUNT(DISTINCT sai.id) as total_items,
           COUNT(DISTINCT CASE WHEN sa.level >= 4 THEN sai.id END) as satisfied_items
         FROM supervisor_assessment_items sai
         LEFT JOIN supervisor_assessments sa ON sa.item_id = sai.id AND sa.worker_id = ?
         WHERE sai.category = 'Level4'
-        ${processId ? 'AND sai.process_id = ?' : ''}
-      `).bind(processId ? [workerId, processId] : [workerId]).first()
+      `
+      const level4Params = [workerId]
+      if (processId) {
+        level4Query += ' AND sai.process_id = ?'
+        level4Params.push(processId)
+      }
+      const level4Check = await db.prepare(level4Query).bind(...level4Params).first()
       
       const hasAllLevel4 = hasAllLevel2 && hasAllLevel3 && level4Check && 
         (level4Check as any).total_items > 0 &&
