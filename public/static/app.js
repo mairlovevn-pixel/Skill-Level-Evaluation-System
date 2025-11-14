@@ -292,21 +292,11 @@ async function loadWorkers() {
 function getDashboardHTML() {
     return `
         <div class="space-y-6">
-            <div class="flex justify-between items-center mb-6">
+            <div class="mb-6">
                 <h2 class="text-3xl font-bold text-gray-800">
                     <i class="fas fa-chart-bar mr-2"></i>
                     Skill Level 평가 요약
                 </h2>
-                
-                <div class="w-64">
-                    <label class="block text-gray-700 font-semibold mb-2">법인 선택</label>
-                    <select id="dashboard-entity-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="filterDashboardByEntity()">
-                        <option value="">전체 법인</option>
-                        <option value="CSVN">CSVN</option>
-                        <option value="CSCN">CSCN</option>
-                        <option value="CSTW">CSTW</option>
-                    </select>
-                </div>
             </div>
             
             <!-- 요약 카드 -->
