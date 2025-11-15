@@ -1899,7 +1899,7 @@ let testStatusFilters = {
 
 // Assessment Chart Filters State
 let assessmentFilters = {
-    entities: new Set(['CSTW']),  // Default: CSTW only
+    entities: new Set(['CSVN', 'CSCN', 'CSTW']),  // Default: All entities
     teams: new Set(),
     positions: new Set()
 };
