@@ -722,11 +722,11 @@ function initializeAssessmentFilters() {
     WRITTEN_TEST_TEAM_ORDER.forEach(team => {
         teamContainer.innerHTML += `
             <label class="inline-flex items-center cursor-pointer">
-                <input type="checkbox" value="${team}" onchange="onAssessmentTeamCheckboxChange('${team}')" class="assessment-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                <input type="checkbox" value="${team}" checked onchange="onAssessmentTeamCheckboxChange('${team}')" class="assessment-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
                 <span class="text-sm font-semibold">${team}</span>
             </label>
         `;
-        // Don't add to filter by default - user should select teams explicitly
+        assessmentFilters.teams.add(team);
     });
     
     // Populate position checkboxes with hierarchical grouping
@@ -760,12 +760,13 @@ function initializeAssessmentFilters() {
                     <input type="checkbox" 
                            value="${position}" 
                            data-team="${team}"
+                           checked
                            onchange="updateAssessmentFilter()" 
                            class="assessment-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
                     <span class="text-xs text-gray-700">${position}</span>
                 `;
                 positionsWrapper.appendChild(label);
-                // Don't add to filter by default - user should select positions explicitly
+                assessmentFilters.positions.add(position);
             });
             
             teamGroup.appendChild(positionsWrapper);
@@ -2101,9 +2102,9 @@ let testStatusFilters = {
 
 // Assessment Chart Filters State
 let assessmentFilters = {
-    entities: new Set(['CSVN', 'CSCN', 'CSTW']),  // Default: All entities
-    teams: new Set(),  // Default: No team filter (all teams)
-    positions: new Set()  // Default: No position filter (all positions)
+    entities: new Set(['CSVN', 'CSCN', 'CSTW']),  // Default: All entities checked
+    teams: new Set(),  // Will be populated in initializeAssessmentFilters()
+    positions: new Set()  // Will be populated in initializeAssessmentFilters()
 };
 
 // Written Test Team-Position Mapping (Fixed Order)
