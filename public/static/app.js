@@ -2416,7 +2416,12 @@ function renderAssessmentChart() {
         currentAssessmentChart = null;
     }
     
-    const data = dashboardData.supervisor_assessment_by_level;
+    // Use allDashboardData if available (from filtering), otherwise use dashboardData
+    const sourceData = allDashboardData || dashboardData;
+    const data = sourceData.supervisor_assessment_by_level;
+    
+    console.log('📊 renderAssessmentChart - Data source:', allDashboardData ? 'filtered' : 'original');
+    console.log('📊 Assessment data:', data);
     
     // Apply entity filter (if no entities selected, show all)
     const selectedEntities = Array.from(assessmentFilters.entities);
