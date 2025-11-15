@@ -2418,9 +2418,10 @@ function renderAssessmentChart() {
     
     const data = dashboardData.supervisor_assessment_by_level;
     
-    // Apply entity filter
+    // Apply entity filter (if no entities selected, show all)
     const selectedEntities = Array.from(assessmentFilters.entities);
-    let filteredData = data.filter(d => selectedEntities.includes(d.entity));
+    const entitiesToShow = selectedEntities.length > 0 ? selectedEntities : ['CSVN', 'CSCN', 'CSTW'];
+    let filteredData = data.filter(d => entitiesToShow.includes(d.entity));
     
     // Group by level (X-axis: Level 1, 2, 3, 4)
     const levels = [1, 2, 3, 4];
@@ -2432,7 +2433,7 @@ function renderAssessmentChart() {
         'CSTW': 'rgba(239, 68, 68, 0.7)'       // Red (TW)
     };
     
-    const datasets = selectedEntities.map(entity => {
+    const datasets = entitiesToShow.map(entity => {
         return {
             label: entity,
             data: levels.map(level => {
