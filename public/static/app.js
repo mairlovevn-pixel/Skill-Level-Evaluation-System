@@ -2556,13 +2556,13 @@ function renderLevelStatistics(data, levels) {
         
         const colors = levelColors[level];
         statsHTML += `
-            <div class="mb-3 p-4 border-l-4 rounded-lg ${colors.bg} ${colors.border} shadow-sm">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="font-bold text-lg ${colors.dot}">
-                        <i class="fas fa-circle mr-2"></i>Level ${level}
+            <div class="mb-2 p-2.5 border-l-4 rounded-lg ${colors.bg} ${colors.border} shadow-sm">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="font-bold text-base ${colors.dot}">
+                        <i class="fas fa-circle mr-1.5 text-xs"></i>Level ${level}
                     </span>
                 </div>
-                <div class="space-y-1 text-sm text-black">
+                <div class="space-y-0.5 text-xs text-black">
                     <div class="flex justify-between">
                         <span>Total:</span>
                         <span class="font-bold">${totalCount}</span>
