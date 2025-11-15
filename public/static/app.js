@@ -315,7 +315,7 @@ function getDashboardHTML() {
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-500 text-sm">Written Test 응시자</p>
+                            <p class="text-gray-500 text-sm">WRITTEN TEST PARTICIPANTS</p>
                             <p id="test-takers" class="text-3xl font-bold text-green-600">-</p>
                         </div>
                         <i class="fas fa-clipboard-list text-4xl text-green-200"></i>
@@ -325,7 +325,7 @@ function getDashboardHTML() {
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-gray-500 text-sm">Written Test 합격자</p>
+                            <p class="text-gray-500 text-sm">WRITTEN TEST PASSED</p>
                             <p id="test-passed" class="text-3xl font-bold text-purple-600">-</p>
                         </div>
                         <i class="fas fa-check-circle text-4xl text-purple-200"></i>
@@ -483,44 +483,45 @@ function getDashboardHTML() {
                 
                 <!-- Chart and Stats Container -->
                 <div class="flex gap-6 mb-6">
+                    <!-- Chart -->
+                    <div class="flex-1 relative">
+                        <!-- Level Definition Button (Positioned in chart corner) -->
+                        <div class="absolute top-0 right-0 z-10">
+                            <div class="relative">
+                                <button 
+                                    id="level-definition-btn" 
+                                    class="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors shadow-md"
+                                    onmouseenter="showLevelDefinition()"
+                                    onmouseleave="hideLevelDefinition()">
+                                    <i class="fas fa-info-circle mr-1"></i>LEVEL DEFINITION
+                                </button>
+                                <div 
+                                    id="level-definition-popup" 
+                                    class="hidden absolute right-0 top-full mt-2 z-50 bg-white rounded-lg shadow-2xl border-2 border-purple-600"
+                                    onmouseenter="showLevelDefinition()"
+                                    onmouseleave="hideLevelDefinition()"
+                                    style="width: 600px; max-width: 90vw;">
+                                    <img src="/static/level-definition.jpg" alt="Level Definition" class="w-full h-auto rounded-lg">
+                                </div>
+                            </div>
+                        </div>
+                        <canvas id="assessment-chart"></canvas>
+                    </div>
+                    
                     <!-- Level Statistics (Toggle) -->
                     <div id="level-stats-container" class="w-80">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-semibold text-gray-800">
-                                <i class="fas fa-layer-group mr-2"></i>Level별 통계
+                                <i class="fas fa-layer-group mr-2"></i>LEVEL STATISTICS
                             </h3>
-                            <div class="flex gap-2">
-                                <div class="relative">
-                                    <button 
-                                        id="level-definition-btn" 
-                                        class="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
-                                        onmouseenter="showLevelDefinition()"
-                                        onmouseleave="hideLevelDefinition()">
-                                        <i class="fas fa-info-circle mr-1"></i>Level Definition
-                                    </button>
-                                    <div 
-                                        id="level-definition-popup" 
-                                        class="hidden absolute left-0 top-full mt-2 z-50 bg-white rounded-lg shadow-2xl border-2 border-purple-600"
-                                        onmouseenter="showLevelDefinition()"
-                                        onmouseleave="hideLevelDefinition()"
-                                        style="width: 600px; max-width: 90vw;">
-                                        <img src="/static/level-definition.jpg" alt="Level Definition" class="w-full h-auto rounded-lg">
-                                    </div>
-                                </div>
-                                <button onclick="toggleLevelStats()" class="text-sm text-blue-600 hover:text-blue-800">
-                                    <i id="level-stats-icon" class="fas fa-eye-slash mr-1"></i>
-                                    <span id="level-stats-text">숨기기</span>
-                                </button>
-                            </div>
+                            <button onclick="toggleLevelStats()" class="text-sm text-blue-600 hover:text-blue-800">
+                                <i id="level-stats-icon" class="fas fa-eye-slash mr-1"></i>
+                                <span id="level-stats-text">HIDE</span>
+                            </button>
                         </div>
                         <div id="level-stats-content">
                             <!-- Will be populated dynamically -->
                         </div>
-                    </div>
-                    
-                    <!-- Chart -->
-                    <div class="flex-1">
-                        <canvas id="assessment-chart"></canvas>
                     </div>
                 </div>
                 
@@ -1696,7 +1697,7 @@ function populateTeamSelect(selectId, teams) {
     const selectElement = document.getElementById(selectId);
     if (!selectElement) return;
     
-    selectElement.innerHTML = '<option value="">전체 팀</option>';
+    selectElement.innerHTML = '<option value="">ALL TEAMS</option>';
     teams.forEach(team => {
         const option = document.createElement('option');
         option.value = team;
@@ -1712,7 +1713,7 @@ function updateProcessSelectForTeam(chartType, selectedTeam) {
     
     if (!processSelect) return;
     
-    processSelect.innerHTML = '<option value="">전체 프로세스</option>';
+    processSelect.innerHTML = '<option value="">ALL PROCESSES</option>';
     
     if (selectedTeam && teamProcessMapping[selectedTeam]) {
         // 선택된 팀의 프로세스만 표시
@@ -2262,14 +2263,14 @@ async function renderTestStatusChart() {
             labels: data.map(d => d.process_name),
             datasets: [
                 {
-                    label: '응시자',
+                    label: 'PARTICIPANTS',
                     data: data.map(d => d.takers),
                     backgroundColor: 'rgba(59, 130, 246, 0.6)',
                     borderColor: 'rgba(59, 130, 246, 1)',
                     borderWidth: 1
                 },
                 {
-                    label: '합격자',
+                    label: 'PASSED',
                     data: data.map(d => d.passed),
                     backgroundColor: 'rgba(34, 197, 94, 0.6)',
                     borderColor: 'rgba(34, 197, 94, 1)',
@@ -2420,7 +2421,7 @@ function renderAssessmentChart() {
                     },
                     title: {
                         display: true,
-                        text: '직원 수 (명)'
+                        text: 'NUMBER OF EMPLOYEES'
                     }
                 },
                 x: {
@@ -2447,7 +2448,7 @@ function renderAssessmentChart() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            return `${context.dataset.label}: ${context.parsed.y}명`;
+                            return `${context.dataset.label}: ${context.parsed.y}`;
                         }
                     }
                 }
@@ -2563,11 +2564,11 @@ function toggleLevelStats() {
     if (content.style.display === 'none') {
         content.style.display = 'block';
         icon.className = 'fas fa-eye-slash mr-1';
-        text.textContent = '숨기기';
+        text.textContent = 'HIDE';
     } else {
         content.style.display = 'none';
         icon.className = 'fas fa-eye mr-1';
-        text.textContent = '보이기';
+        text.textContent = 'SHOW';
     }
 }
 
