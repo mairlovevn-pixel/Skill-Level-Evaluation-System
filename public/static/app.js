@@ -1792,9 +1792,8 @@ function onAssessmentTeamCheckboxChange(team) {
     
     positionCheckboxes.forEach(checkbox => {
         if (isChecked) {
-            // Team이 체크되면: Position 활성화하고 체크
+            // Team이 체크되면: Position 활성화만 (자동 체크 안함)
             checkbox.disabled = false;
-            checkbox.checked = true;
             checkbox.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
             checkbox.parentElement.classList.add('cursor-pointer');
         } else {
