@@ -642,7 +642,9 @@ async function loadDashboard() {
         const passThreshold = AppState.getPassThreshold() || 70;
         console.log(`Loading dashboard with passThreshold: ${passThreshold}`);
         const response = await axios.get(`/api/dashboard/stats?passThreshold=${passThreshold}`);
-        allDashboardData = response.data;
+        
+        // CRITICAL: Deep copy to prevent allDashboardData from being modified
+        allDashboardData = JSON.parse(JSON.stringify(response.data));
         dashboardData = response.data;
         
         // 테스트 결과가 있는 팀 목록만 가져오기
@@ -2064,8 +2066,11 @@ async function filterAssessmentChart() {
             console.log('✅ After team/position filter:', filteredLevelData);
         }
         
-        // Update dashboard data for rendering
-        dashboardData.supervisor_assessment_by_level = filteredLevelData;
+        // Update dashboard data for rendering (create new object to avoid mutating original)
+        dashboardData = {
+            ...dashboardData,
+            supervisor_assessment_by_level: filteredLevelData
+        };
         
         console.log('📈 Final filtered data:', dashboardData.supervisor_assessment_by_level);
         
