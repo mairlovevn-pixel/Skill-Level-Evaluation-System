@@ -1961,134 +1961,101 @@ async function updateAssessmentFilter() {
 }
 
 // Filter assessment chart with entity, team, and position filters
+// NEW APPROACH: Filter on frontend using allDashboardData (no API calls)
 async function filterAssessmentChart() {
     console.log('filterAssessmentChart called');
     
     try {
-        const passThreshold = AppState.getPassThreshold();
+        // Get full data from initial load
+        if (!allDashboardData || !allDashboardData.supervisor_assessment_by_level) {
+            console.error('No dashboard data available');
+            return;
+        }
+        
         const entities = Array.from(assessmentFilters.entities);
         const teams = Array.from(assessmentFilters.teams);
         const positions = Array.from(assessmentFilters.positions);
         
-        console.log('Starting filter with:', { entities, teams, positions });
+        console.log('🔍 Filtering with:', { entities, teams, positions });
+        console.log('📊 Original data:', allDashboardData.supervisor_assessment_by_level);
         
-        // If no entities selected, use all
+        // If no entities selected, show all
         const selectedEntities = entities.length > 0 ? entities : ['CSVN', 'CSCN', 'CSTW'];
         
-        let allLevelData = [];
-        let allTenureData = [];
+        // STEP 1: Filter by Entity (simple - just show/hide entity data)
+        let filteredLevelData = allDashboardData.supervisor_assessment_by_level.filter(item => {
+            return selectedEntities.includes(item.entity);
+        });
         
-        console.log(`Fetching data for ${selectedEntities.length} entities, ${teams.length} teams, ${positions.length} positions...`);
+        console.log('✅ After entity filter:', filteredLevelData);
         
-        // Build all API calls based on selected filters
-        const apiCalls = [];
-        
-        for (const entity of selectedEntities) {
-            // If teams are selected, call for each team
-            if (teams.length > 0) {
-                for (const team of teams) {
-                    // If positions are selected, call for each position
-                    if (positions.length > 0) {
-                        for (const position of positions) {
-                            const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}&team=${encodeURIComponent(team)}&position=${encodeURIComponent(position)}`;
-                            apiCalls.push({ url, entity, team, position });
+        // STEP 2: Filter by Team and Position (requires API call if filters applied)
+        // If team or position filters are applied, we need filtered worker data
+        if (teams.length > 0 || positions.length > 0) {
+            console.log('🔄 Team/Position filters applied - fetching filtered data from API');
+            
+            // Build query parameters for team/position filtering
+            const passThreshold = AppState.getPassThreshold();
+            let teamPositionData = [];
+            
+            // Fetch data for each selected entity with team/position filters
+            for (const entity of selectedEntities) {
+                let url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}`;
+                
+                // Add team filter if any teams selected
+                if (teams.length > 0) {
+                    // Fetch data for each team separately
+                    for (const team of teams) {
+                        let teamUrl = url + `&team=${encodeURIComponent(team)}`;
+                        
+                        // Add position filter if any positions selected
+                        if (positions.length > 0) {
+                            for (const position of positions) {
+                                const posUrl = teamUrl + `&position=${encodeURIComponent(position)}`;
+                                const response = await axios.get(posUrl);
+                                teamPositionData.push(...response.data.supervisor_assessment_by_level);
+                            }
+                        } else {
+                            // Just team filter, no position
+                            const response = await axios.get(teamUrl);
+                            teamPositionData.push(...response.data.supervisor_assessment_by_level);
                         }
-                    } else {
-                        // No position filter, just entity + team
-                        const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}&team=${encodeURIComponent(team)}`;
-                        apiCalls.push({ url, entity, team, position: null });
+                    }
+                } else if (positions.length > 0) {
+                    // No team filter, but position filter
+                    for (const position of positions) {
+                        const posUrl = url + `&position=${encodeURIComponent(position)}`;
+                        const response = await axios.get(posUrl);
+                        teamPositionData.push(...response.data.supervisor_assessment_by_level);
                     }
                 }
-            } else if (positions.length > 0) {
-                // No team filter, but positions are selected
-                for (const position of positions) {
-                    const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}&position=${encodeURIComponent(position)}`;
-                    apiCalls.push({ url, entity, team: null, position });
-                }
-            } else {
-                // Only entity filter (most efficient - single call per entity)
-                const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}`;
-                apiCalls.push({ url, entity, team: null, position: null });
             }
+            
+            // Merge data by entity+level
+            const mergedData = {};
+            teamPositionData.forEach(item => {
+                const key = `${item.entity}-${item.level}`;
+                if (!mergedData[key]) {
+                    mergedData[key] = { ...item };
+                } else {
+                    mergedData[key].count += item.count;
+                }
+            });
+            
+            filteredLevelData = Object.values(mergedData);
+            console.log('✅ After team/position filter:', filteredLevelData);
         }
         
-        console.log(`Making ${apiCalls.length} API calls in parallel...`);
+        // Update dashboard data for rendering
+        dashboardData.supervisor_assessment_by_level = filteredLevelData;
         
-        // Fetch all data in parallel for better performance
-        const promises = apiCalls.map(call => {
-            console.log(`Fetching: ${call.url}`);
-            return axios.get(call.url);
-        });
-        
-        const responses = await Promise.all(promises);
-        
-        // Collect all data from responses
-        responses.forEach((response, index) => {
-            console.log(`Response ${index + 1}/${responses.length}:`, response.data.supervisor_assessment_by_level);
-            allLevelData.push(...response.data.supervisor_assessment_by_level);
-            if (response.data.level_tenure_stats) {
-                allTenureData.push(...response.data.level_tenure_stats);
-            }
-        });
-        
-        console.log('All level data collected:', allLevelData);
-        
-        // Merge data - combine counts for same entity+level combinations
-        const mergedLevelData = {};
-        allLevelData.forEach(item => {
-            const key = `${item.entity}-${item.level}`;
-            if (!mergedLevelData[key]) {
-                mergedLevelData[key] = { ...item };
-            } else {
-                mergedLevelData[key].count += item.count;
-            }
-        });
-        
-        // Merge tenure data
-        const mergedTenureData = {};
-        allTenureData.forEach(item => {
-            const level = item.level;
-            if (!mergedTenureData[level]) {
-                mergedTenureData[level] = {
-                    level: level,
-                    total_count: item.total_count,
-                    avg_tenure: item.avg_tenure,
-                    entity_avgs: { ...item.entity_avgs }
-                };
-            } else {
-                // Weighted average for tenure
-                const existingCount = mergedTenureData[level].total_count;
-                const newCount = item.total_count;
-                const totalCount = existingCount + newCount;
-                const existingAvg = mergedTenureData[level].avg_tenure;
-                const newAvg = item.avg_tenure;
-                mergedTenureData[level].avg_tenure = (existingAvg * existingCount + newAvg * newCount) / totalCount;
-                mergedTenureData[level].total_count = totalCount;
-                
-                // Merge entity averages
-                for (const [entity, avg] of Object.entries(item.entity_avgs)) {
-                    if (!mergedTenureData[level].entity_avgs[entity]) {
-                        mergedTenureData[level].entity_avgs[entity] = avg;
-                    }
-                }
-            }
-        });
-        
-        // Update dashboard data
-        dashboardData.supervisor_assessment_by_level = Object.values(mergedLevelData);
-        dashboardData.level_tenure_stats = Object.values(mergedTenureData);
-        
-        console.log('Updated dashboardData:', dashboardData.supervisor_assessment_by_level);
-        
-        // Store for level statistics
-        allDashboardData = dashboardData;
+        console.log('📈 Final filtered data:', dashboardData.supervisor_assessment_by_level);
         
         // Re-render chart
-        console.log('Calling renderAssessmentChart...');
         renderAssessmentChart();
-        console.log('filterAssessmentChart completed');
+        console.log('✅ filterAssessmentChart completed');
     } catch (error) {
-        console.error('Assessment filter error:', error);
+        console.error('❌ Assessment filter error:', error);
         alert('필터 적용 중 오류가 발생했습니다: ' + error.message);
     }
 }
