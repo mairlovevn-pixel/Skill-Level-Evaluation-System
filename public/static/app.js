@@ -296,41 +296,8 @@ function getDashboardHTML() {
             <div class="mb-6">
                 <h2 class="text-3xl font-bold text-gray-800">
                     <i class="fas fa-chart-bar mr-2"></i>
-                    Skill Level 평가 요약
+                    SKILL LEVEL ASSESSMENT SUMMARY
                 </h2>
-            </div>
-            
-            <!-- 요약 카드 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-gray-500 text-sm">전체 작업자 수</p>
-                            <p id="total-workers" class="text-3xl font-bold text-blue-600">-</p>
-                        </div>
-                        <i class="fas fa-users text-4xl text-blue-200"></i>
-                    </div>
-                </div>
-                
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-gray-500 text-sm">WRITTEN TEST PARTICIPANTS</p>
-                            <p id="test-takers" class="text-3xl font-bold text-green-600">-</p>
-                        </div>
-                        <i class="fas fa-clipboard-list text-4xl text-green-200"></i>
-                    </div>
-                </div>
-                
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-gray-500 text-sm">WRITTEN TEST PASSED</p>
-                            <p id="test-passed" class="text-3xl font-bold text-purple-600">-</p>
-                        </div>
-                        <i class="fas fa-check-circle text-4xl text-purple-200"></i>
-                    </div>
-                </div>
             </div>
             
             <!-- 통합 대시보드 탭 -->
@@ -350,6 +317,39 @@ function getDashboardHTML() {
                 
                 <!-- Written Test Results 탭 컨텐츠 -->
                 <div id="dashboard-content-test-results" class="dashboard-content">
+                
+                <!-- Statistics Cards (Compact) -->
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-xs uppercase">Total Workers</p>
+                                <p id="total-workers-test" class="text-2xl font-bold text-blue-600">-</p>
+                            </div>
+                            <i class="fas fa-users text-3xl text-blue-200"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-xs">PARTICIPANTS</p>
+                                <p id="test-takers-test" class="text-2xl font-bold text-green-600">-</p>
+                            </div>
+                            <i class="fas fa-clipboard-list text-3xl text-green-200"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-xs">PASSED</p>
+                                <p id="test-passed-test" class="text-2xl font-bold text-purple-600">-</p>
+                            </div>
+                            <i class="fas fa-check-circle text-3xl text-purple-200"></i>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Pass Score Threshold (Above Chart) -->
                 <div class="mb-4">
@@ -418,6 +418,39 @@ function getDashboardHTML() {
                 
                 <!-- Written Test Analysis 탭 컨텐츠 -->
                 <div id="dashboard-content-test-analysis" class="dashboard-content hidden">
+                
+                <!-- Statistics Cards (Compact) -->
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-xs uppercase">Total Workers</p>
+                                <p id="total-workers-analysis" class="text-2xl font-bold text-blue-600">-</p>
+                            </div>
+                            <i class="fas fa-users text-3xl text-blue-200"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-xs">PARTICIPANTS</p>
+                                <p id="test-takers-analysis" class="text-2xl font-bold text-green-600">-</p>
+                            </div>
+                            <i class="fas fa-clipboard-list text-3xl text-green-200"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-xs">PASSED</p>
+                                <p id="test-passed-analysis" class="text-2xl font-bold text-purple-600">-</p>
+                            </div>
+                            <i class="fas fa-check-circle text-3xl text-purple-200"></i>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Analysis Mode Tabs -->
                 <div class="flex gap-2 mb-6 border-b border-gray-200">
@@ -1778,13 +1811,23 @@ function onAssessmentTeamCheckboxChange(team) {
 }
 
 function updateDashboardStats() {
-    const totalWorkersEl = document.getElementById('total-workers');
-    const testTakersEl = document.getElementById('test-takers');
-    const testPassedEl = document.getElementById('test-passed');
+    // Update stats for Written Test Results tab
+    const totalWorkersTest = document.getElementById('total-workers-test');
+    const testTakersTest = document.getElementById('test-takers-test');
+    const testPassedTest = document.getElementById('test-passed-test');
     
-    if (totalWorkersEl) totalWorkersEl.textContent = dashboardData.total_workers;
-    if (testTakersEl) testTakersEl.textContent = dashboardData.written_test_takers;
-    if (testPassedEl) testPassedEl.textContent = dashboardData.written_test_passed;
+    if (totalWorkersTest) totalWorkersTest.textContent = dashboardData.total_workers;
+    if (testTakersTest) testTakersTest.textContent = dashboardData.written_test_takers;
+    if (testPassedTest) testPassedTest.textContent = dashboardData.written_test_passed;
+    
+    // Update stats for Written Test Analysis tab
+    const totalWorkersAnalysis = document.getElementById('total-workers-analysis');
+    const testTakersAnalysis = document.getElementById('test-takers-analysis');
+    const testPassedAnalysis = document.getElementById('test-passed-analysis');
+    
+    if (totalWorkersAnalysis) totalWorkersAnalysis.textContent = dashboardData.total_workers;
+    if (testTakersAnalysis) testTakersAnalysis.textContent = dashboardData.written_test_takers;
+    if (testPassedAnalysis) testPassedAnalysis.textContent = dashboardData.written_test_passed;
 }
 
 // 법인 필터 (전체 대시보드에 영향)
