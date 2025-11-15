@@ -1446,11 +1446,13 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
     const resultValue = result.result || result['RESULT']
     const isSatisfied = resultValue === true || resultValue === 'TRUE' || resultValue === 'true' || resultValue === 1
     
+    // Level parsing: support "Level2", "Level 2", "level2", "LEVEL 2" etc.
     let levelValue = 1
     if (isSatisfied) {
-      if (item.category === 'Level2') levelValue = 2
-      else if (item.category === 'Level3') levelValue = 3
-      else if (item.category === 'Level4') levelValue = 4
+      const normalizedCategory = (item.category || '').toLowerCase().replace(/\s+/g, '')
+      if (normalizedCategory === 'level2') levelValue = 2
+      else if (normalizedCategory === 'level3') levelValue = 3
+      else if (normalizedCategory === 'level4') levelValue = 4
     }
     
     const assessedBy = result.assessed_by || 'Supervisor'
