@@ -213,18 +213,26 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
       
       // 근속년수 계산
       if (startDate) {
-        const start = new Date(startDate)
-        const now = new Date()
-        const years = (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-        
-        levelTenures[finalLevel].total += years
-        levelTenures[finalLevel].count++
-        
-        if (!levelTenures[finalLevel].byEntity[workerEntity]) {
-          levelTenures[finalLevel].byEntity[workerEntity] = { total: 0, count: 0 }
+        try {
+          const start = new Date(startDate)
+          const now = new Date()
+          // Invalid date 체크
+          if (!isNaN(start.getTime())) {
+            const years = (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+            
+            levelTenures[finalLevel].total += years
+            levelTenures[finalLevel].count++
+            
+            if (!levelTenures[finalLevel].byEntity[workerEntity]) {
+              levelTenures[finalLevel].byEntity[workerEntity] = { total: 0, count: 0 }
+            }
+            levelTenures[finalLevel].byEntity[workerEntity].total += years
+            levelTenures[finalLevel].byEntity[workerEntity].count++
+          }
+        } catch (e) {
+          // Date parsing error, skip this worker
+          console.log(`Invalid date for worker ${workerId}: ${startDate}`)
         }
-        levelTenures[finalLevel].byEntity[workerEntity].total += years
-        levelTenures[finalLevel].byEntity[workerEntity].count++
       }
     }
     

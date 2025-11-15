@@ -32,7 +32,7 @@ const AppState = {
     getProcesses() { return this.positions; },
     getWorkers() { return this.workers; },
     getTeamProcessMapping() { return this.teamProcessMapping; },
-    getPassThreshold() { return this.passThreshold; },
+    getPassThreshold() { return this.passThreshold || 70; },
     getChart(name) { return this.charts[name]; },
     
     // Setter 메서드
@@ -586,7 +586,8 @@ let teamProcessMapping = {};
 
 async function loadDashboard() {
     try {
-        const passThreshold = AppState.getPassThreshold();
+        const passThreshold = AppState.getPassThreshold() || 70;
+        console.log(`Loading dashboard with passThreshold: ${passThreshold}`);
         const response = await axios.get(`/api/dashboard/stats?passThreshold=${passThreshold}`);
         allDashboardData = response.data;
         dashboardData = response.data;
