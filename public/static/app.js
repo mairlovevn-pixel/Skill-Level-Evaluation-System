@@ -483,11 +483,6 @@ function getDashboardHTML() {
                 
                 <!-- Chart and Stats Container -->
                 <div class="flex gap-6 mb-6">
-                    <!-- Chart -->
-                    <div class="flex-1">
-                        <canvas id="assessment-chart"></canvas>
-                    </div>
-                    
                     <!-- Level Statistics (Toggle) -->
                     <div id="level-stats-container" class="w-80">
                         <div class="flex justify-between items-center mb-4">
@@ -505,7 +500,7 @@ function getDashboardHTML() {
                                     </button>
                                     <div 
                                         id="level-definition-popup" 
-                                        class="hidden absolute right-0 top-full mt-2 z-50 bg-white rounded-lg shadow-2xl border-2 border-purple-600"
+                                        class="hidden absolute left-0 top-full mt-2 z-50 bg-white rounded-lg shadow-2xl border-2 border-purple-600"
                                         onmouseenter="showLevelDefinition()"
                                         onmouseleave="hideLevelDefinition()"
                                         style="width: 600px; max-width: 90vw;">
@@ -521,6 +516,11 @@ function getDashboardHTML() {
                         <div id="level-stats-content">
                             <!-- Will be populated dynamically -->
                         </div>
+                    </div>
+                    
+                    <!-- Chart -->
+                    <div class="flex-1">
+                        <canvas id="assessment-chart"></canvas>
                     </div>
                 </div>
                 
