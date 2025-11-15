@@ -103,6 +103,7 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     // 공통 쿼리 파라미터
     const processId = c.req.query('processId')
     const team = c.req.query('team')
+    const position = c.req.query('position')
     
     // 프로세스별 평균 점수 (법인별로 구분, 프로세스/팀 필터 추가)
     let avgScoreResult
@@ -150,6 +151,8 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
       SELECT 
         w.id,
         w.entity,
+        w.team,
+        w.position,
         w.current_level as final_level,
         w.start_to_work_date as start_date
       FROM workers w
@@ -165,6 +168,11 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     if (team) {
       levelQuery += ' AND w.team = ?'
       params.push(team)
+    }
+    
+    if (position) {
+      levelQuery += ' AND w.position = ?'
+      params.push(position)
     }
     
     const workerLevelsResult = await db.prepare(levelQuery).bind(...params).all()
@@ -184,6 +192,11 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
       totalParams.push(team)
     }
     
+    if (position) {
+      totalFilteredQuery += ' AND w.position = ?'
+      totalParams.push(position)
+    }
+    
     const totalFilteredResult = await db.prepare(totalFilteredQuery).bind(...totalParams).first()
     const totalFiltered = (totalFilteredResult?.count as number) || 0
     
@@ -200,6 +213,8 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     // 평가받은 작업자 집계
     for (const worker of workerLevels) {
       const workerEntity = (worker as any).entity
+      const workerTeam = (worker as any).team
+      const workerPosition = (worker as any).position
       const workerId = (worker as any).id
       const finalLevel = (worker as any).final_level || 1
       const startDate = (worker as any).start_date
@@ -261,6 +276,11 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
         if (team) {
           unassessedQuery += ' AND w.team = ?'
           unassessedParams.push(team)
+        }
+        
+        if (position) {
+          unassessedQuery += ' AND w.position = ?'
+          unassessedParams.push(position)
         }
         
         unassessedQuery += ' GROUP BY w.entity'

@@ -1886,8 +1886,130 @@ async function updateAssessmentFilter() {
         if (cb.checked) assessmentFilters.positions.add(cb.value);
     });
     
-    // Re-render chart
-    renderAssessmentChart();
+    // Apply filters and reload data
+    await filterAssessmentChart();
+}
+
+// Filter assessment chart with entity, team, and position filters
+async function filterAssessmentChart() {
+    try {
+        const passThreshold = AppState.getPassThreshold();
+        
+        // For multiple entity/team/position selections, we need to fetch separately and merge
+        // Since API only accepts single team/position, we'll fetch for each combination
+        const entities = Array.from(assessmentFilters.entities);
+        const teams = Array.from(assessmentFilters.teams);
+        const positions = Array.from(assessmentFilters.positions);
+        
+        // If no filters selected, use all
+        const selectedEntities = entities.length > 0 ? entities : ['CSVN', 'CSCN', 'CSTW'];
+        
+        let allLevelData = [];
+        let allTenureData = [];
+        
+        // Fetch data for each entity
+        for (const entity of selectedEntities) {
+            // If teams are selected, fetch for each team
+            if (teams.length > 0) {
+                for (const team of teams) {
+                    // If positions are selected, fetch for each position
+                    if (positions.length > 0) {
+                        for (const position of positions) {
+                            const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}&team=${encodeURIComponent(team)}&position=${encodeURIComponent(position)}`;
+                            const response = await axios.get(url);
+                            allLevelData.push(...response.data.supervisor_assessment_by_level);
+                            if (response.data.level_tenure_stats) {
+                                allTenureData.push(...response.data.level_tenure_stats);
+                            }
+                        }
+                    } else {
+                        // No position filter, just entity + team
+                        const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}&team=${encodeURIComponent(team)}`;
+                        const response = await axios.get(url);
+                        allLevelData.push(...response.data.supervisor_assessment_by_level);
+                        if (response.data.level_tenure_stats) {
+                            allTenureData.push(...response.data.level_tenure_stats);
+                        }
+                    }
+                }
+            } else if (positions.length > 0) {
+                // No team filter, but has position filter
+                for (const position of positions) {
+                    const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}&position=${encodeURIComponent(position)}`;
+                    const response = await axios.get(url);
+                    allLevelData.push(...response.data.supervisor_assessment_by_level);
+                    if (response.data.level_tenure_stats) {
+                        allTenureData.push(...response.data.level_tenure_stats);
+                    }
+                }
+            } else {
+                // Only entity filter
+                const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}`;
+                const response = await axios.get(url);
+                allLevelData.push(...response.data.supervisor_assessment_by_level);
+                if (response.data.level_tenure_stats) {
+                    allTenureData.push(...response.data.level_tenure_stats);
+                }
+            }
+        }
+        
+        // Merge data - combine counts for same entity+level combinations
+        const mergedLevelData = {};
+        allLevelData.forEach(item => {
+            const key = `${item.entity}-${item.level}`;
+            if (!mergedLevelData[key]) {
+                mergedLevelData[key] = { ...item };
+            } else {
+                mergedLevelData[key].count += item.count;
+            }
+        });
+        
+        // Merge tenure data - combine totals and counts
+        const mergedTenureData = {};
+        allTenureData.forEach(item => {
+            const level = item.level;
+            if (!mergedTenureData[level]) {
+                mergedTenureData[level] = {
+                    level: level,
+                    total_count: item.total_count,
+                    avg_tenure: item.avg_tenure,
+                    entity_avgs: { ...item.entity_avgs }
+                };
+            } else {
+                // Weighted average for tenure
+                const existingCount = mergedTenureData[level].total_count;
+                const newCount = item.total_count;
+                const totalCount = existingCount + newCount;
+                const existingAvg = mergedTenureData[level].avg_tenure;
+                const newAvg = item.avg_tenure;
+                mergedTenureData[level].avg_tenure = (existingAvg * existingCount + newAvg * newCount) / totalCount;
+                mergedTenureData[level].total_count = totalCount;
+                
+                // Merge entity averages
+                for (const [entity, avg] of Object.entries(item.entity_avgs)) {
+                    if (!mergedTenureData[level].entity_avgs[entity]) {
+                        mergedTenureData[level].entity_avgs[entity] = avg;
+                    } else {
+                        // Simple average for now (could be improved with proper weighting)
+                        mergedTenureData[level].entity_avgs[entity] = (mergedTenureData[level].entity_avgs[entity] + avg) / 2;
+                    }
+                }
+            }
+        });
+        
+        // Update dashboard data
+        dashboardData.supervisor_assessment_by_level = Object.values(mergedLevelData);
+        dashboardData.level_tenure_stats = Object.values(mergedTenureData);
+        
+        // Store for level statistics
+        allDashboardData = dashboardData;
+        
+        // Re-render chart
+        renderAssessmentChart();
+    } catch (error) {
+        console.error('Assessment filter error:', error);
+        alert('필터 적용 중 오류가 발생했습니다.');
+    }
 }
 
 // Test Status Chart Filters State
