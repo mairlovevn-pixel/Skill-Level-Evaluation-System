@@ -494,10 +494,29 @@ function getDashboardHTML() {
                             <h3 class="text-lg font-semibold text-gray-800">
                                 <i class="fas fa-layer-group mr-2"></i>Level별 통계
                             </h3>
-                            <button onclick="toggleLevelStats()" class="text-sm text-blue-600 hover:text-blue-800">
-                                <i id="level-stats-icon" class="fas fa-eye-slash mr-1"></i>
-                                <span id="level-stats-text">숨기기</span>
-                            </button>
+                            <div class="flex gap-2">
+                                <div class="relative">
+                                    <button 
+                                        id="level-definition-btn" 
+                                        class="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                                        onmouseenter="showLevelDefinition()"
+                                        onmouseleave="hideLevelDefinition()">
+                                        <i class="fas fa-info-circle mr-1"></i>Level Definition
+                                    </button>
+                                    <div 
+                                        id="level-definition-popup" 
+                                        class="hidden absolute right-0 top-full mt-2 z-50 bg-white rounded-lg shadow-2xl border-2 border-purple-600"
+                                        onmouseenter="showLevelDefinition()"
+                                        onmouseleave="hideLevelDefinition()"
+                                        style="width: 600px; max-width: 90vw;">
+                                        <img src="/static/level-definition.jpg" alt="Level Definition" class="w-full h-auto rounded-lg">
+                                    </div>
+                                </div>
+                                <button onclick="toggleLevelStats()" class="text-sm text-blue-600 hover:text-blue-800">
+                                    <i id="level-stats-icon" class="fas fa-eye-slash mr-1"></i>
+                                    <span id="level-stats-text">숨기기</span>
+                                </button>
+                            </div>
                         </div>
                         <div id="level-stats-content">
                             <!-- Will be populated dynamically -->
@@ -2451,9 +2470,9 @@ function renderLevelStatistics(data, levels) {
     // Calculate statistics for each level
     const levelColors = {
         1: 'text-red-600 bg-red-50 border-red-200',
-        2: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+        2: 'text-orange-600 bg-orange-50 border-orange-200',
         3: 'text-blue-600 bg-blue-50 border-blue-200',
-        4: 'text-green-600 bg-green-50 border-green-200'
+        4: 'text-emerald-600 bg-emerald-50 border-emerald-200'
     };
     
     const entityNames = {
@@ -2509,6 +2528,22 @@ function renderLevelStatistics(data, levels) {
     });
     
     statsContent.innerHTML = statsHTML;
+}
+
+// Show Level Definition popup
+function showLevelDefinition() {
+    const popup = document.getElementById('level-definition-popup');
+    if (popup) {
+        popup.classList.remove('hidden');
+    }
+}
+
+// Hide Level Definition popup
+function hideLevelDefinition() {
+    const popup = document.getElementById('level-definition-popup');
+    if (popup) {
+        popup.classList.add('hidden');
+    }
 }
 
 // Toggle level statistics visibility
