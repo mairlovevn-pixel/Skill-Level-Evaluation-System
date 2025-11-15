@@ -2353,9 +2353,9 @@ function renderAvgScoreChart() {
     
     // 법인별로 데이터 그룹화
     const entityColors = {
-        'CSVN': { bg: 'rgba(239, 68, 68, 0.6)', border: 'rgba(239, 68, 68, 1)' },      // Red
-        'CSCN': { bg: 'rgba(59, 130, 246, 0.6)', border: 'rgba(59, 130, 246, 1)' },   // Blue
-        'CSTW': { bg: 'rgba(34, 197, 94, 0.6)', border: 'rgba(34, 197, 94, 1)' }      // Green
+        'CSVN': { bg: 'rgba(59, 130, 246, 0.6)', border: 'rgba(59, 130, 246, 1)' },   // Blue (VN)
+        'CSCN': { bg: 'rgba(34, 197, 94, 0.6)', border: 'rgba(34, 197, 94, 1)' },     // Green (CN)
+        'CSTW': { bg: 'rgba(239, 68, 68, 0.6)', border: 'rgba(239, 68, 68, 1)' }      // Red (TW)
     };
     
     // 프로세스 목록 추출 (중복 제거)
@@ -2427,9 +2427,9 @@ function renderAssessmentChart() {
     
     // Create datasets by entity (each entity = different color bar)
     const entityColors = {
-        'CSVN': 'rgba(239, 68, 68, 0.7)',      // Red
-        'CSCN': 'rgba(59, 130, 246, 0.7)',     // Blue
-        'CSTW': 'rgba(34, 197, 94, 0.7)'       // Green
+        'CSVN': 'rgba(59, 130, 246, 0.7)',     // Blue (VN)
+        'CSCN': 'rgba(34, 197, 94, 0.7)',      // Green (CN)
+        'CSTW': 'rgba(239, 68, 68, 0.7)'       // Red (TW)
     };
     
     const datasets = selectedEntities.map(entity => {
@@ -2521,9 +2521,9 @@ function renderLevelStatistics(data, levels) {
     
     // Entity colors matching chart bars
     const entityColors = {
-        'CSVN': 'text-red-600',      // Red
-        'CSCN': 'text-blue-600',     // Blue
-        'CSTW': 'text-green-600'     // Green
+        'CSVN': 'text-blue-600',     // Blue (VN)
+        'CSCN': 'text-green-600',    // Green (CN)
+        'CSTW': 'text-red-600'       // Red (TW)
     };
     
     let statsHTML = '';
