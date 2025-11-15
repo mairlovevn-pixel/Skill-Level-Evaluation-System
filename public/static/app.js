@@ -2469,16 +2469,17 @@ function renderLevelStatistics(data, levels) {
     
     // Calculate statistics for each level
     const levelColors = {
-        1: 'text-red-600 bg-red-50 border-red-200',
-        2: 'text-orange-600 bg-orange-50 border-orange-200',
-        3: 'text-blue-600 bg-blue-50 border-blue-200',
-        4: 'text-emerald-600 bg-emerald-50 border-emerald-200'
+        1: { bg: 'bg-white', border: 'border-l-red-500', dot: 'text-red-500' },
+        2: { bg: 'bg-white', border: 'border-l-orange-500', dot: 'text-orange-500' },
+        3: { bg: 'bg-white', border: 'border-l-blue-500', dot: 'text-blue-500' },
+        4: { bg: 'bg-white', border: 'border-l-emerald-500', dot: 'text-emerald-500' }
     };
     
-    const entityNames = {
-        'CSVN': 'VN',
-        'CSCN': 'CN',
-        'CSTW': 'TW'
+    // Entity colors matching chart bars
+    const entityColors = {
+        'CSVN': 'text-red-600',      // Red
+        'CSCN': 'text-blue-600',     // Blue
+        'CSTW': 'text-green-600'     // Green
     };
     
     let statsHTML = '';
@@ -2490,36 +2491,41 @@ function renderLevelStatistics(data, levels) {
         
         // Get tenure data for this level
         const tenure = tenureStats.find(t => t.level === level);
-        const avgTenure = tenure && tenure.avg_tenure > 0 ? tenure.avg_tenure.toFixed(1) + '년' : '0년';
+        const avgTenure = tenure && tenure.avg_tenure > 0 ? tenure.avg_tenure.toFixed(1) : '0';
         
         // Build entity tenure string
         let entityTenureHTML = '';
         if (tenure && tenure.entity_avgs) {
             for (const [entity, avg] of Object.entries(tenure.entity_avgs)) {
-                const shortName = entityNames[entity] || entity;
                 const avgYears = avg > 0 ? avg.toFixed(1) : '0';
+                const entityColor = entityColors[entity] || 'text-gray-600';
                 entityTenureHTML += `
-                    <div class="flex justify-between">
-                        <span>${shortName}:</span>
-                        <span class="font-medium">${avgYears}년</span>
+                    <div class="flex justify-between items-center">
+                        <span class="${entityColor} flex items-center">
+                            <i class="fas fa-circle text-xs mr-1"></i>${entity}:
+                        </span>
+                        <span class="font-medium text-black">${avgYears}y</span>
                     </div>
                 `;
             }
         }
         
+        const colors = levelColors[level];
         statsHTML += `
-            <div class="mb-3 p-4 border-l-4 rounded-lg ${levelColors[level]}">
+            <div class="mb-3 p-4 border-l-4 rounded-lg ${colors.bg} ${colors.border} shadow-sm">
                 <div class="flex items-center justify-between mb-2">
-                    <span class="font-bold text-lg">● Level ${level}</span>
+                    <span class="font-bold text-lg ${colors.dot}">
+                        <i class="fas fa-circle mr-2"></i>Level ${level}
+                    </span>
                 </div>
-                <div class="space-y-1 text-sm">
+                <div class="space-y-1 text-sm text-black">
                     <div class="flex justify-between">
-                        <span>총 인원:</span>
-                        <span class="font-bold">${totalCount}명</span>
+                        <span>Total:</span>
+                        <span class="font-bold">${totalCount}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span>전체 평균:</span>
-                        <span class="font-semibold">${avgTenure}</span>
+                        <span>Average:</span>
+                        <span class="font-semibold">${avgTenure}y</span>
                     </div>
                     ${entityTenureHTML}
                 </div>
