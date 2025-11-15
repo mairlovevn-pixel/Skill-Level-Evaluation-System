@@ -1707,9 +1707,6 @@ app.get('/', (c) => {
                     <button onclick="showPage('dashboard')" class="hover:underline">
                         <i class="fas fa-home mr-1"></i>DASHBOARD
                     </button>
-                    <button onclick="showPage('registration')" class="hover:underline">
-                        <i class="fas fa-folder-plus mr-1"></i>REGISTRATION
-                    </button>
                     <button onclick="showPage('test-page')" class="hover:underline">
                         <i class="fas fa-pencil-alt mr-1"></i>WRITTEN TEST
                     </button>
@@ -1721,6 +1718,9 @@ app.get('/', (c) => {
                     </button>
                     <button onclick="showPage('result-management')" class="hover:underline">
                         <i class="fas fa-file-excel mr-1"></i>RESULT MANAGEMENT
+                    </button>
+                    <button onclick="showPage('registration')" class="hover:underline">
+                        <i class="fas fa-folder-plus mr-1"></i>REGISTRATION
                     </button>
                 </div>
             </div>
