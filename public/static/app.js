@@ -2353,9 +2353,9 @@ function renderAvgScoreChart() {
     
     // 법인별로 데이터 그룹화
     const entityColors = {
-        'CSVN': { bg: 'rgba(59, 130, 246, 0.6)', border: 'rgba(59, 130, 246, 1)' },
-        'CSCN': { bg: 'rgba(34, 197, 94, 0.6)', border: 'rgba(34, 197, 94, 1)' },
-        'CSTW': { bg: 'rgba(168, 85, 247, 0.6)', border: 'rgba(168, 85, 247, 1)' }
+        'CSVN': { bg: 'rgba(239, 68, 68, 0.6)', border: 'rgba(239, 68, 68, 1)' },      // Red
+        'CSCN': { bg: 'rgba(59, 130, 246, 0.6)', border: 'rgba(59, 130, 246, 1)' },   // Blue
+        'CSTW': { bg: 'rgba(34, 197, 94, 0.6)', border: 'rgba(34, 197, 94, 1)' }      // Green
     };
     
     // 프로세스 목록 추출 (중복 제거)
