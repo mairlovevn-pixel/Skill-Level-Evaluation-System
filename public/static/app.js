@@ -669,11 +669,11 @@ function initializeAssessmentFilters() {
     WRITTEN_TEST_TEAM_ORDER.forEach(team => {
         teamContainer.innerHTML += `
             <label class="inline-flex items-center cursor-pointer">
-                <input type="checkbox" value="${team}" checked onchange="onAssessmentTeamCheckboxChange('${team}')" class="assessment-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                <input type="checkbox" value="${team}" onchange="onAssessmentTeamCheckboxChange('${team}')" class="assessment-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
                 <span class="text-sm font-semibold">${team}</span>
             </label>
         `;
-        assessmentFilters.teams.add(team);
+        // Don't add to filter by default - user should select teams explicitly
     });
     
     // Populate position checkboxes with hierarchical grouping
@@ -707,13 +707,12 @@ function initializeAssessmentFilters() {
                     <input type="checkbox" 
                            value="${position}" 
                            data-team="${team}"
-                           checked 
                            onchange="updateAssessmentFilter()" 
                            class="assessment-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
                     <span class="text-xs text-gray-700">${position}</span>
                 `;
                 positionsWrapper.appendChild(label);
-                assessmentFilters.positions.add(position);
+                // Don't add to filter by default - user should select positions explicitly
             });
             
             teamGroup.appendChild(positionsWrapper);
@@ -1944,24 +1943,30 @@ async function filterAssessmentChart() {
                     apiCalls.push({ url, entity, team: null, position });
                 }
             } else {
-                // Only entity filter
+                // Only entity filter (most efficient - single call per entity)
                 const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}`;
                 apiCalls.push({ url, entity, team: null, position: null });
             }
         }
         
-        console.log(`Making ${apiCalls.length} API calls...`);
+        console.log(`Making ${apiCalls.length} API calls in parallel...`);
         
-        // Fetch all data
-        for (const call of apiCalls) {
+        // Fetch all data in parallel for better performance
+        const promises = apiCalls.map(call => {
             console.log(`Fetching: ${call.url}`);
-            const response = await axios.get(call.url);
-            console.log(`Response:`, response.data.supervisor_assessment_by_level);
+            return axios.get(call.url);
+        });
+        
+        const responses = await Promise.all(promises);
+        
+        // Collect all data from responses
+        responses.forEach((response, index) => {
+            console.log(`Response ${index + 1}/${responses.length}:`, response.data.supervisor_assessment_by_level);
             allLevelData.push(...response.data.supervisor_assessment_by_level);
             if (response.data.level_tenure_stats) {
                 allTenureData.push(...response.data.level_tenure_stats);
             }
-        }
+        });
         
         console.log('All level data collected:', allLevelData);
         
@@ -2035,8 +2040,8 @@ let testStatusFilters = {
 // Assessment Chart Filters State
 let assessmentFilters = {
     entities: new Set(['CSVN', 'CSCN', 'CSTW']),  // Default: All entities
-    teams: new Set(),
-    positions: new Set()
+    teams: new Set(),  // Default: No team filter (all teams)
+    positions: new Set()  // Default: No position filter (all positions)
 };
 
 // Written Test Team-Position Mapping (Fixed Order)
