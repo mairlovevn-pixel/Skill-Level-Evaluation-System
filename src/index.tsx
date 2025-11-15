@@ -1707,20 +1707,14 @@ app.get('/', (c) => {
                     <button onclick="showPage('dashboard')" class="hover:underline">
                         <i class="fas fa-home mr-1"></i>DASHBOARD
                     </button>
-                    <button onclick="showPage('worker-upload')" class="hover:underline">
-                        <i class="fas fa-users mr-1"></i>WORKER REGISTRATION
+                    <button onclick="showPage('registration')" class="hover:underline">
+                        <i class="fas fa-folder-plus mr-1"></i>REGISTRATION
                     </button>
                     <button onclick="showPage('test-page')" class="hover:underline">
                         <i class="fas fa-pencil-alt mr-1"></i>WRITTEN TEST
                     </button>
                     <button onclick="showPage('supervisor-assessment')" class="hover:underline">
                         <i class="fas fa-user-check mr-1"></i>SUPERVISOR ASSESSMENT
-                    </button>
-                    <button onclick="showPage('quiz-upload')" class="hover:underline">
-                        <i class="fas fa-question-circle mr-1"></i>QUIZ REGISTRATION
-                    </button>
-                    <button onclick="showPage('assessment-upload')" class="hover:underline">
-                        <i class="fas fa-clipboard-check mr-1"></i>ASSESSMENT REGISTRATION
                     </button>
                     <button onclick="showPage('analysis-page')" class="hover:underline">
                         <i class="fas fa-chart-line mr-1"></i>RESULT ANALYSIS
