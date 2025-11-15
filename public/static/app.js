@@ -1982,6 +1982,21 @@ async function filterAssessmentChart() {
         // If no entities selected, show all
         const selectedEntities = entities.length > 0 ? entities : ['CSVN', 'CSCN', 'CSTW'];
         
+        // Check if ALL teams are selected (= no team filter)
+        const totalTeamCheckboxes = document.querySelectorAll('.assessment-team-checkbox').length;
+        const allTeamsSelected = teams.length === totalTeamCheckboxes;
+        
+        // Check if ALL positions are selected (= no position filter)
+        const totalPositionCheckboxes = document.querySelectorAll('.assessment-position-checkbox:not([disabled])').length;
+        const allPositionsSelected = positions.length === totalPositionCheckboxes;
+        
+        console.log('📊 Filter status:', { 
+            allTeamsSelected, 
+            allPositionsSelected,
+            teamCount: teams.length + '/' + totalTeamCheckboxes,
+            positionCount: positions.length + '/' + totalPositionCheckboxes
+        });
+        
         // STEP 1: Filter by Entity (simple - just show/hide entity data)
         let filteredLevelData = allDashboardData.supervisor_assessment_by_level.filter(item => {
             return selectedEntities.includes(item.entity);
@@ -1990,8 +2005,11 @@ async function filterAssessmentChart() {
         console.log('✅ After entity filter:', filteredLevelData);
         
         // STEP 2: Filter by Team and Position (requires API call if filters applied)
-        // If team or position filters are applied, we need filtered worker data
-        if (teams.length > 0 || positions.length > 0) {
+        // Only apply team/position filter if NOT all are selected
+        const hasTeamFilter = teams.length > 0 && !allTeamsSelected;
+        const hasPositionFilter = positions.length > 0 && !allPositionsSelected;
+        
+        if (hasTeamFilter || hasPositionFilter) {
             console.log('🔄 Team/Position filters applied - fetching filtered data from API');
             
             // Build query parameters for team/position filtering
