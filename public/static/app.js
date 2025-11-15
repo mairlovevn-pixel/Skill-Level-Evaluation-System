@@ -512,11 +512,11 @@ function getDashboardHTML() {
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
                         <div class="flex gap-4">
                             <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSVN" onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <input type="checkbox" value="CSVN" checked onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
                                 <span class="text-sm">CSVN</span>
                             </label>
                             <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSCN" onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <input type="checkbox" value="CSCN" checked onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
                                 <span class="text-sm">CSCN</span>
                             </label>
                             <label class="inline-flex items-center cursor-pointer">
@@ -2304,12 +2304,21 @@ function renderLevelStatistics(data, levels) {
     const statsContent = document.getElementById('level-stats-content');
     if (!statsContent) return;
     
+    // Get tenure stats from dashboard data
+    const tenureStats = allDashboardData?.level_tenure_stats || [];
+    
     // Calculate statistics for each level
     const levelColors = {
         1: 'text-red-600 bg-red-50 border-red-200',
         2: 'text-yellow-600 bg-yellow-50 border-yellow-200',
         3: 'text-blue-600 bg-blue-50 border-blue-200',
         4: 'text-green-600 bg-green-50 border-green-200'
+    };
+    
+    const entityNames = {
+        'CSVN': 'VN',
+        'CSCN': 'CN',
+        'CSTW': 'TW'
     };
     
     let statsHTML = '';
@@ -2319,9 +2328,24 @@ function renderLevelStatistics(data, levels) {
         const levelData = data.filter(d => d.level === level);
         const totalCount = levelData.reduce((sum, d) => sum + d.count, 0);
         
-        // Note: Average tenure data is not available in current API
-        // For now, showing placeholder
-        const avgTenure = '데이터 없음';
+        // Get tenure data for this level
+        const tenure = tenureStats.find(t => t.level === level);
+        const avgTenure = tenure && tenure.avg_tenure > 0 ? tenure.avg_tenure.toFixed(1) + '년' : '0년';
+        
+        // Build entity tenure string
+        let entityTenureHTML = '';
+        if (tenure && tenure.entity_avgs) {
+            for (const [entity, avg] of Object.entries(tenure.entity_avgs)) {
+                const shortName = entityNames[entity] || entity;
+                const avgYears = avg > 0 ? avg.toFixed(1) : '0';
+                entityTenureHTML += `
+                    <div class="flex justify-between">
+                        <span>${shortName}:</span>
+                        <span class="font-medium">${avgYears}년</span>
+                    </div>
+                `;
+            }
+        }
         
         statsHTML += `
             <div class="mb-3 p-4 border-l-4 rounded-lg ${levelColors[level]}">
@@ -2335,8 +2359,9 @@ function renderLevelStatistics(data, levels) {
                     </div>
                     <div class="flex justify-between">
                         <span>전체 평균:</span>
-                        <span class="font-semibold">${totalCount > 0 ? ((totalCount / data.reduce((sum, d) => sum + d.count, 0)) * 100).toFixed(1) + '%' : '0%'}</span>
+                        <span class="font-semibold">${avgTenure}</span>
                     </div>
+                    ${entityTenureHTML}
                 </div>
             </div>
         `;

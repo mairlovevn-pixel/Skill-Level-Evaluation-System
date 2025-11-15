@@ -150,7 +150,8 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
       SELECT 
         w.id,
         w.entity,
-        w.current_level as final_level
+        w.current_level as final_level,
+        w.start_date
       FROM workers w
       WHERE 1=1
     `
@@ -186,8 +187,14 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     const totalFilteredResult = await db.prepare(totalFilteredQuery).bind(...totalParams).first()
     const totalFiltered = (totalFilteredResult?.count as number) || 0
     
-    // Step 3: 법인별, Level별 집계
+    // Step 3: 법인별, Level별 집계 (근속년수 포함)
     const levelCounts: Record<string, Record<number, number>> = {}
+    const levelTenures: Record<number, { total: number, count: number, byEntity: Record<string, { total: number, count: number }> }> = {
+      1: { total: 0, count: 0, byEntity: {} },
+      2: { total: 0, count: 0, byEntity: {} },
+      3: { total: 0, count: 0, byEntity: {} },
+      4: { total: 0, count: 0, byEntity: {} }
+    }
     const assessedWorkerIds = new Set<number>()
     
     // 평가받은 작업자 집계
@@ -195,6 +202,7 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
       const workerEntity = (worker as any).entity
       const workerId = (worker as any).id
       const finalLevel = (worker as any).final_level || 1
+      const startDate = (worker as any).start_date
       
       assessedWorkerIds.add(workerId)
       
@@ -202,6 +210,22 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
         levelCounts[workerEntity] = { 1: 0, 2: 0, 3: 0, 4: 0 }
       }
       levelCounts[workerEntity][finalLevel]++
+      
+      // 근속년수 계산
+      if (startDate) {
+        const start = new Date(startDate)
+        const now = new Date()
+        const years = (now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+        
+        levelTenures[finalLevel].total += years
+        levelTenures[finalLevel].count++
+        
+        if (!levelTenures[finalLevel].byEntity[workerEntity]) {
+          levelTenures[finalLevel].byEntity[workerEntity] = { total: 0, count: 0 }
+        }
+        levelTenures[finalLevel].byEntity[workerEntity].total += years
+        levelTenures[finalLevel].byEntity[workerEntity].count++
+      }
     }
     
     // Step 4: 평가받지 않은 작업자는 Level 1로 계산
@@ -261,6 +285,26 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
         }
       }
     }
+    
+    // 근속년수 통계 계산
+    const level_tenure_stats: any[] = []
+    for (const [level, data] of Object.entries(levelTenures)) {
+      const levelNum = parseInt(level)
+      const totalCount = data.count
+      const avgTenure = totalCount > 0 ? data.total / totalCount : 0
+      
+      const entityAvgs: Record<string, number> = {}
+      for (const [entity, entityData] of Object.entries(data.byEntity)) {
+        entityAvgs[entity] = entityData.count > 0 ? entityData.total / entityData.count : 0
+      }
+      
+      level_tenure_stats.push({
+        level: levelNum,
+        total_count: totalCount,
+        avg_tenure: avgTenure,
+        entity_avgs: entityAvgs
+      })
+    }
 
     const stats: DashboardStats = {
       total_workers,
@@ -268,7 +312,8 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
       written_test_passed,
       written_test_by_process: written_test_by_process as any,
       avg_score_by_process: avg_score_by_process as any,
-      supervisor_assessment_by_level: supervisor_assessment_by_level as any
+      supervisor_assessment_by_level: supervisor_assessment_by_level as any,
+      level_tenure_stats: level_tenure_stats as any
     }
 
     return c.json(stats)
