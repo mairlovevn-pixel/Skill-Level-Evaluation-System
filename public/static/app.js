@@ -218,7 +218,10 @@ function showPage(pageName) {
             app.innerHTML = getResultManagementHTML();
             loadResultManagementPage();
             break;
-
+        case 'registration':
+            app.innerHTML = getRegistrationHTML();
+            showRegistrationTab('worker');
+            break;
     }
 }
 
@@ -8163,7 +8166,7 @@ function toggleFloatingChatbot() {
         toggleBtn.innerHTML = '<i class="fas fa-times text-xl"></i>';
     } else {
         chatWindow.classList.add('hidden');
-        toggleBtn.innerHTML = '<i class="fas fa-comments text-xl"></i>';
+        toggleBtn.innerHTML = '<i class="fas fa-robot text-xl"></i>';
     }
 }
 
@@ -8251,6 +8254,93 @@ async function sendFloatingChatMessage() {
         `;
         messagesContainer.innerHTML += errorHTML;
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+}
+
+
+// ==================== Registration Page ====================
+
+function getRegistrationHTML() {
+    return `
+        <div class="space-y-6">
+            <div class="mb-6">
+                <h2 class="text-3xl font-bold text-gray-800">
+                    <i class="fas fa-folder-plus mr-2"></i>
+                    REGISTRATION
+                </h2>
+            </div>
+            
+            <!-- Sub Navigation Tabs -->
+            <div class="bg-white rounded-lg shadow-md">
+                <div class="flex border-b border-gray-200">
+                    <button onclick="showRegistrationTab('worker')" id="reg-tab-worker" 
+                            class="reg-tab px-6 py-4 font-semibold text-blue-600 border-b-2 border-blue-600 transition-colors">
+                        <i class="fas fa-users mr-2"></i>WORKER REGISTRATION
+                    </button>
+                    <button onclick="showRegistrationTab('quiz')" id="reg-tab-quiz" 
+                            class="reg-tab px-6 py-4 font-semibold text-gray-500 hover:text-gray-700 transition-colors">
+                        <i class="fas fa-question-circle mr-2"></i>QUIZ REGISTRATION
+                    </button>
+                    <button onclick="showRegistrationTab('assessment')" id="reg-tab-assessment" 
+                            class="reg-tab px-6 py-4 font-semibold text-gray-500 hover:text-gray-700 transition-colors">
+                        <i class="fas fa-clipboard-check mr-2"></i>ASSESSMENT REGISTRATION
+                    </button>
+                </div>
+                
+                <!-- Tab Content -->
+                <div class="p-6">
+                    <div id="reg-content-worker" class="reg-content">
+                        <!-- Worker upload content will be loaded here -->
+                    </div>
+                    <div id="reg-content-quiz" class="reg-content hidden">
+                        <!-- Quiz upload content will be loaded here -->
+                    </div>
+                    <div id="reg-content-assessment" class="reg-content hidden">
+                        <!-- Assessment upload content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function showRegistrationTab(tabName) {
+    // Update tab buttons
+    const tabs = document.querySelectorAll('.reg-tab');
+    tabs.forEach(tab => {
+        tab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+        tab.classList.add('text-gray-500', 'hover:text-gray-700');
+    });
+    
+    const activeTab = document.getElementById(`reg-tab-${tabName}`);
+    if (activeTab) {
+        activeTab.classList.remove('text-gray-500', 'hover:text-gray-700');
+        activeTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+    }
+    
+    // Update tab content
+    const contents = document.querySelectorAll('.reg-content');
+    contents.forEach(content => content.classList.add('hidden'));
+    
+    const activeContent = document.getElementById(`reg-content-${tabName}`);
+    if (activeContent) {
+        activeContent.classList.remove('hidden');
+        
+        // Load content based on tab
+        switch(tabName) {
+            case 'worker':
+                activeContent.innerHTML = getWorkerUploadHTML();
+                loadWorkerUploadPage();
+                break;
+            case 'quiz':
+                activeContent.innerHTML = getQuizUploadHTML();
+                loadQuizUploadPage();
+                break;
+            case 'assessment':
+                activeContent.innerHTML = getAssessmentUploadHTML();
+                loadAssessmentUploadPage();
+                break;
+        }
     }
 }
 

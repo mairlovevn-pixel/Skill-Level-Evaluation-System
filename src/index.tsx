@@ -1735,8 +1735,8 @@ app.get('/', (c) => {
         <div id="floating-chatbot" class="fixed bottom-6 right-6 z-50">
             <!-- Chatbot Toggle Button -->
             <button id="chatbot-toggle-btn" onclick="toggleFloatingChatbot()" 
-                    class="bg-blue-600 text-white rounded-full w-14 h-14 shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center">
-                <i class="fas fa-comments text-xl"></i>
+                    class="bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-full w-14 h-14 shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center">
+                <i class="fas fa-robot text-xl"></i>
             </button>
             
             <!-- Chatbot Window (Hidden by default) -->
