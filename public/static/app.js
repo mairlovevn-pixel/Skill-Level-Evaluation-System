@@ -1913,29 +1913,57 @@ async function filterAssessmentChart() {
         // If no entities selected, use all
         const selectedEntities = entities.length > 0 ? entities : ['CSVN', 'CSCN', 'CSTW'];
         
-        // NOTE: Team and Position filters are currently not working properly 
-        // because the API returns aggregated data without team/position details.
-        // For now, we only support Entity filter and ignore team/position filters.
-        // TODO: Backend needs to return detailed worker data for proper filtering.
-        
         let allLevelData = [];
         let allTenureData = [];
         
-        console.log(`Fetching data for ${selectedEntities.length} entities...`);
+        console.log(`Fetching data for ${selectedEntities.length} entities, ${teams.length} teams, ${positions.length} positions...`);
         
-        // Fetch data for each selected entity
+        // Build all API calls based on selected filters
+        const apiCalls = [];
+        
         for (const entity of selectedEntities) {
-            const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}`;
-            console.log(`Fetching: ${url}`);
-            const response = await axios.get(url);
-            console.log(`Response for ${entity}:`, response.data.supervisor_assessment_by_level);
+            // If teams are selected, call for each team
+            if (teams.length > 0) {
+                for (const team of teams) {
+                    // If positions are selected, call for each position
+                    if (positions.length > 0) {
+                        for (const position of positions) {
+                            const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}&team=${encodeURIComponent(team)}&position=${encodeURIComponent(position)}`;
+                            apiCalls.push({ url, entity, team, position });
+                        }
+                    } else {
+                        // No position filter, just entity + team
+                        const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}&team=${encodeURIComponent(team)}`;
+                        apiCalls.push({ url, entity, team, position: null });
+                    }
+                }
+            } else if (positions.length > 0) {
+                // No team filter, but positions are selected
+                for (const position of positions) {
+                    const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}&position=${encodeURIComponent(position)}`;
+                    apiCalls.push({ url, entity, team: null, position });
+                }
+            } else {
+                // Only entity filter
+                const url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}`;
+                apiCalls.push({ url, entity, team: null, position: null });
+            }
+        }
+        
+        console.log(`Making ${apiCalls.length} API calls...`);
+        
+        // Fetch all data
+        for (const call of apiCalls) {
+            console.log(`Fetching: ${call.url}`);
+            const response = await axios.get(call.url);
+            console.log(`Response:`, response.data.supervisor_assessment_by_level);
             allLevelData.push(...response.data.supervisor_assessment_by_level);
             if (response.data.level_tenure_stats) {
                 allTenureData.push(...response.data.level_tenure_stats);
             }
         }
         
-        console.log('All level data:', allLevelData);
+        console.log('All level data collected:', allLevelData);
         
         // Merge data - combine counts for same entity+level combinations
         const mergedLevelData = {};
