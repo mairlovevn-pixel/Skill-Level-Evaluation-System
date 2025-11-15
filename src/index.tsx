@@ -151,7 +151,7 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
         w.id,
         w.entity,
         w.current_level as final_level,
-        w.start_date
+        w.start_to_work_date as start_date
       FROM workers w
       WHERE 1=1
     `
