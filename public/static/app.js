@@ -980,11 +980,11 @@ function renderHeatmapAnalysis() {
                         Entity-Position Performance Heatmap (Detailed Numbers)
                     </h4>
                     <button onclick="toggleHeatmapTable()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm">
-                        <i id="heatmap-toggle-icon" class="fas fa-chevron-up mr-2"></i>
-                        <span id="heatmap-toggle-text">Collapse Table</span>
+                        <i id="heatmap-toggle-icon" class="fas fa-chevron-down mr-2"></i>
+                        <span id="heatmap-toggle-text">Expand Table</span>
                     </button>
                 </div>
-                <div id="heatmap-table-container">
+                <div id="heatmap-table-container" style="display: none;">
                     <p class="text-sm text-gray-600 mb-4">Average scores by entity and position (higher scores = better performance)</p>
                     <div class="overflow-x-auto">
                         <table class="min-w-full border-collapse border border-gray-300">
