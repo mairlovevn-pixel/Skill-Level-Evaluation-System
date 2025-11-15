@@ -1728,9 +1728,6 @@ app.get('/', (c) => {
                     <button onclick="showPage('result-management')" class="hover:underline">
                         <i class="fas fa-file-excel mr-1"></i>RESULT MANAGEMENT
                     </button>
-                    <button onclick="showPage('chatbot')" class="hover:underline">
-                        <i class="fas fa-comments mr-1"></i>CHATBOT
-                    </button>
                 </div>
             </div>
         </nav>
@@ -1738,6 +1735,82 @@ app.get('/', (c) => {
         <!-- Main Content -->
         <div id="app" class="container mx-auto p-6">
             <!-- Pages will be loaded here -->
+        </div>
+
+        <!-- Floating Chatbot -->
+        <div id="floating-chatbot" class="fixed bottom-6 right-6 z-50">
+            <!-- Chatbot Toggle Button -->
+            <button id="chatbot-toggle-btn" onclick="toggleFloatingChatbot()" 
+                    class="bg-blue-600 text-white rounded-full w-14 h-14 shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center">
+                <i class="fas fa-comments text-xl"></i>
+            </button>
+            
+            <!-- Chatbot Window (Hidden by default) -->
+            <div id="chatbot-window" class="hidden absolute bottom-20 right-0 w-96 bg-white rounded-lg shadow-2xl border border-gray-200 overflow-hidden">
+                <!-- Chatbot Header -->
+                <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fas fa-robot mr-2"></i>
+                            <h3 class="font-bold text-sm">AI ASSISTANT</h3>
+                        </div>
+                        <button onclick="toggleFloatingChatbot()" class="text-white hover:text-gray-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="p-3 bg-gray-50 border-b">
+                    <div class="flex flex-wrap gap-1">
+                        <button onclick="sendQuickQuestion('Total workers?')" 
+                                class="px-2 py-1 text-xs bg-white border border-gray-300 rounded-full hover:bg-gray-100">
+                            👥 Workers
+                        </button>
+                        <button onclick="sendQuickQuestion('Pass rate?')" 
+                                class="px-2 py-1 text-xs bg-white border border-gray-300 rounded-full hover:bg-gray-100">
+                            📊 Pass Rate
+                        </button>
+                        <button onclick="sendQuickQuestion('Average score?')" 
+                                class="px-2 py-1 text-xs bg-white border border-gray-300 rounded-full hover:bg-gray-100">
+                            📈 Avg Score
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Chat Messages -->
+                <div id="chat-messages-float" class="h-80 overflow-y-auto p-4 space-y-3 bg-white">
+                    <div class="flex items-start space-x-2">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="bg-gray-100 rounded-lg p-3 text-sm">
+                                <p class="text-gray-800">Hi! 👋 I'm your AI assistant.</p>
+                                <p class="text-gray-600 text-xs mt-1">Ask me about workers, test results, or statistics.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Input Area -->
+                <div class="p-3 bg-white border-t">
+                    <div class="flex space-x-2">
+                        <input 
+                            type="text" 
+                            id="chat-input-float" 
+                            placeholder="Ask a question..."
+                            class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onkeypress="if(event.key === 'Enter') sendFloatingChatMessage()"
+                        />
+                        <button 
+                            onclick="sendFloatingChatMessage()" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <script src="/static/app.js"></script>

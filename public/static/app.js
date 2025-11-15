@@ -218,10 +218,7 @@ function showPage(pageName) {
             app.innerHTML = getResultManagementHTML();
             loadResultManagementPage();
             break;
-        case 'chatbot':
-            app.innerHTML = getChatbotHTML();
-            initializeChatbot();
-            break;
+
     }
 }
 
@@ -8154,3 +8151,106 @@ function downloadSkipReport() {
     
     console.log('✅ Skip report downloaded successfully');
 }
+
+// ==================== Floating Chatbot ====================
+
+function toggleFloatingChatbot() {
+    const chatWindow = document.getElementById('chatbot-window');
+    const toggleBtn = document.getElementById('chatbot-toggle-btn');
+    
+    if (chatWindow.classList.contains('hidden')) {
+        chatWindow.classList.remove('hidden');
+        toggleBtn.innerHTML = '<i class="fas fa-times text-xl"></i>';
+    } else {
+        chatWindow.classList.add('hidden');
+        toggleBtn.innerHTML = '<i class="fas fa-comments text-xl"></i>';
+    }
+}
+
+async function sendFloatingChatMessage() {
+    const input = document.getElementById('chat-input-float');
+    const question = input.value.trim();
+    
+    if (!question) return;
+    
+    const messagesContainer = document.getElementById('chat-messages-float');
+    
+    // Add user message
+    const userMessageHTML = `
+        <div class="flex items-start space-x-2 justify-end">
+            <div class="flex-1 text-right">
+                <div class="bg-blue-600 text-white rounded-lg p-3 inline-block text-sm">
+                    ${question}
+                </div>
+            </div>
+        </div>
+    `;
+    messagesContainer.innerHTML += userMessageHTML;
+    input.value = '';
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // Add loading message
+    const loadingHTML = `
+        <div class="flex items-start space-x-2 chatbot-loading-float">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="flex-1">
+                <div class="bg-gray-100 rounded-lg p-3 text-sm">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Thinking...
+                </div>
+            </div>
+        </div>
+    `;
+    messagesContainer.innerHTML += loadingHTML;
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    try {
+        const response = await axios.post('/api/chatbot/query', { question });
+        const answer = response.data.answer || 'Sorry, I couldn\'t process your question.';
+        
+        // Remove loading message
+        const loadingMessages = messagesContainer.querySelectorAll('.chatbot-loading-float');
+        loadingMessages.forEach(msg => msg.remove());
+        
+        // Add bot response
+        const botMessageHTML = `
+            <div class="flex items-start space-x-2">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="bg-gray-100 rounded-lg p-3 text-sm">
+                        ${answer.replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            </div>
+        `;
+        messagesContainer.innerHTML += botMessageHTML;
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        
+    } catch (error) {
+        console.error('Chatbot error:', error);
+        
+        // Remove loading message
+        const loadingMessages = messagesContainer.querySelectorAll('.chatbot-loading-float');
+        loadingMessages.forEach(msg => msg.remove());
+        
+        // Add error message
+        const errorHTML = `
+            <div class="flex items-start space-x-2">
+                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-white text-xs">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                        Error processing your question. Please try again.
+                    </div>
+                </div>
+            </div>
+        `;
+        messagesContainer.innerHTML += errorHTML;
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+}
+
