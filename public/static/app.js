@@ -7098,10 +7098,12 @@ function displayAssessmentResultsList(assessments, processInfo) {
 async function showAssessmentAnalysis(processId, processName) {
     const workerId = currentWorkerData.worker.id;
     
-    // 해당 프로세스의 assessment 데이터 필터링
-    const assessmentData = currentWorkerData.assessments.filter(a => a.process_id === processId);
+    // 평가 데이터 가져오기
+    const assessments = currentWorkerData.assessments;
+    const finalLevel = currentWorkerData.assessment_summary.final_level;
+    const levelDetails = currentWorkerData.assessment_summary.level_details;
     
-    if (assessmentData.length === 0) {
+    if (assessments.length === 0) {
         alert('평가 데이터를 찾을 수 없습니다.');
         return;
     }
@@ -7109,167 +7111,171 @@ async function showAssessmentAnalysis(processId, processName) {
     // 상세 분석 영역 표시
     document.getElementById('assessment-analysis').classList.remove('hidden');
     
-    // 레이더 차트 그리기
-    drawAssessmentRadarChart(assessmentData, processName);
+    // 레벨별 분석 표시
+    displayLevelAnalysis(assessments, finalLevel, levelDetails);
     
-    // 잘하는 부분과 취약한 부분 분석
-    displayStrengthsAndWeaknesses(assessmentData);
-    
-    // 다음 레벨 달성을 위한 분석
-    displayNextLevelAnalysis(assessmentData, processId, processName);
+    // 다음 레벨 달성을 위한 개선 필요 항목
+    displayImprovementItems(assessments, finalLevel);
     
     // 추천 교육 프로그램
-    await displayAssessmentTraining(assessmentData, processId);
+    await displayAssessmentTraining(assessments, processId);
 }
 
-function drawAssessmentRadarChart(assessmentData, processName) {
-    const ctx = document.getElementById('assessment-radar-chart');
-    if (!ctx) return; // Canvas element not found
+function displayLevelAnalysis(assessments, finalLevel, levelDetails) {
+    const container = document.getElementById('assessment-radar-chart');
+    if (!container) return;
     
-    // 기존 차트 파괴
-    if (assessmentChart) {
-        assessmentChart.destroy();
-    }
+    const levels = ['Level2', 'Level3', 'Level4'];
     
-    const labels = assessmentData.map(a => a.category);
-    const data = assessmentData.map(a => a.avg_level);
+    let html = `
+        <div class="space-y-4">
+            <h4 class="text-lg font-bold text-gray-800 mb-4">
+                <i class="fas fa-chart-bar mr-2 text-blue-600"></i>
+                현재 레벨 달성 현황
+            </h4>
+    `;
     
-    assessmentChart = new Chart(ctx, {
-        type: 'radar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: processName + ' 평가',
-                data: data,
-                backgroundColor: 'rgba(139, 92, 246, 0.2)',
-                borderColor: 'rgba(139, 92, 246, 1)',
-                borderWidth: 2,
-                pointBackgroundColor: 'rgba(139, 92, 246, 1)',
-                pointBorderColor: '#fff',
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: 'rgba(139, 92, 246, 1)',
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            aspectRatio: 1.2,
-            scales: {
-                r: {
-                    beginAtZero: true,
-                    max: 5,
-                    min: 0,
-                    ticks: {
-                        stepSize: 1,
-                        callback: function(value) {
-                            return value.toFixed(1);
-                        }
-                    },
-                    pointLabels: {
-                        font: {
-                            size: 12,
-                            weight: 'bold'
-                        }
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'top',
-                    labels: {
-                        font: {
-                            size: 13,
-                            weight: 'bold'
-                        }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.parsed.r.toFixed(1) + ' / 5.0';
-                        }
-                    }
-                }
-            }
+    levels.forEach((level, index) => {
+        const levelNum = index + 2;
+        const detail = levelDetails[level] || levelDetails[`Level ${levelNum}`] || { total: 0, satisfied: 0 };
+        const percentage = detail.total > 0 ? (detail.satisfied / detail.total * 100) : 0;
+        const isAchieved = detail.total > 0 && detail.satisfied === detail.total;
+        const isCurrent = finalLevel === levelNum;
+        
+        let statusBadge = '';
+        let statusColor = '';
+        
+        if (isAchieved) {
+            statusBadge = '<span class="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">✓ 달성</span>';
+            statusColor = 'border-green-500 bg-green-50';
+        } else if (isCurrent) {
+            statusBadge = '<span class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">현재 레벨</span>';
+            statusColor = 'border-blue-500 bg-blue-50';
+        } else {
+            statusBadge = '<span class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">미달성</span>';
+            statusColor = 'border-gray-300';
         }
+        
+        html += `
+            <div class="border-2 ${statusColor} rounded-lg p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg font-bold text-gray-800">Level ${levelNum}</span>
+                        ${statusBadge}
+                    </div>
+                    <span class="text-xl font-bold ${isAchieved ? 'text-green-600' : 'text-gray-600'}">
+                        ${detail.satisfied} / ${detail.total}
+                    </span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="${isAchieved ? 'bg-green-500' : 'bg-blue-500'} h-3 rounded-full transition-all" 
+                         style="width: ${percentage}%"></div>
+                </div>
+                <div class="mt-2 text-sm text-gray-600">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    ${percentage.toFixed(0)}% 달성 ${isAchieved ? '' : `(${detail.total - detail.satisfied}개 항목 미달성)`}
+                </div>
+            </div>
+        `;
     });
+    
+    html += '</div>';
+    container.innerHTML = html;
 }
 
-function displayStrengthsAndWeaknesses(assessmentData) {
+function displayImprovementItems(assessments, finalLevel) {
     const strengthsContainer = document.getElementById('assessment-strengths');
     const weaknessesContainer = document.getElementById('assessment-weaknesses');
     
-    // 평균 레벨 계산
-    const avgLevel = assessmentData.reduce((sum, a) => sum + a.avg_level, 0) / assessmentData.length;
+    // 현재 레벨의 달성 항목들 (강점)
+    const currentLevelCategory = `Level${finalLevel}`;
+    const currentLevelItems = assessments.filter(a => {
+        const cat = (a.category || '').replace(/\s+/g, '');
+        return cat === currentLevelCategory && a.is_satisfied === 1;
+    });
     
-    // 잘하는 부분 (평균 이상 + 레벨 3.5 이상)
-    const strengths = assessmentData
-        .filter(a => a.avg_level >= 3.5 && a.avg_level >= avgLevel)
-        .sort((a, b) => b.avg_level - a.avg_level)
-        .slice(0, 5); // 상위 5개
+    // 다음 레벨의 미달성 항목들 (개선 필요)
+    const nextLevel = finalLevel + 1;
+    const nextLevelCategory = `Level${nextLevel}`;
+    const improvementItems = assessments.filter(a => {
+        const cat = (a.category || '').replace(/\s+/g, '');
+        return cat === nextLevelCategory && a.is_satisfied === 0;
+    });
     
-    // 취약한 부분 (평균 이하 또는 레벨 3.0 미만)
-    const weaknesses = assessmentData
-        .filter(a => a.avg_level < avgLevel || a.avg_level < 3.0)
-        .sort((a, b) => a.avg_level - b.avg_level)
-        .slice(0, 5); // 하위 5개
-    
-    // 잘하는 부분 표시
-    if (strengths.length === 0) {
+    // 현재 레벨 강점 표시
+    if (currentLevelItems.length === 0) {
         strengthsContainer.innerHTML = `
             <p class="text-gray-500 text-center py-4">
                 <i class="fas fa-info-circle mr-2"></i>
-                현재 우수한 카테고리가 없습니다.<br>
-                전반적인 실력 향상이 필요합니다.
+                Level ${finalLevel} 달성 항목이 없습니다.
             </p>
         `;
     } else {
-        const strengthsHtml = strengths.map((item, index) => `
-            <div class="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
-                    ${index + 1}
-                </div>
-                <div class="flex-1">
-                    <div class="font-semibold text-gray-800">${item.category}</div>
-                    <div class="text-sm text-gray-600">${item.item_count}개 항목 평가</div>
-                </div>
-                <div class="text-right">
-                    <div class="text-xl font-bold text-green-600">${item.avg_level.toFixed(1)}</div>
-                    <div class="text-xs text-gray-500">/ 5.0</div>
-                </div>
+        const strengthsHtml = `
+            <div class="mb-3">
+                <span class="text-sm font-semibold text-green-700">
+                    <i class="fas fa-check-circle mr-1"></i>
+                    Level ${finalLevel} 달성 항목 (${currentLevelItems.length}개)
+                </span>
             </div>
-        `).join('');
+            ${currentLevelItems.map((item, index) => `
+                <div class="flex items-start gap-2 p-2 bg-green-50 rounded border-l-4 border-green-500 mb-2">
+                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center font-bold mt-0.5">
+                        ${index + 1}
+                    </span>
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-800">${item.item_name}</div>
+                    </div>
+                    <i class="fas fa-check text-green-600 mt-1"></i>
+                </div>
+            `).join('')}
+        `;
         
         strengthsContainer.innerHTML = strengthsHtml;
     }
     
-    // 취약한 부분 표시
-    if (weaknesses.length === 0) {
+    // 다음 레벨 개선 필요 항목 표시
+    if (nextLevel > 4) {
+        weaknessesContainer.innerHTML = `
+            <div class="text-center py-8">
+                <i class="fas fa-trophy text-yellow-500 text-5xl mb-3"></i>
+                <p class="text-lg font-bold text-gray-800">최고 레벨 달성!</p>
+                <p class="text-gray-600 mt-2">Level ${finalLevel}에 도달하셨습니다.</p>
+            </div>
+        `;
+    } else if (improvementItems.length === 0) {
         weaknessesContainer.innerHTML = `
             <p class="text-gray-500 text-center py-4">
                 <i class="fas fa-check-circle mr-2 text-green-500"></i>
-                모든 카테고리에서 우수한 성과를 보이고 있습니다!
+                Level ${nextLevel} 달성을 위한 모든 항목을 만족하고 있습니다!
             </p>
         `;
     } else {
-        const weaknessesHtml = weaknesses.map((item, index) => `
-            <div class="flex items-center gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
-                <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center font-bold">
-                    ${index + 1}
-                </div>
-                <div class="flex-1">
-                    <div class="font-semibold text-gray-800">${item.category}</div>
-                    <div class="text-sm text-gray-600">${item.item_count}개 항목 평가</div>
-                </div>
-                <div class="text-right">
-                    <div class="text-xl font-bold text-red-600">${item.avg_level.toFixed(1)}</div>
-                    <div class="text-xs text-gray-500">/ 5.0</div>
-                </div>
+        const weaknessesHtml = `
+            <div class="mb-3">
+                <span class="text-sm font-semibold text-orange-700">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Level ${nextLevel} 달성을 위한 개선 필요 항목 (${improvementItems.length}개)
+                </span>
             </div>
-        `).join('');
+            ${improvementItems.map((item, index) => `
+                <div class="flex items-start gap-2 p-2 bg-orange-50 rounded border-l-4 border-orange-500 mb-2">
+                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-bold mt-0.5">
+                        ${index + 1}
+                    </span>
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-800">${item.item_name}</div>
+                    </div>
+                    <i class="fas fa-times text-orange-600 mt-1"></i>
+                </div>
+            `).join('')}
+            <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p class="text-sm text-blue-800">
+                    <i class="fas fa-lightbulb mr-2"></i>
+                    <strong>개선 방법:</strong> 위 ${improvementItems.length}개 항목을 모두 달성하면 Level ${nextLevel}로 승급할 수 있습니다.
+                </p>
+            </div>
+        `;
         
         weaknessesContainer.innerHTML = weaknessesHtml;
     }
