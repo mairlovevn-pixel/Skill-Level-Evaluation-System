@@ -1140,14 +1140,30 @@ function renderWeaknessAnalysis() {
         analysisFilters.positions.has(d.process_name)
     );
     
-    // Calculate metrics for each position
-    const metrics = filteredData.map(d => {
-        const takers = parseInt(d.takers) || 0;
-        const passed = parseInt(d.passed) || 0;
+    // Calculate metrics for each position (team별로 집계)
+    const positionTeamMap = {};
+    filteredData.forEach(d => {
+        const key = `${d.process_name}|||${d.team || 'Unknown'}`;
+        if (!positionTeamMap[key]) {
+            positionTeamMap[key] = {
+                position: d.process_name,
+                team: d.team || 'Unknown',
+                takers: 0,
+                passed: 0
+            };
+        }
+        positionTeamMap[key].takers += parseInt(d.takers) || 0;
+        positionTeamMap[key].passed += parseInt(d.passed) || 0;
+    });
+    
+    const metrics = Object.values(positionTeamMap).map(d => {
+        const takers = d.takers;
+        const passed = d.passed;
         const passRate = takers > 0 ? (passed / takers * 100) : 0;
         
         return {
-            position: d.process_name,
+            position: d.position,
+            team: d.team,
             takers: takers,
             passed: passed,
             passRate: passRate.toFixed(1),
@@ -1189,6 +1205,7 @@ function renderWeaknessAnalysis() {
                 <thead class="bg-gray-100">
                     <tr>
                         <th class="border border-gray-300 px-4 py-2 text-left">Priority</th>
+                        <th class="border border-gray-300 px-4 py-2 text-left">Team</th>
                         <th class="border border-gray-300 px-4 py-2 text-left">Position</th>
                         <th class="border border-gray-300 px-4 py-2 text-center">Test Takers</th>
                         <th class="border border-gray-300 px-4 py-2 text-center">Passed</th>
@@ -1206,6 +1223,7 @@ function renderWeaknessAnalysis() {
         tableHTML += `
             <tr>
                 <td class="border border-gray-300 px-4 py-2">${priorityBadge}</td>
+                <td class="border border-gray-300 px-4 py-2 font-medium">${m.team}</td>
                 <td class="border border-gray-300 px-4 py-2 font-medium">${m.position}</td>
                 <td class="border border-gray-300 px-4 py-2 text-center">${m.takers}</td>
                 <td class="border border-gray-300 px-4 py-2 text-center">${m.passed}</td>

@@ -71,31 +71,34 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     }
     const written_test_passed = (testPassedResult?.count as number) || 0
 
-    // 프로세스별 Written Test 현황
+    // 프로세스별 Written Test 현황 (team 정보 포함)
     let testByProcessResult
     if (entity) {
       testByProcessResult = await db.prepare(`
         SELECT 
           p.name as process_name,
+          w.team,
           COUNT(DISTINCT wtr.worker_id) as takers,
           COUNT(DISTINCT CASE WHEN wtr.score >= ? THEN wtr.worker_id END) as passed
         FROM positions p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
         LEFT JOIN workers w ON wtr.worker_id = w.id
         WHERE w.entity = ? OR w.entity IS NULL
-        GROUP BY p.id, p.name
-        ORDER BY p.id
+        GROUP BY p.id, p.name, w.team
+        ORDER BY p.id, w.team
       `).bind(passThreshold, entity).all()
     } else {
       testByProcessResult = await db.prepare(`
         SELECT 
           p.name as process_name,
+          w.team,
           COUNT(DISTINCT wtr.worker_id) as takers,
           COUNT(DISTINCT CASE WHEN wtr.score >= ? THEN wtr.worker_id END) as passed
         FROM positions p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
-        GROUP BY p.id, p.name
-        ORDER BY p.id
+        LEFT JOIN workers w ON wtr.worker_id = w.id
+        GROUP BY p.id, p.name, w.team
+        ORDER BY p.id, w.team
       `).bind(passThreshold).all()
     }
     const written_test_by_process = testByProcessResult.results || []
