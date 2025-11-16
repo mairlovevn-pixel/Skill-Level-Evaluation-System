@@ -996,7 +996,7 @@ app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
     return c.json({ error: 'Worker not found' }, 404)
   }
   
-  // Written Test 결과들
+  // Written Test 결과들 (worker_id로 정확히 매칭 - 이미 올바름)
   const testResults = await db.prepare(`
     SELECT 
       wtr.*,
@@ -1141,18 +1141,26 @@ app.get('/api/analysis/wrong-answers/:resultId', errorHandler(async (c) => {
   const db = c.env.DB
   const resultId = c.req.param('resultId')
   
-  // 틀린 문제만 조회
+  // 틀린 문제만 조회 (quiz_id별로 가장 최근 답안 1개만)
   const wrongAnswersResult = await db.prepare(`
     SELECT 
+      wtq.id as quiz_id,
       wtq.category,
       wtq.question,
       wta.selected_answer,
       wtq.correct_answer
     FROM written_test_answers wta
     JOIN written_test_quizzes wtq ON wta.quiz_id = wtq.id
-    WHERE wta.result_id = ? AND wta.is_correct = 0
+    WHERE wta.result_id = ? 
+      AND wta.is_correct = 0
+      AND wta.id IN (
+        SELECT MAX(id) 
+        FROM written_test_answers 
+        WHERE result_id = ? AND is_correct = 0
+        GROUP BY quiz_id
+      )
     ORDER BY wtq.category, wtq.id
-  `).bind(resultId).all()
+  `).bind(resultId, resultId).all()
   
   return c.json(wrongAnswersResult.results)
 }))
