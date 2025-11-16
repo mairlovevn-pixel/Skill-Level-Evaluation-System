@@ -7590,7 +7590,10 @@ function displayWrongAnswersTable(wrongAnswers) {
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    ${wrongAnswers.map((item, index) => `
+                    ${wrongAnswers.map((item, index) => {
+                        // 같은 질문이 여러 개 있을 경우 quiz_id로 구별
+                        const questionDisplay = item.question + (item.quiz_id ? ` <span class="text-xs text-gray-400">(#${item.quiz_id})</span>` : '');
+                        return `
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 text-sm text-gray-900">${index + 1}</td>
                             <td class="px-4 py-3 text-sm">
@@ -7598,7 +7601,7 @@ function displayWrongAnswersTable(wrongAnswers) {
                                     ${item.category}
                                 </span>
                             </td>
-                            <td class="px-4 py-3 text-sm text-gray-700">${item.question}</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">${questionDisplay}</td>
                             <td class="px-4 py-3 text-center">
                                 <span class="px-3 py-1 bg-red-100 text-red-800 rounded font-semibold">
                                     ${item.selected_answer || 'N/A'}
@@ -7610,7 +7613,8 @@ function displayWrongAnswersTable(wrongAnswers) {
                                 </span>
                             </td>
                         </tr>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </tbody>
             </table>
         </div>
