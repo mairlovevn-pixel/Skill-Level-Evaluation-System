@@ -1013,13 +1013,15 @@ app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
     SELECT 
       sai.category,
       sai.process_id,
+      p.name as process_name,
       AVG(sa.level) as avg_level,
       COUNT(*) as item_count,
       MAX(sa.assessment_date) as latest_date
     FROM supervisor_assessments sa
     JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
+    LEFT JOIN positions p ON sai.process_id = p.id
     WHERE sa.worker_id = ?
-    GROUP BY sai.category, sai.process_id
+    GROUP BY sai.category, sai.process_id, p.name
     ORDER BY latest_date DESC
   `).bind(workerId).all()
   
