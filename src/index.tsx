@@ -1605,7 +1605,7 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
     const level2Satisfied = await db.prepare(`
       SELECT COUNT(DISTINCT sai.id) as count FROM supervisor_assessments sa
       JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
-      WHERE sa.worker_id = ? AND sai.category IN ('Level2', 'Level 2') AND sa.level >= 2
+      WHERE sa.worker_id = ? AND sai.category IN ('Level2', 'Level 2') AND sa.is_satisfied = 1
     `).bind(workerId).first()
     
     const level3Total = await db.prepare(`
@@ -1617,7 +1617,7 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
     const level3Satisfied = await db.prepare(`
       SELECT COUNT(DISTINCT sai.id) as count FROM supervisor_assessments sa
       JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
-      WHERE sa.worker_id = ? AND sai.category IN ('Level3', 'Level 3') AND sa.level >= 3
+      WHERE sa.worker_id = ? AND sai.category IN ('Level3', 'Level 3') AND sa.is_satisfied = 1
     `).bind(workerId).first()
     
     const level4Total = await db.prepare(`
@@ -1629,7 +1629,7 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
     const level4Satisfied = await db.prepare(`
       SELECT COUNT(DISTINCT sai.id) as count FROM supervisor_assessments sa
       JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
-      WHERE sa.worker_id = ? AND sai.category IN ('Level4', 'Level 4') AND sa.level >= 4
+      WHERE sa.worker_id = ? AND sai.category IN ('Level4', 'Level 4') AND sa.is_satisfied = 1
     `).bind(workerId).first()
     
     // 최종 Level 결정
