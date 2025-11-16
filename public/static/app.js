@@ -6714,11 +6714,11 @@ async function showAnalysisPage() {
                     </nav>
                 </div>
                 
-                <!-- Written Test 탭 내용 -->
+                <!-- Written Test Tab Content -->
                 <div id="content-written-test" class="analysis-tab-content">
                     <div class="mb-6">
                         <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-xl font-bold">Written Test 결과 목록</h3>
+                            <h3 class="text-xl font-bold">Written Test Results List</h3>
                         </div>
                         <div id="test-results-list" class="space-y-2"></div>
                     </div>
@@ -7101,7 +7101,7 @@ function displayWorkerInfo(worker) {
         <div class="flex items-center justify-between">
             <div>
                 <h3 class="text-xl font-bold">${worker.name}</h3>
-                <p class="text-gray-600">사번: ${worker.employee_id} | 법인: ${worker.entity} | 팀: ${worker.team} | 직급: ${worker.position}</p>
+                <p class="text-gray-600">ID: ${worker.employee_id} | Entity: ${worker.entity} | Team: ${worker.team} | Position: ${worker.position}</p>
             </div>
         </div>
     `;
@@ -7112,7 +7112,7 @@ function displayTestResults(testResults) {
     const container = document.getElementById('test-results-list');
     
     if (!testResults || testResults.length === 0) {
-        container.innerHTML = '<p class="text-gray-500">Written Test 결과가 없습니다.</p>';
+        container.innerHTML = '<p class="text-gray-500">No Written Test results available.</p>';
         return;
     }
     
@@ -7121,13 +7121,13 @@ function displayTestResults(testResults) {
             <div class="flex justify-between items-center">
                 <div>
                     <span class="font-semibold">${result.process_name}</span>
-                    <span class="ml-4 text-gray-600">점수: ${result.score.toFixed(1)}점</span>
+                    <span class="ml-4 text-gray-600">Score: ${result.score.toFixed(1)}</span>
                     <span class="ml-2 px-2 py-1 rounded text-sm ${result.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                        ${result.passed ? '합격' : '불합격'}
+                        ${result.passed ? 'Passed' : 'Failed'}
                     </span>
                 </div>
                 <button class="text-blue-600 hover:text-blue-800">
-                    <i class="fas fa-chart-bar mr-1"></i>상세 분석
+                    <i class="fas fa-chart-bar mr-1"></i>Detailed Analysis
                 </button>
             </div>
         </div>
@@ -7140,7 +7140,7 @@ function displayAssessmentResultsList(assessments, processInfo) {
     const container = document.getElementById('assessment-results-list');
     
     if (!assessments || assessments.length === 0) {
-        container.innerHTML = '<p class="text-gray-500">Supervisor Assessment 결과가 없습니다.</p>';
+        container.innerHTML = '<p class="text-gray-500">No Supervisor Assessment results available.</p>';
         return;
     }
     
