@@ -1537,6 +1537,9 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
       else if (normalizedCategory === 'level4') levelValue = 4
     }
     
+    // is_satisfied 값: TRUE면 1, FALSE면 0
+    const isSatisfiedValue = isSatisfied ? 1 : 0
+    
     const assessedBy = result.assessed_by || 'Supervisor'
     const assessmentDate = result.assessment_date || new Date().toISOString()
     const comments = result.comments || ''
@@ -1545,9 +1548,9 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
     const existingId = existingMap.get(existingKey)
     
     if (existingId) {
-      updateOps.push({ id: existingId, levelValue, assessedBy, assessmentDate, comments })
+      updateOps.push({ id: existingId, levelValue, isSatisfiedValue, assessedBy, assessmentDate, comments })
     } else {
-      insertOps.push({ workerId, itemId: item.id, levelValue, assessedBy, assessmentDate, comments })
+      insertOps.push({ workerId, itemId: item.id, levelValue, isSatisfiedValue, assessedBy, assessmentDate, comments })
     }
     
     processedWorkers.add(workerId)
@@ -1562,17 +1565,17 @@ app.post('/api/results/assessment/bulk', errorHandler(async (c) => {
     for (const op of updateOps) {
       await db.prepare(`
         UPDATE supervisor_assessments 
-        SET level = ?, assessed_by = ?, assessment_date = ?, comments = ?
+        SET level = ?, is_satisfied = ?, assessed_by = ?, assessment_date = ?, comments = ?
         WHERE id = ?
-      `).bind(op.levelValue, op.assessedBy, op.assessmentDate, op.comments, op.id).run()
+      `).bind(op.levelValue, op.isSatisfiedValue, op.assessedBy, op.assessmentDate, op.comments, op.id).run()
     }
     
     // Batch inserts
     for (const op of insertOps) {
       await db.prepare(`
-        INSERT INTO supervisor_assessments (worker_id, item_id, level, assessed_by, assessment_date, comments)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).bind(op.workerId, op.itemId, op.levelValue, op.assessedBy, op.assessmentDate, op.comments).run()
+        INSERT INTO supervisor_assessments (worker_id, item_id, level, is_satisfied, assessed_by, assessment_date, comments)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(op.workerId, op.itemId, op.levelValue, op.isSatisfiedValue, op.assessedBy, op.assessmentDate, op.comments).run()
     }
     
     console.log(`Executed all operations in ${Date.now() - startTime}ms`)
