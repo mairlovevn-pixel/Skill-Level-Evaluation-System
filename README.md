@@ -302,8 +302,18 @@
 - **프로젝트 이름**: webapp
 - **D1 Database**: webapp-production-v2
 - **상태**: ✅ 활성
-- **마지막 업데이트**: 2025-11-14
+- **마지막 업데이트**: 2025-11-16
 - **최근 변경사항**: 
+  - **🐛 Assessment 업로드 버그 수정** ⭐⭐⭐⭐⭐ CRITICAL! (2025-11-16)
+    - **버그**: FALSE 값이 DB에 TRUE로 저장되는 문제
+    - **원인**: INSERT/UPDATE 구문에서 `is_satisfied` 컬럼 누락
+    - **수정**: `is_satisfied` 값 (0/1) 계산 및 DB 저장 로직 추가
+    - **영향**: 잘못된 데이터로 인해 최종 레벨이 부정확하게 계산됨 (Level 2 → Level 4)
+    - **테스트**: Worker 227 (Employee ID 1412) 데이터로 검증
+    - **조치**: 프로덕션 DB의 Worker 227 평가 데이터 초기화 완료
+    - **필요 작업**: 사용자가 원본 엑셀 파일 재업로드 필요
+  - **UI 개선**: "평균 레벨" → "최종 레벨" 텍스트 변경 (Worker Detail 페이지)
+  - **UI 개선**: Assessment 결과 목록에서 "카테고리" 텍스트 제거 
   - **Assessment 벌크 업로드 대폭 최적화** ⭐⭐⭐⭐⭐ NEW! (2025-11-14)
     - **성능 개선**: N+1 쿼리 문제 해결, 280 queries → 5-10 queries per batch
     - **배치 쿼리**: 모든 worker와 assessment item을 한 번에 조회
