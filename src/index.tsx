@@ -1758,6 +1758,87 @@ app.post('/api/results/assessment/recalculate-levels', errorHandler(async (c) =>
   })
 }))
 
+// ==================== Export API ====================
+
+// 종합평가 추출 API
+app.get('/api/export/comprehensive-evaluation', async (c) => {
+  const db = c.env.DB
+  const { entity, team, position } = c.req.query()
+  
+  try {
+    // WHERE 조건 동적 생성
+    let whereConditions = []
+    let params = []
+    
+    if (entity) {
+      whereConditions.push('w.entity = ?')
+      params.push(entity)
+    }
+    
+    if (team) {
+      whereConditions.push('w.team = ?')
+      params.push(team)
+    }
+    
+    if (position) {
+      whereConditions.push('w.position = ?')
+      params.push(position)
+    }
+    
+    const whereClause = whereConditions.length > 0 
+      ? 'WHERE ' + whereConditions.join(' AND ')
+      : ''
+    
+    // 작업자 데이터 조회 (Written Test 점수 + 최종 Assessment Level 포함)
+    const query = `
+      SELECT 
+        w.id,
+        w.employee_id,
+        w.name,
+        w.entity,
+        w.team,
+        w.position,
+        w.start_to_work_date as start_date,
+        w.current_level as final_level,
+        (
+          SELECT AVG(wtr.score)
+          FROM written_test_results wtr
+          WHERE wtr.worker_id = w.id
+        ) as written_test_score
+      FROM workers w
+      ${whereClause}
+      ORDER BY w.entity, w.team, w.employee_id
+    `
+    
+    const stmt = db.prepare(query)
+    const result = params.length > 0 
+      ? await stmt.bind(...params).all()
+      : await stmt.all()
+    
+    // 소수점 처리 및 null 처리
+    const workers = (result.results || []).map((w: any) => ({
+      ...w,
+      written_test_score: w.written_test_score !== null 
+        ? Math.round(w.written_test_score * 10) / 10  // 소수점 1자리
+        : null,
+      final_level: w.final_level || 1,
+      start_date: w.start_date || ''
+    }))
+    
+    return c.json({
+      success: true,
+      workers
+    })
+    
+  } catch (error) {
+    console.error('종합평가 추출 실패:', error)
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : '데이터 조회 실패'
+    }, 500)
+  }
+})
+
 // ==================== Main Page ====================
 
 app.get('/', (c) => {

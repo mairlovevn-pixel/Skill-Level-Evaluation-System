@@ -6689,6 +6689,10 @@ async function showAnalysisPage() {
                                 class="analysis-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-1 font-medium">
                             <i class="fas fa-clipboard-check mr-2"></i>Supervisor Assessment
                         </button>
+                        <button id="tab-export" onclick="switchAnalysisTab('export')" 
+                                class="analysis-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-1 font-medium">
+                            <i class="fas fa-download mr-2"></i>종합평가 추출
+                        </button>
                     </nav>
                 </div>
                 
@@ -6794,6 +6798,64 @@ async function showAnalysisPage() {
                             <div id="assessment-training">
                                 <h4 class="text-lg font-semibold mb-3">추천 교육 프로그램</h4>
                                 <div id="assessment-training-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 종합평가 추출 탭 내용 -->
+                <div id="content-export" class="analysis-tab-content hidden">
+                    <div class="bg-white rounded-lg p-6">
+                        <h3 class="text-xl font-bold mb-6">
+                            <i class="fas fa-users mr-2 text-blue-600"></i>
+                            작업자 종합 평가 추출
+                        </h3>
+                        
+                        <!-- 필터 영역 -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">법인 선택</label>
+                                <select id="export-entity-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                                    <option value="">전체</option>
+                                    <option value="CSVN">CSVN</option>
+                                    <option value="CSCN">CSCN</option>
+                                    <option value="CSTW">CSTW</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">팀 선택</label>
+                                <select id="export-team-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                                    <option value="">전체</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">포지션 선택</label>
+                                <select id="export-position-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
+                                    <option value="">전체</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- 작업자 리스트 -->
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" id="export-select-all" class="form-checkbox h-4 w-4 text-blue-600 rounded mr-2">
+                                        <span class="text-sm font-medium text-gray-700">전체 선택</span>
+                                    </label>
+                                    <span id="export-selected-count" class="text-sm text-gray-600">선택: 0명</span>
+                                </div>
+                                <button onclick="exportComprehensiveEvaluation()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                                    <i class="fas fa-file-excel"></i>
+                                    엑셀 다운로드
+                                </button>
+                            </div>
+                            
+                            <div id="export-workers-list" class="border border-gray-300 rounded-lg max-h-96 overflow-y-auto">
+                                <div class="p-4 text-center text-gray-500">
+                                    필터를 선택하여 작업자 목록을 불러오세요.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -6912,6 +6974,14 @@ function switchAnalysisTab(tabName) {
     
     // 선택된 컨텐츠 표시
     document.getElementById(`content-${tabName}`).classList.remove('hidden');
+    
+    // 종합평가 추출 탭 초기화
+    if (tabName === 'export') {
+        // 약간의 지연을 두고 초기화 (DOM이 완전히 렌더링된 후)
+        setTimeout(() => {
+            initializeExportTab();
+        }, 100);
+    }
 }
 
 // 분석 닫기 함수들
@@ -8372,6 +8442,348 @@ function showRegistrationTab(tabName) {
                 loadAssessmentUploadPage();
                 break;
         }
+    }
+}
+
+// ============================================
+// 종합평가 추출 기능
+// ============================================
+
+// 전역 변수: 추출 탭에서 사용할 작업자 데이터
+let exportWorkersData = [];
+let selectedWorkerIds = new Set();
+
+// 추출 탭이 활성화될 때 이벤트 리스너 등록
+function initializeExportTab() {
+    const entitySelect = document.getElementById('export-entity-select');
+    const teamSelect = document.getElementById('export-team-select');
+    const positionSelect = document.getElementById('export-position-select');
+    const selectAllCheckbox = document.getElementById('export-select-all');
+    
+    if (!entitySelect || !teamSelect || !positionSelect || !selectAllCheckbox) {
+        console.log('Export tab elements not ready, will retry...');
+        return;
+    }
+    
+    // 이미 이벤트 리스너가 등록되어 있는지 확인
+    if (entitySelect.dataset.initialized === 'true') {
+        console.log('Export tab already initialized');
+        return;
+    }
+    
+    console.log('Initializing export tab...');
+    
+    // 필터 변경 이벤트
+    entitySelect.addEventListener('change', () => {
+        updateExportFilters();
+        loadExportWorkers();
+    });
+    
+    teamSelect.addEventListener('change', loadExportWorkers);
+    positionSelect.addEventListener('change', loadExportWorkers);
+    
+    // 전체 선택 체크박스
+    selectAllCheckbox.addEventListener('change', (e) => {
+        const checkboxes = document.querySelectorAll('.export-worker-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = e.target.checked;
+            if (e.target.checked) {
+                selectedWorkerIds.add(parseInt(cb.value));
+            } else {
+                selectedWorkerIds.delete(parseInt(cb.value));
+            }
+        });
+        updateSelectedCount();
+    });
+    
+    // 초기화 완료 표시
+    entitySelect.dataset.initialized = 'true';
+    
+    // 초기 로드
+    loadExportWorkers();
+}
+
+// 필터 업데이트 (법인 선택 시 팀/포지션 필터 갱신)
+async function updateExportFilters() {
+    const entity = document.getElementById('export-entity-select').value;
+    const teamSelect = document.getElementById('export-team-select');
+    const positionSelect = document.getElementById('export-position-select');
+    
+    // 팀/포지션 필터 초기화
+    teamSelect.innerHTML = '<option value="">전체</option>';
+    positionSelect.innerHTML = '<option value="">전체</option>';
+    
+    if (!entity) return;
+    
+    try {
+        // 선택된 법인의 팀/포지션 목록 가져오기
+        const response = await fetch(`/api/export/comprehensive-evaluation?entity=${entity}`);
+        const data = await response.json();
+        
+        if (data.success && data.workers) {
+            // 고유한 팀 목록
+            const teams = [...new Set(data.workers.map(w => w.team).filter(t => t))].sort();
+            teams.forEach(team => {
+                const option = document.createElement('option');
+                option.value = team;
+                option.textContent = team;
+                teamSelect.appendChild(option);
+            });
+            
+            // 고유한 포지션 목록
+            const positions = [...new Set(data.workers.map(w => w.position).filter(p => p))].sort();
+            positions.forEach(position => {
+                const option = document.createElement('option');
+                option.value = position;
+                option.textContent = position;
+                positionSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('필터 업데이트 실패:', error);
+    }
+}
+
+// 작업자 목록 로드
+async function loadExportWorkers() {
+    const entity = document.getElementById('export-entity-select')?.value || '';
+    const team = document.getElementById('export-team-select')?.value || '';
+    const position = document.getElementById('export-position-select')?.value || '';
+    
+    const listContainer = document.getElementById('export-workers-list');
+    if (!listContainer) return;
+    
+    listContainer.innerHTML = '<div class="p-4 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>로딩 중...</div>';
+    
+    try {
+        // API 호출하여 작업자 데이터 가져오기
+        let url = '/api/export/comprehensive-evaluation?';
+        if (entity) url += `entity=${encodeURIComponent(entity)}&`;
+        if (team) url += `team=${encodeURIComponent(team)}&`;
+        if (position) url += `position=${encodeURIComponent(position)}&`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.error || '데이터 로드 실패');
+        }
+        
+        exportWorkersData = data.workers || [];
+        
+        if (exportWorkersData.length === 0) {
+            listContainer.innerHTML = '<div class="p-4 text-center text-gray-500">조건에 맞는 작업자가 없습니다.</div>';
+            return;
+        }
+        
+        // 작업자 목록 렌더링
+        renderExportWorkersList(exportWorkersData);
+        
+    } catch (error) {
+        console.error('작업자 목록 로드 실패:', error);
+        listContainer.innerHTML = `<div class="p-4 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i>${error.message}</div>`;
+    }
+}
+
+// 작업자 목록 렌더링
+function renderExportWorkersList(workers) {
+    const listContainer = document.getElementById('export-workers-list');
+    
+    const html = `
+        <table class="w-full">
+            <thead class="bg-gray-50 sticky top-0">
+                <tr class="border-b">
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        <input type="checkbox" id="export-table-select-all" class="form-checkbox h-4 w-4 text-blue-600 rounded">
+                    </th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">NO</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">법인</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">이름</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">사번</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">팀</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">직책</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">입사일</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Written Test</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">최종 레벨</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                ${workers.map((worker, index) => `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-2">
+                            <input type="checkbox" 
+                                   class="export-worker-checkbox form-checkbox h-4 w-4 text-blue-600 rounded" 
+                                   value="${worker.id}"
+                                   ${selectedWorkerIds.has(worker.id) ? 'checked' : ''}>
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-900">${index + 1}</td>
+                        <td class="px-4 py-2 text-sm text-gray-900">${worker.entity || '-'}</td>
+                        <td class="px-4 py-2 text-sm font-medium text-gray-900">${worker.name || '-'}</td>
+                        <td class="px-4 py-2 text-sm text-gray-900">${worker.employee_id || '-'}</td>
+                        <td class="px-4 py-2 text-sm text-gray-900">${worker.team || '-'}</td>
+                        <td class="px-4 py-2 text-sm text-gray-900">${worker.position || '-'}</td>
+                        <td class="px-4 py-2 text-sm text-gray-900">${worker.start_date || '-'}</td>
+                        <td class="px-4 py-2 text-sm text-center">
+                            ${worker.written_test_score !== null 
+                                ? `<span class="font-semibold text-blue-600">${worker.written_test_score}점</span>` 
+                                : '<span class="text-gray-400">미응시</span>'}
+                        </td>
+                        <td class="px-4 py-2 text-sm text-center">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getLevelBadgeColor(worker.final_level)}">
+                                Level ${worker.final_level}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    
+    listContainer.innerHTML = html;
+    
+    // 테이블 내부 전체 선택 체크박스 이벤트
+    const tableSelectAll = document.getElementById('export-table-select-all');
+    if (tableSelectAll) {
+        tableSelectAll.addEventListener('change', (e) => {
+            const checkboxes = document.querySelectorAll('.export-worker-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = e.target.checked;
+                if (e.target.checked) {
+                    selectedWorkerIds.add(parseInt(cb.value));
+                } else {
+                    selectedWorkerIds.delete(parseInt(cb.value));
+                }
+            });
+            updateSelectedCount();
+            
+            // 상단 전체 선택 체크박스도 동기화
+            const topSelectAll = document.getElementById('export-select-all');
+            if (topSelectAll) {
+                topSelectAll.checked = e.target.checked;
+            }
+        });
+    }
+    
+    // 개별 체크박스 이벤트
+    const checkboxes = document.querySelectorAll('.export-worker-checkbox');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', (e) => {
+            const workerId = parseInt(e.target.value);
+            if (e.target.checked) {
+                selectedWorkerIds.add(workerId);
+            } else {
+                selectedWorkerIds.delete(workerId);
+            }
+            updateSelectedCount();
+            
+            // 모든 체크박스가 선택되었는지 확인
+            const allChecked = Array.from(checkboxes).every(c => c.checked);
+            const topSelectAll = document.getElementById('export-select-all');
+            const tableSelectAll = document.getElementById('export-table-select-all');
+            if (topSelectAll) topSelectAll.checked = allChecked;
+            if (tableSelectAll) tableSelectAll.checked = allChecked;
+        });
+    });
+    
+    updateSelectedCount();
+}
+
+// 선택된 작업자 수 업데이트
+function updateSelectedCount() {
+    const countElement = document.getElementById('export-selected-count');
+    if (countElement) {
+        countElement.textContent = `선택: ${selectedWorkerIds.size}명`;
+    }
+}
+
+// 레벨 뱃지 색상
+function getLevelBadgeColor(level) {
+    switch(level) {
+        case 1: return 'bg-gray-100 text-gray-800';
+        case 2: return 'bg-green-100 text-green-800';
+        case 3: return 'bg-blue-100 text-blue-800';
+        case 4: return 'bg-purple-100 text-purple-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+}
+
+// 엑셀 다운로드
+async function exportComprehensiveEvaluation() {
+    if (selectedWorkerIds.size === 0) {
+        alert('다운로드할 작업자를 선택해주세요.');
+        return;
+    }
+    
+    try {
+        // 선택된 작업자 데이터만 필터링
+        const selectedWorkers = exportWorkersData.filter(w => selectedWorkerIds.has(w.id));
+        
+        if (selectedWorkers.length === 0) {
+            alert('선택된 작업자 데이터를 찾을 수 없습니다.');
+            return;
+        }
+        
+        // SheetJS 라이브러리 로드 확인
+        if (typeof XLSX === 'undefined') {
+            alert('엑셀 라이브러리를 로드하는 중입니다. 잠시 후 다시 시도해주세요.');
+            
+            // 동적으로 SheetJS 로드
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+            document.head.appendChild(script);
+            
+            script.onload = () => {
+                console.log('SheetJS loaded successfully');
+                exportComprehensiveEvaluation(); // 재시도
+            };
+            return;
+        }
+        
+        // 엑셀 데이터 생성
+        const excelData = selectedWorkers.map((worker, index) => ({
+            'NO': index + 1,
+            'ENTITY': worker.entity || '',
+            'NAME': worker.name || '',
+            'EMPLOYEE ID': worker.employee_id || '',
+            'TEAM': worker.team || '',
+            'POSITION': worker.position || '',
+            'START TO WORK DATE': worker.start_date || '',
+            'Written Test Score': worker.written_test_score !== null ? worker.written_test_score : '',
+            'Final Assessment Level': worker.final_level || ''
+        }));
+        
+        // 워크북 생성
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        
+        // 컬럼 너비 설정
+        ws['!cols'] = [
+            { wch: 5 },   // NO
+            { wch: 10 },  // ENTITY
+            { wch: 15 },  // NAME
+            { wch: 15 },  // EMPLOYEE ID
+            { wch: 15 },  // TEAM
+            { wch: 15 },  // POSITION
+            { wch: 18 },  // START TO WORK DATE
+            { wch: 18 },  // Written Test Score
+            { wch: 22 }   // Final Assessment Level
+        ];
+        
+        XLSX.utils.book_append_sheet(wb, ws, '종합평가');
+        
+        // 파일명 생성 (날짜 포함)
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+        const fileName = `종합평가_${dateStr}.xlsx`;
+        
+        // 다운로드
+        XLSX.writeFile(wb, fileName);
+        
+        showToast('엑셀 파일이 다운로드되었습니다.', 'success');
+        
+    } catch (error) {
+        console.error('엑셀 다운로드 실패:', error);
+        alert('엑셀 다운로드 중 오류가 발생했습니다.');
     }
 }
 
