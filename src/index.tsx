@@ -1016,7 +1016,8 @@ app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
   const assessments = await db.prepare(`
     SELECT 
       sai.category,
-      sa.is_satisfied,
+      sai.item_name,
+      MAX(sa.is_satisfied) as is_satisfied,
       MAX(sa.assessment_date) as latest_date
     FROM supervisor_assessments sa
     JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
@@ -1035,7 +1036,7 @@ app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
       levelSatisfaction[category] = { total: 0, satisfied: 0 }
     }
     levelSatisfaction[category].total++
-    if (item.is_satisfied === 1) {
+    if (item.is_satisfied === 1 || item.is_satisfied === true) {
       levelSatisfaction[category].satisfied++
     }
   })

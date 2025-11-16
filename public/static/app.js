@@ -7071,8 +7071,8 @@ function displayAssessmentResultsList(assessments, processInfo) {
         const latestDate = new Date(Math.max(...items.map(i => new Date(i.latest_date))));
         const year = latestDate.getFullYear();
         
-        // 최종 레벨 계산: 각 레벨의 모든 항목이 만족되었는지 확인
-        // assessment_summary.final_level을 사용 (백엔드에서 계산된 값)
+        // 최종 레벨 계산: 백엔드의 assessment_summary.final_level 사용
+        // 이 값은 이미 모든 레벨의 모든 항목을 체크하여 계산된 값
         const finalLevel = currentWorkerData?.assessment_summary?.final_level || 1;
         
         return `
