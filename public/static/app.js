@@ -6711,19 +6711,19 @@ async function showAnalysisPage() {
                         </div>
                         
                         <div class="bg-gray-50 rounded-lg p-6 space-y-6">
-                            <!-- 평균 비교 차트 -->
+                            <!-- 평균 비교 차트 (본인 + 법인 + 전법인) -->
                             <div>
-                                <h4 class="text-lg font-semibold mb-3">법인 평균 대비 점수</h4>
+                                <h4 class="text-lg font-semibold mb-3">평균 점수 비교</h4>
                                 <div class="max-w-2xl">
                                     <canvas id="comparison-chart"></canvas>
                                 </div>
                             </div>
                             
-                            <!-- 카테고리별 오각형 차트 -->
+                            <!-- 취약점 분석 (틀린 문제 목록) -->
                             <div>
-                                <h4 class="text-lg font-semibold mb-3">영역별 성취도 (카테고리 분석)</h4>
-                                <div class="max-w-md mx-auto">
-                                    <canvas id="category-chart"></canvas>
+                                <h4 class="text-lg font-semibold mb-3">취약점 분석 - 틀린 문제 목록</h4>
+                                <div id="wrong-answers-table" class="overflow-x-auto">
+                                    <!-- 테이블이 여기 들어갑니다 -->
                                 </div>
                             </div>
                             
@@ -7446,27 +7446,47 @@ async function showTestAnalysis(resultId, processName, processId, score, workerI
         const avgResponse = await axios.get(`/api/analysis/entity-average?entity=${entity}&processId=${processId}`);
         const entityAverage = avgResponse.data.average_score;
         
-        // 평균 비교 차트 그리기 (법인명과 프로세스명 포함)
-        drawComparisonChart(processName, score, entityAverage, entity);
+        // 전법인 평균 점수 가져오기
+        const allAvgResponse = await axios.get(`/api/analysis/all-entities-average?processId=${processId}`);
+        const allEntitiesAverage = allAvgResponse.data.average_score;
         
-        // 카테고리별 점수 가져오기
-        const categoryResponse = await axios.get(`/api/analysis/test-categories/${resultId}`);
-        const categoryScores = categoryResponse.data;
+        // 평균 비교 차트 그리기 (본인 + 법인 평균 + 전법인 평균)
+        drawComparisonChart(processName, score, entityAverage, allEntitiesAverage, entity);
         
-        // 오각형 차트 그리기
-        drawCategoryChart(categoryScores);
+        // 틀린 문제 목록 가져오기
+        const wrongAnswersResponse = await axios.get(`/api/analysis/wrong-answers/${resultId}`);
+        const wrongAnswers = wrongAnswersResponse.data;
         
-        // 가장 낮은 카테고리 찾기
-        const weakestCategory = categoryScores.reduce((min, item) => 
-            parseFloat(item.score) < parseFloat(min.score) ? item : min
-        );
+        // 틀린 문제 테이블 그리기
+        displayWrongAnswersTable(wrongAnswers);
+        
+        // 가장 낮은 카테고리 찾기 (틀린 문제가 많은 카테고리)
+        const categoryMap = {};
+        wrongAnswers.forEach(item => {
+            if (!categoryMap[item.category]) {
+                categoryMap[item.category] = 0;
+            }
+            categoryMap[item.category]++;
+        });
+        
+        let weakestCategory = null;
+        if (Object.keys(categoryMap).length > 0) {
+            weakestCategory = Object.entries(categoryMap).reduce((max, [cat, count]) => 
+                count > max.count ? { category: cat, count } : max
+            , { category: Object.keys(categoryMap)[0], count: categoryMap[Object.keys(categoryMap)[0]] }).category;
+        }
         
         // 추천 교육 프로그램 가져오기
-        const trainingResponse = await axios.get(`/api/analysis/training-recommendations?processId=${processId}&weakCategory=${weakestCategory.category}`);
-        const trainings = trainingResponse.data;
-        
-        // 추천 교육 표시
-        displayTrainingRecommendations(trainings, weakestCategory.category);
+        if (weakestCategory) {
+            const trainingResponse = await axios.get(`/api/analysis/training-recommendations?processId=${processId}&weakCategory=${weakestCategory}`);
+            const trainings = trainingResponse.data;
+            
+            // 추천 교육 표시
+            displayTrainingRecommendations(trainings, weakestCategory);
+        } else {
+            // 모두 맞췄을 경우
+            document.getElementById('training-list').innerHTML = '<p class="text-green-600 font-semibold"><i class="fas fa-check-circle mr-2"></i>모든 문제를 정확히 풀었습니다!</p>';
+        }
         
         document.getElementById('test-analysis').classList.remove('hidden');
     } catch (error) {
@@ -7475,7 +7495,7 @@ async function showTestAnalysis(resultId, processName, processId, score, workerI
     }
 }
 
-function drawComparisonChart(processName, workerScore, entityAverage, entity) {
+function drawComparisonChart(processName, workerScore, entityAverage, allEntitiesAverage, entity) {
     const ctx = document.getElementById('comparison-chart');
     if (!ctx) return; // Canvas element not found
     
@@ -7487,16 +7507,18 @@ function drawComparisonChart(processName, workerScore, entityAverage, entity) {
     window.comparisonChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['내 점수', `${entity} ${processName} 평균`],
+            labels: ['내 점수', `${entity} 평균`, '전법인 평균'],
             datasets: [{
                 label: processName + ' 점수',
-                data: [workerScore, entityAverage],
+                data: [workerScore, entityAverage, allEntitiesAverage],
                 backgroundColor: [
-                    'rgba(59, 130, 246, 0.8)',
-                    'rgba(156, 163, 175, 0.8)'
+                    'rgba(59, 130, 246, 0.8)',      // 파란색 (본인)
+                    'rgba(34, 197, 94, 0.8)',       // 초록색 (법인 평균)
+                    'rgba(156, 163, 175, 0.8)'      // 회색 (전법인 평균)
                 ],
                 borderColor: [
                     'rgba(59, 130, 246, 1)',
+                    'rgba(34, 197, 94, 1)',
                     'rgba(156, 163, 175, 1)'
                 ],
                 borderWidth: 1
@@ -7541,64 +7563,67 @@ function drawComparisonChart(processName, workerScore, entityAverage, entity) {
     });
 }
 
-function drawCategoryChart(categoryScores) {
-    const ctx = document.getElementById('category-chart');
-    if (!ctx) return; // Canvas element not found
+function displayWrongAnswersTable(wrongAnswers) {
+    const container = document.getElementById('wrong-answers-table');
     
-    // 기존 차트 파괴
-    if (categoryChart) {
-        categoryChart.destroy();
+    if (!wrongAnswers || wrongAnswers.length === 0) {
+        container.innerHTML = `
+            <div class="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+                <i class="fas fa-check-circle text-green-600 text-4xl mb-2"></i>
+                <p class="text-green-800 font-semibold text-lg">모든 문제를 정확히 풀었습니다!</p>
+                <p class="text-green-600 text-sm mt-2">틀린 문제가 없습니다.</p>
+            </div>
+        `;
+        return;
     }
     
-    const categories = categoryScores.map(item => item.category);
-    const scores = categoryScores.map(item => parseFloat(item.score));
+    const html = `
+        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-red-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-red-800 uppercase tracking-wider">No.</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-red-800 uppercase tracking-wider">카테고리</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-red-800 uppercase tracking-wider">문제</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-red-800 uppercase tracking-wider">선택한 답</th>
+                        <th class="px-4 py-3 text-center text-xs font-bold text-red-800 uppercase tracking-wider">정답</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    ${wrongAnswers.map((item, index) => `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-900">${index + 1}</td>
+                            <td class="px-4 py-3 text-sm">
+                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
+                                    ${item.category}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-700">${item.question}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-3 py-1 bg-red-100 text-red-800 rounded font-semibold">
+                                    ${item.selected_answer || 'N/A'}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-3 py-1 bg-green-100 text-green-800 rounded font-semibold">
+                                    ${item.correct_answer}
+                                </span>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
+            <p class="text-sm text-yellow-800">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <strong>총 ${wrongAnswers.length}개의 문제를 틀렸습니다.</strong> 위 문제들을 다시 학습하시기 바랍니다.
+            </p>
+        </div>
+    `;
     
-    categoryChart = new Chart(ctx, {
-        type: 'radar',
-        data: {
-            labels: categories,
-            datasets: [{
-                label: '영역별 점수',
-                data: scores,
-                backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                borderColor: 'rgba(59, 130, 246, 1)',
-                borderWidth: 2,
-                pointBackgroundColor: 'rgba(59, 130, 246, 1)',
-                pointBorderColor: '#fff',
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: 'rgba(59, 130, 246, 1)'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            aspectRatio: 1.2,
-            scales: {
-                r: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        stepSize: 20,
-                        callback: function(value) {
-                            return value + '점';
-                        }
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.parsed.r.toFixed(1) + '점';
-                        }
-                    }
-                }
-            }
-        }
-    });
+    container.innerHTML = html;
 }
 
 function displayTrainingRecommendations(trainings, weakCategory) {

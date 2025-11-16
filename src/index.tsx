@@ -1117,6 +1117,46 @@ app.get('/api/analysis/training-recommendations', errorHandler(async (c) => {
   return c.json(result.results)
 }))
 
+// 전법인 평균 점수 조회
+app.get('/api/analysis/all-entities-average', errorHandler(async (c) => {
+  const db = c.env.DB
+  const processId = c.req.query('processId')
+  
+  if (!processId) {
+    return c.json({ error: 'ProcessId parameter is required' }, 400)
+  }
+  
+  const result = await db.prepare(`
+    SELECT 
+      AVG(wtr.score) as average_score
+    FROM written_test_results wtr
+    WHERE wtr.process_id = ?
+  `).bind(processId).first()
+  
+  return c.json({ average_score: result?.average_score || 0 })
+}))
+
+// 틀린 문제 목록 조회
+app.get('/api/analysis/wrong-answers/:resultId', errorHandler(async (c) => {
+  const db = c.env.DB
+  const resultId = c.req.param('resultId')
+  
+  // 틀린 문제만 조회
+  const wrongAnswersResult = await db.prepare(`
+    SELECT 
+      wtq.category,
+      wtq.question,
+      wta.selected_answer,
+      wtq.correct_answer
+    FROM written_test_answers wta
+    JOIN written_test_quizzes wtq ON wta.quiz_id = wtq.id
+    WHERE wta.result_id = ? AND wta.is_correct = 0
+    ORDER BY wtq.category, wtq.id
+  `).bind(resultId).all()
+  
+  return c.json(wrongAnswersResult.results)
+}))
+
 // ==================== Result Management APIs ====================
 
 // Written Test 결과 조회 (법인, 프로세스 필터) - 요약
