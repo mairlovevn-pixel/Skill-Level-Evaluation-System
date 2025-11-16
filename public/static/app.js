@@ -7070,7 +7070,10 @@ function displayAssessmentResultsList(assessments, processInfo) {
         const processName = items[0].process_name || '일반 평가';
         const latestDate = new Date(Math.max(...items.map(i => new Date(i.latest_date))));
         const year = latestDate.getFullYear();
-        const avgLevel = (items.reduce((sum, i) => sum + i.avg_level, 0) / items.length).toFixed(1);
+        
+        // 최종 레벨 계산: 각 레벨의 모든 항목이 만족되었는지 확인
+        // assessment_summary.final_level을 사용 (백엔드에서 계산된 값)
+        const finalLevel = currentWorkerData?.assessment_summary?.final_level || 1;
         
         return `
             <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" 
@@ -7079,10 +7082,7 @@ function displayAssessmentResultsList(assessments, processInfo) {
                     <div>
                         <span class="font-semibold">${processName}</span>
                         <span class="ml-4 text-gray-600">${year}년 평가</span>
-                        <span class="ml-4 text-gray-600">평균 레벨: ${avgLevel}</span>
-                        <span class="ml-2 px-2 py-1 rounded text-sm bg-purple-100 text-purple-800">
-                            ${items.length}개 카테고리
-                        </span>
+                        <span class="ml-4 text-gray-600">최종 레벨: ${finalLevel}</span>
                     </div>
                     <button class="text-blue-600 hover:text-blue-800">
                         <i class="fas fa-chart-bar mr-1"></i>상세 분석

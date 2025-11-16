@@ -1008,22 +1008,54 @@ app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
     ORDER BY wtr.test_date DESC
   `).bind(workerId).all()
   
-  // Supervisor Assessments - 카테고리별로 그룹화하여 평균 계산
+  // Supervisor Assessments - 레벨별로 그룹화하여 달성 여부 확인
+  // 작업자의 실제 포지션 기준으로 평가 조회
+  const workerPosition = await db.prepare('SELECT id FROM positions WHERE name = ?')
+    .bind(workerResult.position).first()
+  
   const assessments = await db.prepare(`
     SELECT 
       sai.category,
-      sai.process_id,
-      p.name as process_name,
-      AVG(sa.level) as avg_level,
-      COUNT(*) as item_count,
+      sa.is_satisfied,
       MAX(sa.assessment_date) as latest_date
     FROM supervisor_assessments sa
     JOIN supervisor_assessment_items sai ON sa.item_id = sai.id
-    LEFT JOIN positions p ON sai.process_id = p.id
     WHERE sa.worker_id = ?
-    GROUP BY sai.category, sai.process_id, p.name
-    ORDER BY latest_date DESC
+    GROUP BY sai.category, sai.item_name
+    ORDER BY sai.category
   `).bind(workerId).all()
+  
+  // 레벨별로 모든 항목이 만족되었는지 확인
+  const levelResults = assessments.results as any[]
+  const levelSatisfaction: { [key: string]: { total: number, satisfied: number } } = {}
+  
+  levelResults.forEach(item => {
+    const category = item.category
+    if (!levelSatisfaction[category]) {
+      levelSatisfaction[category] = { total: 0, satisfied: 0 }
+    }
+    levelSatisfaction[category].total++
+    if (item.is_satisfied === 1) {
+      levelSatisfaction[category].satisfied++
+    }
+  })
+  
+  // 최종 레벨 계산: 모든 항목이 만족된 가장 높은 레벨
+  let finalLevel = 1
+  for (let level = 2; level <= 4; level++) {
+    const levelKey = `Level${level}`
+    const levelKey2 = `Level ${level}`
+    
+    const stats = levelSatisfaction[levelKey] || levelSatisfaction[levelKey2]
+    if (stats && stats.satisfied === stats.total && stats.total > 0) {
+      finalLevel = level
+    } else {
+      break // 이 레벨이 완료되지 않았으면 더 높은 레벨도 달성 불가
+    }
+  }
+  
+  // 최신 평가 날짜
+  const latestDate = levelResults.length > 0 ? levelResults[0].latest_date : null
   
   // 프로세스 정보 가져오기 (첫 번째 assessment에서)
   let processInfo = null
@@ -1039,6 +1071,12 @@ app.get('/api/analysis/worker/:workerId', errorHandler(async (c) => {
   return c.json({
     worker: workerResult,
     test_results: testResults.results,
+    assessment_summary: {
+      final_level: finalLevel,
+      latest_date: latestDate,
+      position: workerResult.position,
+      level_details: levelSatisfaction
+    },
     assessments: assessments.results,
     process_info: processInfo
   })
