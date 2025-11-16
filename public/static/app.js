@@ -6651,18 +6651,18 @@ async function showAnalysisPage() {
     const html = `
         <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-2xl font-bold mb-6 flex items-center">
-                <i class="fas fa-chart-line mr-2 text-blue-600"></i>
-                평가 결과 분석
+                <i class="fas fa-user-chart mr-2 text-blue-600"></i>
+                Individual Assessment Report
             </h2>
             
-            <!-- 법인 및 작업자 선택 -->
+            <!-- Entity and Worker Selection -->
             <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-building mr-1"></i>법인 선택
+                        <i class="fas fa-building mr-1"></i>Select Entity
                     </label>
                     <select id="analysis-entity-select" class="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none">
-                        <option value="">법인을 선택하세요</option>
+                        <option value="">Please select an entity</option>
                         <option value="CSVN">CSVN</option>
                         <option value="CSCN">CSCN</option>
                         <option value="CSTW">CSTW</option>
@@ -6670,13 +6670,13 @@ async function showAnalysisPage() {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-user mr-1"></i>작업자 선택 (사번 또는 이름으로 검색)
+                        <i class="fas fa-user mr-1"></i>Select Worker (Search by ID or Name)
                     </label>
                     <div class="relative">
                         <input 
                             type="text" 
                             id="analysis-worker-search" 
-                            placeholder="법인을 먼저 선택하세요" 
+                            placeholder="Please select entity first" 
                             class="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none" 
                             disabled
                             autocomplete="off"
@@ -6691,17 +6691,17 @@ async function showAnalysisPage() {
                 </div>
             </div>
             
-            <!-- 분석 결과 영역 -->
+            <!-- Analysis Results Section -->
             <div id="analysis-results" class="hidden">
-                <!-- 작업자 정보 -->
+                <!-- Worker Information -->
                 <div id="worker-info" class="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500"></div>
                 
-                <!-- 평가 유형 선택 탭 -->
+                <!-- Assessment Type Tabs -->
                 <div class="mb-6 border-b border-gray-200">
                     <nav class="flex space-x-8" aria-label="Tabs">
                         <button id="tab-written-test" onclick="switchAnalysisTab('written-test')" 
                                 class="analysis-tab border-b-2 border-blue-500 text-blue-600 py-4 px-1 font-medium">
-                            <i class="fas fa-file-alt mr-2"></i>Written Test 결과
+                            <i class="fas fa-file-alt mr-2"></i>Written Test Results
                         </button>
                         <button id="tab-assessment" onclick="switchAnalysisTab('assessment')" 
                                 class="analysis-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-1 font-medium">
@@ -6709,7 +6709,7 @@ async function showAnalysisPage() {
                         </button>
                         <button id="tab-export" onclick="switchAnalysisTab('export')" 
                                 class="analysis-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-4 px-1 font-medium">
-                            <i class="fas fa-download mr-2"></i>종합평가 추출
+                            <i class="fas fa-download mr-2"></i>Export Data
                         </button>
                     </nav>
                 </div>
@@ -6821,58 +6821,58 @@ async function showAnalysisPage() {
                     </div>
                 </div>
                 
-                <!-- 종합평가 추출 탭 내용 -->
+                <!-- Comprehensive Evaluation Export Tab -->
                 <div id="content-export" class="analysis-tab-content hidden">
                     <div class="bg-white rounded-lg p-6">
                         <h3 class="text-xl font-bold mb-6">
                             <i class="fas fa-users mr-2 text-blue-600"></i>
-                            작업자 종합 평가 추출
+                            Comprehensive Evaluation Export
                         </h3>
                         
-                        <!-- 필터 영역 -->
+                        <!-- Filter Section -->
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">법인 선택</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Entity</label>
                                 <select id="export-entity-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
-                                    <option value="">전체</option>
+                                    <option value="">All</option>
                                     <option value="CSVN">CSVN</option>
                                     <option value="CSCN">CSCN</option>
                                     <option value="CSTW">CSTW</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">팀 선택</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Team</label>
                                 <select id="export-team-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
-                                    <option value="">전체</option>
+                                    <option value="">All</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">포지션 선택</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
                                 <select id="export-position-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none">
-                                    <option value="">전체</option>
+                                    <option value="">All</option>
                                 </select>
                             </div>
                         </div>
                         
-                        <!-- 작업자 리스트 -->
+                        <!-- Workers List -->
                         <div class="mb-4">
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex items-center gap-3">
                                     <label class="flex items-center">
                                         <input type="checkbox" id="export-select-all" class="form-checkbox h-4 w-4 text-blue-600 rounded mr-2">
-                                        <span class="text-sm font-medium text-gray-700">전체 선택</span>
+                                        <span class="text-sm font-medium text-gray-700">Select All</span>
                                     </label>
-                                    <span id="export-selected-count" class="text-sm text-gray-600">선택: 0명</span>
+                                    <span id="export-selected-count" class="text-sm text-gray-600">Selected: 0</span>
                                 </div>
                                 <button onclick="exportComprehensiveEvaluation()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                                     <i class="fas fa-file-excel"></i>
-                                    엑셀 다운로드
+                                    Download Excel
                                 </button>
                             </div>
                             
                             <div id="export-workers-list" class="border border-gray-300 rounded-lg max-h-96 overflow-y-auto">
                                 <div class="p-4 text-center text-gray-500">
-                                    필터를 선택하여 작업자 목록을 불러오세요.
+                                    Please select filters to load worker list.
                                 </div>
                             </div>
                         </div>
@@ -8571,7 +8571,7 @@ async function loadExportWorkers() {
     const listContainer = document.getElementById('export-workers-list');
     if (!listContainer) return;
     
-    listContainer.innerHTML = '<div class="p-4 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>로딩 중...</div>';
+    listContainer.innerHTML = '<div class="p-4 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
     
     try {
         // API 호출하여 작업자 데이터 가져오기
@@ -8590,15 +8590,15 @@ async function loadExportWorkers() {
         exportWorkersData = data.workers || [];
         
         if (exportWorkersData.length === 0) {
-            listContainer.innerHTML = '<div class="p-4 text-center text-gray-500">조건에 맞는 작업자가 없습니다.</div>';
+            listContainer.innerHTML = '<div class="p-4 text-center text-gray-500">No workers found matching the criteria.</div>';
             return;
         }
         
-        // 작업자 목록 렌더링
+        // Render workers list
         renderExportWorkersList(exportWorkersData);
         
     } catch (error) {
-        console.error('작업자 목록 로드 실패:', error);
+        console.error('Failed to load workers list:', error);
         listContainer.innerHTML = `<div class="p-4 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-2"></i>${error.message}</div>`;
     }
 }
@@ -8710,7 +8710,7 @@ function renderExportWorkersList(workers) {
 function updateSelectedCount() {
     const countElement = document.getElementById('export-selected-count');
     if (countElement) {
-        countElement.textContent = `선택: ${selectedWorkerIds.size}명`;
+        countElement.textContent = `Selected: ${selectedWorkerIds.size}`;
     }
 }
 
@@ -8725,39 +8725,39 @@ function getLevelBadgeColor(level) {
     }
 }
 
-// 엑셀 다운로드
+// Excel Download
 async function exportComprehensiveEvaluation() {
     if (selectedWorkerIds.size === 0) {
-        alert('다운로드할 작업자를 선택해주세요.');
+        alert('Please select workers to download.');
         return;
     }
     
     try {
-        // 선택된 작업자 데이터만 필터링
+        // Filter selected workers data only
         const selectedWorkers = exportWorkersData.filter(w => selectedWorkerIds.has(w.id));
         
         if (selectedWorkers.length === 0) {
-            alert('선택된 작업자 데이터를 찾을 수 없습니다.');
+            alert('Selected worker data not found.');
             return;
         }
         
-        // SheetJS 라이브러리 로드 확인
+        // Check SheetJS library load
         if (typeof XLSX === 'undefined') {
-            alert('엑셀 라이브러리를 로드하는 중입니다. 잠시 후 다시 시도해주세요.');
+            alert('Loading Excel library. Please try again in a moment.');
             
-            // 동적으로 SheetJS 로드
+            // Dynamically load SheetJS
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
             document.head.appendChild(script);
             
             script.onload = () => {
                 console.log('SheetJS loaded successfully');
-                exportComprehensiveEvaluation(); // 재시도
+                exportComprehensiveEvaluation(); // Retry
             };
             return;
         }
         
-        // 엑셀 데이터 생성
+        // Create Excel data
         const excelData = selectedWorkers.map((worker, index) => ({
             'NO': index + 1,
             'ENTITY': worker.entity || '',
@@ -8770,11 +8770,11 @@ async function exportComprehensiveEvaluation() {
             'Final Assessment Level': worker.final_level || ''
         }));
         
-        // 워크북 생성
+        // Create workbook
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(excelData);
         
-        // 컬럼 너비 설정
+        // Set column widths
         ws['!cols'] = [
             { wch: 5 },   // NO
             { wch: 10 },  // ENTITY
@@ -8787,21 +8787,21 @@ async function exportComprehensiveEvaluation() {
             { wch: 22 }   // Final Assessment Level
         ];
         
-        XLSX.utils.book_append_sheet(wb, ws, '종합평가');
+        XLSX.utils.book_append_sheet(wb, ws, 'Comprehensive_Evaluation');
         
-        // 파일명 생성 (날짜 포함)
+        // Generate filename (with date)
         const today = new Date();
         const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-        const fileName = `종합평가_${dateStr}.xlsx`;
+        const fileName = `Comprehensive_Evaluation_${dateStr}.xlsx`;
         
-        // 다운로드
+        // Download
         XLSX.writeFile(wb, fileName);
         
-        showToast('엑셀 파일이 다운로드되었습니다.', 'success');
+        showToast('Excel file has been downloaded.', 'success');
         
     } catch (error) {
-        console.error('엑셀 다운로드 실패:', error);
-        alert('엑셀 다운로드 중 오류가 발생했습니다.');
+        console.error('Excel download failed:', error);
+        alert('An error occurred during Excel download.');
     }
 }
 

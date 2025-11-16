@@ -1885,10 +1885,7 @@ app.get('/', (c) => {
                         <i class="fas fa-user-check mr-1"></i>SUPERVISOR ASSESSMENT
                     </button>
                     <button onclick="showPage('analysis-page')" class="hover:underline">
-                        <i class="fas fa-chart-line mr-1"></i>RESULT ANALYSIS
-                    </button>
-                    <button onclick="showPage('result-management')" class="hover:underline">
-                        <i class="fas fa-file-excel mr-1"></i>RESULT MANAGEMENT
+                        <i class="fas fa-user-chart mr-1"></i>INDIVIDUAL REPORT
                     </button>
                     <button onclick="showPage('registration')" class="hover:underline">
                         <i class="fas fa-folder-plus mr-1"></i>REGISTRATION
