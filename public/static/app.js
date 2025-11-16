@@ -2907,7 +2907,7 @@ async function uploadQuizzes() {
             const rows = XLSX.utils.sheet_to_json(firstSheet);
             
             if (rows.length === 0) {
-                alert('엑셀 파일에 데이터가 없습니다.');
+                alert('No data found in Excel file.');
                 return;
             }
             
@@ -3932,7 +3932,7 @@ async function loadWorkerStatus() {
         const statusDiv = document.getElementById('worker-status-table');
         
         if (!workers.length) {
-            statusDiv.innerHTML = '<p class="text-gray-500">등록된 작업자가 없습니다.</p>';
+            statusDiv.innerHTML = '<p class="text-gray-500">No registered workers.</p>';
             return;
         }
         
@@ -3971,7 +3971,7 @@ async function loadWorkerStatus() {
                         <div class="flex items-center justify-between">
                             <h4 class="text-lg font-bold text-gray-800">
                                 <i class="fas fa-building mr-2"></i>
-                                ${entity} (${entityWorkers.length}명)
+                                ${entity} (${entityWorkers.length} workers)
                             </h4>
                             <i id="chevron-${entityId}" class="fas fa-chevron-down text-gray-600 transition-transform"></i>
                         </div>
@@ -4353,14 +4353,14 @@ async function deleteWorker(workerId, workerName) {
 function getWorkerUploadHTML() {
     return `
         <div class="space-y-6">
-            <!-- 등록된 작업자 현황 -->
+            <!-- Registered Workers Status -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <h3 class="text-xl font-bold text-gray-800 mb-4">
                     <i class="fas fa-list-check mr-2"></i>
-                    등록된 작업자 현황
+                    Registered Workers Status
                 </h3>
                 <div id="worker-status-table" class="overflow-x-auto">
-                    <p class="text-gray-500">로딩 중...</p>
+                    <p class="text-gray-500">Loading...</p>
                 </div>
             </div>
             
@@ -4427,7 +4427,7 @@ function downloadWorkerTemplate() {
 async function uploadWorkers() {
     const fileInput = document.getElementById('worker-file');
     if (!fileInput.files.length) {
-        alert('파일을 선택해주세요.');
+        alert('Please select a file.');
         return;
     }
     
@@ -4445,7 +4445,7 @@ async function uploadWorkers() {
             console.log(`📊 읽은 행 수: ${rows.length}개`);
             
             if (rows.length === 0) {
-                alert('엑셀 파일에 데이터가 없습니다.');
+                alert('No data found in Excel file.');
                 return;
             }
             
@@ -4522,16 +4522,16 @@ async function uploadWorkers() {
                 const worker = workers[i];
                 const missingFields = [];
                 
-                if (!worker.employee_id) missingFields.push('사번');
-                if (!worker.name) missingFields.push('이름');
-                if (!worker.entity) missingFields.push('법인');
-                if (!worker.team) missingFields.push('팀');
-                if (!worker.position) missingFields.push('직책');
-                if (!worker.start_to_work_date) missingFields.push('입사일');
+                if (!worker.employee_id) missingFields.push('Employee ID');
+                if (!worker.name) missingFields.push('Name');
+                if (!worker.entity) missingFields.push('Entity');
+                if (!worker.team) missingFields.push('Team');
+                if (!worker.position) missingFields.push('Position');
+                if (!worker.start_to_work_date) missingFields.push('Start Date');
                 
                 if (missingFields.length > 0) {
-                    console.error(`❌ 행 ${i + 2} 검증 실패:`, worker);
-                    alert(`${i + 2}번째 행에 필수 항목이 누락되었습니다.\n\n누락된 항목: ${missingFields.join(', ')}\n\n해당 행 데이터:\n사번: ${worker.employee_id}\n이름: ${worker.name}\n법인: ${worker.entity}\n팀: ${worker.team}\n직책: ${worker.position}\n입사일: ${worker.start_to_work_date}`);
+                    console.error(`❌ Row ${i + 2} validation failed:`, worker);
+                    alert(`Missing required fields in row ${i + 2}.\n\nMissing fields: ${missingFields.join(', ')}\n\nRow data:\nEmployee ID: ${worker.employee_id}\nName: ${worker.name}\nEntity: ${worker.entity}\nTeam: ${worker.team}\nPosition: ${worker.position}\nStart Date: ${worker.start_to_work_date}`);
                     return;
                 }
             }
@@ -6560,7 +6560,7 @@ async function uploadTestResults() {
             console.log('📄 첫 번째 행:', rows[0]);
             
             if (rows.length === 0) {
-                alert('엑셀 파일에 데이터가 없습니다.');
+                alert('No data found in Excel file.');
                 return;
             }
             
