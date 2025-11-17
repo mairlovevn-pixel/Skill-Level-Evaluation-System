@@ -1761,6 +1761,90 @@ app.post('/api/results/assessment/recalculate-levels', errorHandler(async (c) =>
   })
 }))
 
+// ==================== Fix Scores API ====================
+
+// Written Test 점수 재계산 API (19개 문제 → 20개 문제로 수정)
+app.post('/api/admin/recalculate-scores', errorHandler(async (c) => {
+  const db = c.env.DB
+  
+  try {
+    // 1. 모든 written_test_results 조회
+    const resultsQuery = await db.prepare(`
+      SELECT wtr.id, wtr.worker_id, wtr.process_id, wtr.score
+      FROM written_test_results wtr
+    `).all()
+    
+    let updatedCount = 0
+    let skippedCount = 0
+    const details: any[] = []
+    
+    // 2. 각 결과에 대해 실제 답변 개수로 점수 재계산
+    for (const result of resultsQuery.results) {
+      const resultId = result.id as number
+      
+      // 실제 답변 데이터 조회
+      const answersQuery = await db.prepare(`
+        SELECT COUNT(*) as total, SUM(is_correct) as correct
+        FROM written_test_answers
+        WHERE result_id = ?
+      `).bind(resultId).first()
+      
+      const total = answersQuery?.total as number || 0
+      const correct = answersQuery?.correct as number || 0
+      
+      if (total === 0) {
+        skippedCount++
+        continue
+      }
+      
+      // 새 점수 계산
+      const newScore = (correct / total) * 100
+      const oldScore = result.score as number
+      
+      // 점수가 변경되었으면 업데이트
+      if (Math.abs(newScore - oldScore) > 0.01) {
+        await db.prepare(`
+          UPDATE written_test_results
+          SET score = ?, passed = ?
+          WHERE id = ?
+        `).bind(newScore, newScore >= 80 ? 1 : 0, resultId).run()
+        
+        updatedCount++
+        
+        // 처음 10개만 상세 정보 저장
+        if (details.length < 10) {
+          details.push({
+            result_id: resultId,
+            worker_id: result.worker_id,
+            old_score: oldScore,
+            new_score: newScore,
+            total_questions: total,
+            correct_answers: correct
+          })
+        }
+      } else {
+        skippedCount++
+      }
+    }
+    
+    return c.json({
+      success: true,
+      message: `Recalculated ${updatedCount} scores`,
+      updated: updatedCount,
+      skipped: skippedCount,
+      total: resultsQuery.results.length,
+      sample_details: details
+    })
+    
+  } catch (error) {
+    console.error('Score recalculation failed:', error)
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+}))
+
 // ==================== Export API ====================
 
 // 종합평가 추출 API
