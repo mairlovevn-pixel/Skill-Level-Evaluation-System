@@ -5790,7 +5790,8 @@ async function uploadWrittenTestResults() {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            // raw: false ensures we read calculated values from formulas, not the formulas themselves
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false });
             
             console.log(`📁 Excel file read complete: ${jsonData.length} rows`);
             console.log('📋 First row:', jsonData[0]);
@@ -5918,7 +5919,8 @@ async function uploadAssessmentResults() {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            // raw: false ensures we read calculated values from formulas, not the formulas themselves
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false });
             
             console.log(`📁 Excel file read complete: ${jsonData.length} rows`);
             console.log('📋 First row:', jsonData[0]);
@@ -7187,7 +7189,7 @@ function displayTestResults(testResults) {
             <div class="flex justify-between items-center">
                 <div>
                     <span class="font-semibold">${result.process_name}</span>
-                    <span class="ml-4 text-gray-600">Score: ${result.score.toFixed(1)}</span>
+                    <span class="ml-4 text-gray-600">Score: ${result.score}</span>
                     <span class="ml-2 px-2 py-1 rounded text-sm ${result.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
                         ${result.passed ? 'Passed' : 'Failed'}
                     </span>

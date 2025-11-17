@@ -1804,9 +1804,11 @@ app.get('/api/export/comprehensive-evaluation', async (c) => {
         w.start_to_work_date as start_date,
         w.current_level as final_level,
         (
-          SELECT AVG(wtr.score)
+          SELECT wtr.score
           FROM written_test_results wtr
           WHERE wtr.worker_id = w.id
+          ORDER BY wtr.test_date DESC
+          LIMIT 1
         ) as written_test_score
       FROM workers w
       ${whereClause}
@@ -1818,12 +1820,10 @@ app.get('/api/export/comprehensive-evaluation', async (c) => {
       ? await stmt.bind(...params).all()
       : await stmt.all()
     
-    // 소수점 처리 및 null 처리
+    // null 처리만 수행 (점수는 이미 정수)
     const workers = (result.results || []).map((w: any) => ({
       ...w,
-      written_test_score: w.written_test_score !== null 
-        ? Math.round(w.written_test_score * 10) / 10  // 소수점 1자리
-        : null,
+      written_test_score: w.written_test_score !== null ? w.written_test_score : null,
       final_level: w.final_level || 1,
       start_date: w.start_date || ''
     }))
