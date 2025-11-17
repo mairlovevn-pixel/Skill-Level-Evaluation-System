@@ -8900,53 +8900,38 @@ async function loadAssessmentStatusData() {
     const entities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
     
     try {
-        // Fetch all workers data
-        const workersResponse = await fetch('/api/workers');
-        const workersData = await workersResponse.json();
+        // Fetch data for each entity
+        const entityData = {};
         
-        if (!workersData.success) {
-            console.error('Failed to load workers data');
-            return;
+        for (const entity of entities) {
+            // Fetch dashboard stats for this entity
+            const response = await fetch(`/api/dashboard/stats?entity=${entity}`);
+            const data = await response.json();
+            
+            if (data) {
+                entityData[entity] = {
+                    totalWorkers: data.total_workers || 0,
+                    testTakers: data.written_test_takers || 0,
+                    assessmentWorkers: 0
+                };
+                
+                // Count workers with supervisor assessments
+                if (data.supervisor_assessment_by_level && Array.isArray(data.supervisor_assessment_by_level)) {
+                    // Sum up all counts from different levels
+                    const totalAssessed = data.supervisor_assessment_by_level.reduce((sum, item) => {
+                        return sum + (parseInt(item.count) || 0);
+                    }, 0);
+                    entityData[entity].assessmentWorkers = totalAssessed;
+                }
+            }
         }
         
-        const allWorkers = workersData.workers || [];
-        
-        // Group workers by entity
-        const workersByEntity = {};
-        allWorkers.forEach(worker => {
-            if (!workersByEntity[worker.entity]) {
-                workersByEntity[worker.entity] = [];
-            }
-            workersByEntity[worker.entity].push(worker);
-        });
-        
-        // Fetch test results
-        const testResponse = await fetch('/api/written-test-results');
-        const testData = await testResponse.json();
-        const testResults = testData.results || [];
-        
-        // Fetch assessment results
-        const assessResponse = await fetch('/api/supervisor-assessments');
-        const assessData = await assessResponse.json();
-        const assessResults = assessData.assessments || [];
-        
-        // Count participants by entity
+        // Update table cells
         entities.forEach(entity => {
-            const totalWorkers = workersByEntity[entity]?.length || 0;
-            
-            // Count Written Test participants
-            const testParticipants = new Set(
-                testResults
-                    .filter(r => allWorkers.find(w => w.id === r.worker_id && w.entity === entity))
-                    .map(r => r.worker_id)
-            ).size;
-            
-            // Count Supervisor Assessment participants
-            const assessParticipants = new Set(
-                assessResults
-                    .filter(a => allWorkers.find(w => w.id === a.worker_id && w.entity === entity))
-                    .map(a => a.worker_id)
-            ).size;
+            const data = entityData[entity] || { totalWorkers: 0, testTakers: 0, assessmentWorkers: 0 };
+            const totalWorkers = data.totalWorkers;
+            const testParticipants = data.testTakers;
+            const assessParticipants = data.assessmentWorkers;
             
             // Update table cells
             const testCell = document.getElementById(`status-test-${entity}`);
