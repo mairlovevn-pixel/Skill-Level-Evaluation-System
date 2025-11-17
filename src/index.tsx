@@ -2343,6 +2343,16 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
       const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0
       const passed = score >= 80 // 80% passing threshold
       
+      // VALIDATION: Score must be multiple of 4 (25q) or 5 (20q)
+      const validScores_20q = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+      const validScores_25q = [0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96, 100]
+      const isValidScore = validScores_20q.includes(score) || validScores_25q.includes(score)
+      
+      if (!isValidScore) {
+        console.warn(`⚠️ INVALID SCORE DETECTED: Worker ${group.worker_id}, Process ${group.process_id}, Score ${score} (${correctAnswers}/${totalQuestions})`)
+        console.warn(`   Answers:`, group.answers.map(a => `Q${a.quiz_id}:${a.is_correct}`).join(', '))
+      }
+      
       // Check if test result already exists
       const existingResult = await db.prepare(
         'SELECT id FROM written_test_results WHERE worker_id = ? AND process_id = ? AND test_date = ?'
