@@ -1763,6 +1763,477 @@ app.post('/api/results/assessment/recalculate-levels', errorHandler(async (c) =>
 
 // ==================== Fix Scores API ====================
 
+// Quiz 텍스트 일괄 업데이트 API (Excel 파일 기반)
+app.post('/api/admin/update-quiz-text', errorHandler(async (c) => {
+  const db = c.env.DB
+  
+  try {
+    const body = await c.req.json()
+    const quizzes = body.quizzes as Array<{
+      position: string
+      no: number
+      question: string
+      category?: string
+    }>
+    
+    if (!quizzes || quizzes.length === 0) {
+      return c.json({ success: false, error: 'No quizzes provided' }, 400)
+    }
+    
+    console.log(`[UPDATE QUIZ] Received ${quizzes.length} quizzes`)
+    
+    // Position ID 매핑 로드
+    const positionsResult = await db.prepare('SELECT id, name FROM positions').all()
+    const positionMap = new Map<string, number>()
+    for (const pos of positionsResult.results) {
+      const normalizedName = (pos.name as string).trim().toUpperCase()
+      positionMap.set(normalizedName, pos.id as number)
+    }
+    
+    let updatedCount = 0
+    let skippedCount = 0
+    const errors: string[] = []
+    
+    // Position별로 그룹화
+    const quizzesByPosition = new Map<string, typeof quizzes>()
+    for (const quiz of quizzes) {
+      const pos = quiz.position.toUpperCase()
+      if (!quizzesByPosition.has(pos)) {
+        quizzesByPosition.set(pos, [])
+      }
+      quizzesByPosition.get(pos)!.push(quiz)
+    }
+    
+    // 각 Position별로 처리
+    for (const [position, posQuizzes] of quizzesByPosition.entries()) {
+      const positionId = positionMap.get(position)
+      
+      if (!positionId) {
+        errors.push(`❌ Position not found: ${position}`)
+        skippedCount += posQuizzes.length
+        continue
+      }
+      
+      // 해당 Position의 기존 Quiz들을 순서대로 조회
+      const existingQuizzes = await db.prepare(`
+        SELECT id, question 
+        FROM written_test_quizzes 
+        WHERE process_id = ? 
+        ORDER BY id
+      `).bind(positionId).all()
+      
+      // NO 기준으로 정렬
+      posQuizzes.sort((a, b) => a.no - b.no)
+      
+      // 순서대로 매칭해서 업데이트
+      for (let i = 0; i < posQuizzes.length; i++) {
+        const newQuiz = posQuizzes[i]
+        
+        if (i >= existingQuizzes.results.length) {
+          errors.push(`⚠️ ${position} #${newQuiz.no}: DB에 해당 순번 Quiz 없음`)
+          skippedCount++
+          continue
+        }
+        
+        const existingQuiz = existingQuizzes.results[i]
+        const quizId = existingQuiz.id as number
+        const oldQuestion = existingQuiz.question as string
+        
+        // 텍스트가 다르면 업데이트
+        if (oldQuestion !== newQuiz.question) {
+          await db.prepare(`
+            UPDATE written_test_quizzes 
+            SET question = ? 
+            WHERE id = ?
+          `).bind(newQuiz.question, quizId).run()
+          
+          updatedCount++
+          
+          console.log(`✅ ${position} #${newQuiz.no}: Updated`)
+        } else {
+          skippedCount++
+        }
+      }
+    }
+    
+    return c.json({
+      success: true,
+      message: `Updated ${updatedCount} quizzes`,
+      updated: updatedCount,
+      skipped: skippedCount,
+      errors: errors.slice(0, 10) // 처음 10개만
+    })
+    
+  } catch (error) {
+    console.error('Quiz update failed:', error)
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+}))
+
+// Check for duplicate test results (debugging)
+app.get('/api/admin/check-duplicates', errorHandler(async (c) => {
+  const db = c.env.DB
+  const { employee_id } = c.req.query()
+  
+  try {
+    let query = `
+      SELECT 
+        w.id as worker_db_id,
+        w.employee_id,
+        w.name,
+        w.entity,
+        w.position,
+        wtr.id as result_id,
+        wtr.score,
+        wtr.test_date,
+        (SELECT COUNT(*) FROM written_test_answers WHERE result_id = wtr.id) as answer_count
+      FROM workers w
+      LEFT JOIN written_test_results wtr ON w.id = wtr.worker_id
+    `
+    
+    let params: any[] = []
+    
+    if (employee_id) {
+      query += ` WHERE w.employee_id = ?`
+      params.push(employee_id)
+    }
+    
+    query += ` ORDER BY w.employee_id, wtr.test_date`
+    
+    const stmt = db.prepare(query)
+    const result = params.length > 0 ? await stmt.bind(...params).all() : await stmt.all()
+    
+    // Group by employee_id to find duplicates
+    const grouped = new Map<string, any[]>()
+    for (const row of result.results) {
+      const empId = row.employee_id as string
+      if (!grouped.has(empId)) {
+        grouped.set(empId, [])
+      }
+      if (row.result_id) {  // Only if they have test results
+        grouped.get(empId)!.push(row)
+      }
+    }
+    
+    // Find employees with multiple test results
+    const duplicates: any[] = []
+    for (const [empId, results] of grouped.entries()) {
+      if (results.length > 1) {
+        duplicates.push({
+          employee_id: empId,
+          name: results[0].name,
+          position: results[0].position,
+          result_count: results.length,
+          results: results.map(r => ({
+            result_id: r.result_id,
+            score: r.score,
+            test_date: r.test_date,
+            answer_count: r.answer_count,
+            worker_db_id: r.worker_db_id,
+            entity: r.entity
+          }))
+        })
+      }
+    }
+    
+    return c.json({
+      success: true,
+      total_workers_checked: grouped.size,
+      duplicates_found: duplicates.length,
+      duplicates: employee_id ? duplicates : duplicates.slice(0, 20)
+    })
+    
+  } catch (error) {
+    console.error('Check duplicates failed:', error)
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+}))
+
+// Fix specific quiz by position and order
+app.post('/api/admin/fix-quiz-by-order', errorHandler(async (c) => {
+  const db = c.env.DB
+  
+  try {
+    const body = await c.req.json()
+    const { position_name, quiz_order, new_choices, new_correct_answer } = body
+    
+    // Get position ID
+    const positionResult = await db.prepare(
+      'SELECT id FROM positions WHERE name = ?'
+    ).bind(position_name).first()
+    
+    if (!positionResult) {
+      return c.json({ success: false, error: 'Position not found' }, 404)
+    }
+    
+    const positionId = positionResult.id as number
+    
+    // Get quiz at this position and order (1-indexed)
+    const quizzesResult = await db.prepare(`
+      SELECT id, question, option_a, option_b, option_c, option_d, correct_answer
+      FROM written_test_quizzes
+      WHERE process_id = ?
+      ORDER BY id
+    `).bind(positionId).all()
+    
+    if (quiz_order < 1 || quiz_order > quizzesResult.results.length) {
+      return c.json({ 
+        success: false, 
+        error: `Quiz order ${quiz_order} out of range (1-${quizzesResult.results.length})` 
+      }, 400)
+    }
+    
+    const targetQuiz = quizzesResult.results[quiz_order - 1]
+    const quizId = targetQuiz.id as number
+    const oldQuestion = targetQuiz.question as string
+    const oldChoices = {
+      A: targetQuiz.option_a,
+      B: targetQuiz.option_b,
+      C: targetQuiz.option_c,
+      D: targetQuiz.option_d
+    }
+    const oldAnswer = targetQuiz.correct_answer as string
+    
+    // Update quiz
+    await db.prepare(`
+      UPDATE written_test_quizzes
+      SET option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_answer = ?
+      WHERE id = ?
+    `).bind(
+      new_choices.A,
+      new_choices.B,
+      new_choices.C,
+      new_choices.D,
+      new_correct_answer,
+      quizId
+    ).run()
+    
+    // Now re-evaluate all answers for this quiz
+    const answersResult = await db.prepare(`
+      SELECT wta.id, wta.result_id, wta.selected_answer, wta.is_correct
+      FROM written_test_answers wta
+      WHERE wta.quiz_id = ?
+    `).bind(quizId).all()
+    
+    let updatedAnswers = 0
+    const changedWorkers: number[] = []
+    
+    for (const answer of answersResult.results) {
+      const answerId = answer.id as number
+      const resultId = answer.result_id as number
+      const selectedAnswer = answer.selected_answer as string
+      const oldIsCorrect = answer.is_correct as number
+      
+      // Re-evaluate: is this answer correct with new correct_answer?
+      const newIsCorrect = selectedAnswer === new_correct_answer ? 1 : 0
+      
+      if (oldIsCorrect !== newIsCorrect) {
+        await db.prepare(`
+          UPDATE written_test_answers
+          SET is_correct = ?
+          WHERE id = ?
+        `).bind(newIsCorrect, answerId).run()
+        
+        updatedAnswers++
+        changedWorkers.push(resultId)
+      }
+    }
+    
+    // Recalculate scores for affected test results
+    const uniqueResultIds = [...new Set(changedWorkers)]
+    let recalculatedScores = 0
+    
+    for (const resultId of uniqueResultIds) {
+      // Get all answers for this result
+      const resultAnswers = await db.prepare(`
+        SELECT COUNT(*) as total, SUM(is_correct) as correct
+        FROM written_test_answers
+        WHERE result_id = ?
+      `).bind(resultId).first()
+      
+      const total = resultAnswers?.total as number || 0
+      const correct = resultAnswers?.correct as number || 0
+      
+      if (total > 0) {
+        const newScore = Math.round((correct / total) * 100)
+        const passed = newScore >= 80 ? 1 : 0
+        
+        await db.prepare(`
+          UPDATE written_test_results
+          SET score = ?, passed = ?
+          WHERE id = ?
+        `).bind(newScore, passed, resultId).run()
+        
+        recalculatedScores++
+      }
+    }
+    
+    return c.json({
+      success: true,
+      quiz_id: quizId,
+      question: oldQuestion,
+      old_choices: oldChoices,
+      new_choices: new_choices,
+      old_correct_answer: oldAnswer,
+      new_correct_answer: new_correct_answer,
+      answers_updated: updatedAnswers,
+      workers_affected: recalculatedScores
+    })
+    
+  } catch (error) {
+    console.error('Fix quiz failed:', error)
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+}))
+
+// Normalize test dates and remove duplicates
+app.post('/api/admin/fix-duplicate-test-dates', errorHandler(async (c) => {
+  const db = c.env.DB
+  
+  try {
+    // Step 1: Normalize all test dates to YYYY-MM-DD format
+    const resultsQuery = await db.prepare(`
+      SELECT id, test_date
+      FROM written_test_results
+      WHERE test_date LIKE '%.%'
+    `).all()
+    
+    let normalizedCount = 0
+    
+    for (const result of resultsQuery.results) {
+      const resultId = result.id as number
+      const originalDate = result.test_date as string
+      
+      // Convert "2025. 10. 28." to "2025-10-28"
+      const normalized = originalDate
+        .replace(/\s+/g, '')  // Remove spaces: "2025.10.28."
+        .replace(/\./g, '-')  // Replace dots with dashes: "2025-10-28-"
+        .replace(/-+$/, '')   // Remove trailing dashes: "2025-10-28"
+      
+      await db.prepare(`
+        UPDATE written_test_results
+        SET test_date = ?
+        WHERE id = ?
+      `).bind(normalized, resultId).run()
+      
+      normalizedCount++
+    }
+    
+    // Step 2: Now find and delete duplicates (same worker_id, process_id, test_date)
+    const duplicatesQuery = await db.prepare(`
+      SELECT worker_id, process_id, test_date, COUNT(*) as count
+      FROM written_test_results
+      GROUP BY worker_id, process_id, test_date
+      HAVING COUNT(*) > 1
+    `).all()
+    
+    let deletedCount = 0
+    
+    for (const dup of duplicatesQuery.results) {
+      const workerId = dup.worker_id as number
+      const processId = dup.process_id as number
+      const testDate = dup.test_date as string
+      
+      // Get all matching results, ordered by answer count (keep the one with most answers)
+      const matchingResults = await db.prepare(`
+        SELECT 
+          wtr.id as result_id,
+          (SELECT COUNT(*) FROM written_test_answers WHERE result_id = wtr.id) as answer_count
+        FROM written_test_results wtr
+        WHERE wtr.worker_id = ? AND wtr.process_id = ? AND wtr.test_date = ?
+        ORDER BY answer_count DESC, wtr.id DESC
+      `).bind(workerId, processId, testDate).all()
+      
+      // Keep first, delete rest
+      for (let i = 1; i < matchingResults.results.length; i++) {
+        const resultId = matchingResults.results[i].result_id as number
+        
+        await db.prepare(`DELETE FROM written_test_answers WHERE result_id = ?`).bind(resultId).run()
+        await db.prepare(`DELETE FROM written_test_results WHERE id = ?`).bind(resultId).run()
+        
+        deletedCount++
+      }
+    }
+    
+    return c.json({
+      success: true,
+      message: `Normalized ${normalizedCount} dates, deleted ${deletedCount} duplicates`,
+      normalized: normalizedCount,
+      deleted: deletedCount
+    })
+    
+  } catch (error) {
+    console.error('Fix duplicates failed:', error)
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+}))
+
+// Round floating point scores to nearest integer
+app.post('/api/admin/round-scores', errorHandler(async (c) => {
+  const db = c.env.DB
+  
+  try {
+    // Find all scores with decimal values
+    const resultsQuery = await db.prepare(`
+      SELECT id, score
+      FROM written_test_results
+      WHERE score != ROUND(score)
+    `).all()
+    
+    let updatedCount = 0
+    const updates: any[] = []
+    
+    for (const result of resultsQuery.results) {
+      const resultId = result.id as number
+      const oldScore = result.score as number
+      const newScore = Math.round(oldScore)
+      
+      await db.prepare(`
+        UPDATE written_test_results
+        SET score = ?
+        WHERE id = ?
+      `).bind(newScore, resultId).run()
+      
+      updatedCount++
+      
+      if (updates.length < 20) {
+        updates.push({
+          id: resultId,
+          old: oldScore,
+          new: newScore,
+          diff: Math.abs(newScore - oldScore)
+        })
+      }
+    }
+    
+    return c.json({
+      success: true,
+      message: `Rounded ${updatedCount} scores`,
+      updated: updatedCount,
+      samples: updates
+    })
+    
+  } catch (error) {
+    console.error('Round scores failed:', error)
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, 500)
+  }
+}))
+
 // Written Test 점수 재계산 API (19개 문제 → 20개 문제로 수정)
 app.post('/api/admin/recalculate-scores', errorHandler(async (c) => {
   const db = c.env.DB
@@ -2342,6 +2813,8 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
     return text
       .trim()
       .toLowerCase()
+      // Remove ALL types of quotes to avoid matching issues
+      .replace(/['"''""`´«»‹›「」『』''""]/g, '')  // Remove all quote types including smart quotes
       .replace(/\s+/g, ' ')  // Multiple spaces to single space
       .replace(/[?？]+$/, '')  // Remove trailing question marks
       .replace(/무엇인가요\?*$/, '')  // Remove "무엇인가요?" suffix

@@ -580,11 +580,14 @@ function getDashboardHTML() {
                 <!-- Supervisor Assessment 탭 컨텐츠 -->
                 <div id="dashboard-content-assessment" class="dashboard-content hidden">
                 
-                <!-- Chart and Stats Container -->
-                <div class="flex gap-6 mb-6">
-                    <!-- Chart -->
-                    <div class="flex-1 relative">
-                        <!-- Level Definition Button (Positioned in chart corner) -->
+                <!-- Charts Container (2 charts side by side) -->
+                <div class="grid grid-cols-2 gap-6 mb-6">
+                    <!-- Chart 1: Absolute Numbers by Entity -->
+                    <div class="relative">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-chart-bar mr-2"></i>Workers by Level (Absolute)
+                        </h3>
+                        <!-- Level Definition Button -->
                         <div class="absolute top-0 right-0 z-10">
                             <div class="relative">
                                 <button 
@@ -607,21 +610,36 @@ function getDashboardHTML() {
                         <canvas id="assessment-chart"></canvas>
                     </div>
                     
-                    <!-- Level Statistics (Toggle) -->
-                    <div id="level-stats-container" class="w-80">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-lg font-semibold text-gray-800">
-                                <i class="fas fa-layer-group mr-2"></i>LEVEL STATISTICS
-                            </h3>
-                            <button onclick="toggleLevelStats()" class="text-sm text-blue-600 hover:text-blue-800">
-                                <i id="level-stats-icon" class="fas fa-eye-slash mr-1"></i>
-                                <span id="level-stats-text">HIDE</span>
-                            </button>
-                        </div>
-                        <div id="level-stats-content">
-                            <!-- Will be populated dynamically -->
-                        </div>
+                    <!-- Chart 2: Percentage by Entity -->
+                    <div class="relative">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-percentage mr-2"></i>Level Distribution by Entity (%)
+                        </h3>
+                        <canvas id="assessment-percentage-chart"></canvas>
                     </div>
+                </div>
+                
+                <!-- Level Statistics (Below Charts) -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            <i class="fas fa-layer-group mr-2"></i>LEVEL STATISTICS
+                        </h3>
+                        <button onclick="toggleLevelStats()" class="text-sm text-blue-600 hover:text-blue-800">
+                            <i id="level-stats-icon" class="fas fa-eye-slash mr-1"></i>
+                            <span id="level-stats-text">HIDE</span>
+                        </button>
+                    </div>
+                    <div id="level-stats-content" class="grid grid-cols-4 gap-4">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </div>
+                
+                <!-- Chart and Stats Container -->
+                <div class="hidden gap-6 mb-6">
+                    <!-- Chart -->
+                    <div class="flex-1 relative">
+                    
                 </div>
                 
                 <!-- Filters (Below Chart) -->
@@ -701,6 +719,7 @@ let allDashboardData = null;
 let currentTestStatusChart = null;
 let currentAvgScoreChart = null;
 let currentAssessmentChart = null;
+let currentAssessmentPercentageChart = null;
 let teamProcessMapping = {};
 
 async function loadDashboard() {
@@ -2482,12 +2501,17 @@ function renderAvgScoreChart() {
 
 function renderAssessmentChart() {
     const ctx = document.getElementById('assessment-chart');
-    if (!ctx) return;
+    const ctxPercentage = document.getElementById('assessment-percentage-chart');
+    if (!ctx || !ctxPercentage) return;
     
-    // Destroy existing chart first
+    // Destroy existing charts first
     if (currentAssessmentChart) {
         currentAssessmentChart.destroy();
         currentAssessmentChart = null;
+    }
+    if (currentAssessmentPercentageChart) {
+        currentAssessmentPercentageChart.destroy();
+        currentAssessmentPercentageChart = null;
     }
     
     // Use allDashboardData if available (from filtering), otherwise use dashboardData
@@ -2509,9 +2533,14 @@ function renderAssessmentChart() {
     const entityColors = {
         'CSVN': 'rgba(59, 130, 246, 0.7)',     // Blue (VN)
         'CSCN': 'rgba(34, 197, 94, 0.7)',      // Green (CN)
-        'CSTW': 'rgba(239, 68, 68, 0.7)'       // Red (TW)
+        'CSTW': 'rgba(239, 68, 68, 0.7)',      // Red (TW)
+        'CSTR': 'rgba(234, 179, 8, 0.7)',      // Yellow (TR)
+        'CSPT': 'rgba(168, 85, 247, 0.7)',     // Purple (PT)
+        'CSWO': 'rgba(236, 72, 153, 0.7)',     // Pink (WO)
+        'CSAM': 'rgba(20, 184, 166, 0.7)'      // Teal (AM)
     };
     
+    // Chart 1: Absolute numbers by level
     const datasets = entitiesToShow.map(entity => {
         return {
             label: entity,
@@ -2525,7 +2554,6 @@ function renderAssessmentChart() {
         };
     });
     
-    // Create chart
     currentAssessmentChart = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -2572,6 +2600,95 @@ function renderAssessmentChart() {
                     callbacks: {
                         label: function(context) {
                             return `${context.dataset.label}: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Chart 2: Percentage distribution by entity
+    // Calculate entity totals and percentages
+    const allEntities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
+    const percentageDatasets = levels.map((level, idx) => {
+        const levelColors = [
+            'rgba(239, 68, 68, 0.8)',    // Level 1 - Red
+            'rgba(251, 146, 60, 0.8)',   // Level 2 - Orange
+            'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
+            'rgba(34, 197, 94, 0.8)'     // Level 4 - Green
+        ];
+        
+        return {
+            label: `Level ${level}`,
+            data: allEntities.map(entity => {
+                // Calculate total workers for this entity
+                const entityData = filteredData.filter(d => d.entity === entity);
+                const totalWorkers = entityData.reduce((sum, d) => sum + d.count, 0);
+                
+                // Get count for this level and entity
+                const item = filteredData.find(d => d.entity === entity && d.level === level);
+                const count = item ? item.count : 0;
+                
+                // Calculate percentage
+                return totalWorkers > 0 ? (count / totalWorkers) * 100 : 0;
+            }),
+            backgroundColor: levelColors[idx],
+            borderColor: levelColors[idx].replace('0.8', '1'),
+            borderWidth: 1
+        };
+    });
+    
+    currentAssessmentPercentageChart = new Chart(ctxPercentage, {
+        type: 'bar',
+        data: {
+            labels: allEntities,
+            datasets: percentageDatasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'PERCENTAGE (%)'
+                    },
+                    stacked: true
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Entity'
+                    },
+                    stacked: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                datalabels: {
+                    formatter: (value) => {
+                        return value > 5 ? value.toFixed(1) + '%' : '';  // Only show if > 5%
+                    },
+                    color: '#fff',
+                    font: {
+                        weight: 'bold',
+                        size: 9
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
                         }
                     }
                 }
