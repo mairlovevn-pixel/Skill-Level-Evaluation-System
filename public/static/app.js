@@ -610,25 +610,7 @@ function getDashboardHTML() {
                     </div>
                 </div>
                 
-                <!-- Level Statistics -->
-                <div class="mb-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold text-gray-800">
-                            <i class="fas fa-layer-group mr-2"></i>LEVEL STATISTICS
-                        </h3>
-                        <button onclick="toggleLevelStats()" class="text-sm text-blue-600 hover:text-blue-800">
-                            <i id="level-stats-icon" class="fas fa-eye-slash mr-1"></i>
-                            <span id="level-stats-text">HIDE</span>
-                        </button>
-                    </div>
-                    <div id="level-stats-content" class="grid grid-cols-4 gap-4">
-                        <!-- Will be populated dynamically -->
-                    </div>
-                </div>
-                    
-                </div>
-                
-                <!-- Filters (Below Chart) -->
+                <!-- Filters -->
                 <div id="assessment-filters" class="mt-6 pt-6 border-t border-gray-200">
                     <!-- Entity Filter -->
                     <div class="mb-4">
@@ -663,6 +645,22 @@ function getDashboardHTML() {
                         <div class="flex flex-wrap gap-4" id="assessment-position-checkboxes">
                             <!-- Will be populated dynamically -->
                         </div>
+                    </div>
+                </div>
+                
+                <!-- Level Statistics -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            <i class="fas fa-layer-group mr-2"></i>LEVEL STATISTICS
+                        </h3>
+                        <button onclick="toggleLevelStats()" class="text-sm text-blue-600 hover:text-blue-800">
+                            <i id="level-stats-icon" class="fas fa-eye-slash mr-1"></i>
+                            <span id="level-stats-text">HIDE</span>
+                        </button>
+                    </div>
+                    <div id="level-stats-content" class="grid grid-cols-4 gap-4">
+                        <!-- Will be populated dynamically -->
                     </div>
                 </div>
                 </div>
