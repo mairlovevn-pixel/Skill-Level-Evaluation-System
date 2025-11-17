@@ -379,6 +379,9 @@ function getDashboardHTML() {
                     <button onclick="switchDashboardTab('assessment')" id="dashboard-tab-assessment" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
                         <i class="fas fa-star mr-2"></i>Supervisor Assessment
                     </button>
+                    <button onclick="switchDashboardTab('assessment-percentage')" id="dashboard-tab-assessment-percentage" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-percentage mr-2"></i>Supervisor Assessment (%)
+                    </button>
                 </div>
                 
                 <!-- Written Test Results 탭 컨텐츠 -->
@@ -577,16 +580,12 @@ function getDashboardHTML() {
                 </div>
                 </div>
                 
-                <!-- Supervisor Assessment 탭 컨텐츠 -->
+                <!-- Supervisor Assessment 탭 컨텐츠 (Absolute) -->
                 <div id="dashboard-content-assessment" class="dashboard-content hidden">
                 
-                <!-- Charts Container (2 charts side by side) -->
-                <div class="grid grid-cols-2 gap-6 mb-6">
-                    <!-- Chart 1: Absolute Numbers by Entity -->
+                <!-- Chart Container -->
+                <div class="mb-6">
                     <div class="relative">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                            <i class="fas fa-chart-bar mr-2"></i>Workers by Level (Absolute)
-                        </h3>
                         <!-- Level Definition Button -->
                         <div class="absolute top-0 right-0 z-10">
                             <div class="relative">
@@ -609,17 +608,9 @@ function getDashboardHTML() {
                         </div>
                         <canvas id="assessment-chart"></canvas>
                     </div>
-                    
-                    <!-- Chart 2: Percentage by Entity -->
-                    <div class="relative">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                            <i class="fas fa-percentage mr-2"></i>Level Distribution by Entity (%)
-                        </h3>
-                        <canvas id="assessment-percentage-chart"></canvas>
-                    </div>
                 </div>
                 
-                <!-- Level Statistics (Below Charts) -->
+                <!-- Level Statistics -->
                 <div class="mb-6">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-semibold text-gray-800">
@@ -634,11 +625,6 @@ function getDashboardHTML() {
                         <!-- Will be populated dynamically -->
                     </div>
                 </div>
-                
-                <!-- Chart and Stats Container -->
-                <div class="hidden gap-6 mb-6">
-                    <!-- Chart -->
-                    <div class="flex-1 relative">
                     
                 </div>
                 
@@ -675,6 +661,75 @@ function getDashboardHTML() {
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
                         <div class="flex flex-wrap gap-4" id="assessment-position-checkboxes">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+                </div>
+                
+                <!-- Supervisor Assessment (%) 탭 컨텐츠 -->
+                <div id="dashboard-content-assessment-percentage" class="dashboard-content hidden">
+                
+                <!-- Chart Container -->
+                <div class="mb-6">
+                    <div class="relative">
+                        <!-- Level Definition Button -->
+                        <div class="absolute top-0 right-0 z-10">
+                            <div class="relative">
+                                <button 
+                                    id="level-definition-btn-pct" 
+                                    class="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors shadow-md"
+                                    onmouseenter="showLevelDefinitionPct()"
+                                    onmouseleave="hideLevelDefinitionPct()">
+                                    <i class="fas fa-info-circle mr-1"></i>LEVEL DEFINITION
+                                </button>
+                                <div 
+                                    id="level-definition-popup-pct" 
+                                    class="hidden absolute right-0 top-full mt-2 z-50 bg-white rounded-lg shadow-2xl border-2 border-purple-600"
+                                    onmouseenter="showLevelDefinitionPct()"
+                                    onmouseleave="hideLevelDefinitionPct()"
+                                    style="width: 600px; max-width: 90vw;">
+                                    <img src="/static/level-definition.jpg" alt="Level Definition" class="w-full h-auto rounded-lg">
+                                </div>
+                            </div>
+                        </div>
+                        <canvas id="assessment-percentage-chart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Filters (Below Chart) -->
+                <div id="assessment-percentage-filters" class="mt-6 pt-6 border-t border-gray-200">
+                    <!-- Entity Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
+                        <div class="flex gap-4">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSVN" checked onchange="updateAssessmentPercentageFilter()" class="assessment-pct-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSVN</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSCN" checked onchange="updateAssessmentPercentageFilter()" class="assessment-pct-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSCN</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="CSTW" checked onchange="updateAssessmentPercentageFilter()" class="assessment-pct-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                                <span class="text-sm">CSTW</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Team Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
+                        <div class="flex flex-wrap gap-4" id="assessment-pct-team-checkboxes">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+                    
+                    <!-- Position Filter -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
+                        <div class="flex flex-wrap gap-4" id="assessment-pct-position-checkboxes">
                             <!-- Will be populated dynamically -->
                         </div>
                     </div>
@@ -776,6 +831,7 @@ async function loadDashboard() {
         
         // Assessment 필터 초기화
         initializeAssessmentFilters();
+        initializeAssessmentPercentageFilters();
         
         // 분석 탭 초기화
         initializeAnalysisTab();
@@ -784,6 +840,7 @@ async function loadDashboard() {
         renderTestStatusChart();
         renderAvgScoreChart();
         renderAssessmentChart();
+        renderAssessmentPercentageChart();
     } catch (error) {
         console.error('대시보드 로드 실패:', error);
         alert('대시보드 데이터를 불러오는데 실패했습니다.');
@@ -801,9 +858,16 @@ let analysisFilters = {
 
 // ==================== Supervisor Assessment Filter Functions ====================
 
+let assessmentPercentageFilters = {
+    entities: new Set(['CSVN', 'CSCN', 'CSTW']),
+    teams: new Set(),
+    positions: new Set()
+};
+
 function initializeAssessmentFilters() {
     // Populate team checkboxes
     const teamContainer = document.getElementById('assessment-team-checkboxes');
+    const teamContainerPct = document.getElementById('assessment-pct-team-checkboxes');
     teamContainer.innerHTML = '';
     
     WRITTEN_TEST_TEAM_ORDER.forEach(team => {
@@ -2501,17 +2565,12 @@ function renderAvgScoreChart() {
 
 function renderAssessmentChart() {
     const ctx = document.getElementById('assessment-chart');
-    const ctxPercentage = document.getElementById('assessment-percentage-chart');
-    if (!ctx || !ctxPercentage) return;
+    if (!ctx) return;
     
-    // Destroy existing charts first
+    // Destroy existing chart first
     if (currentAssessmentChart) {
         currentAssessmentChart.destroy();
         currentAssessmentChart = null;
-    }
-    if (currentAssessmentPercentageChart) {
-        currentAssessmentPercentageChart.destroy();
-        currentAssessmentPercentageChart = null;
     }
     
     // Use allDashboardData if available (from filtering), otherwise use dashboardData
@@ -2607,9 +2666,37 @@ function renderAssessmentChart() {
         }
     });
     
-    // Chart 2: Percentage distribution by entity
-    // Calculate entity totals and percentages
+    // Render level statistics
+    renderLevelStatistics(filteredData, levels);
+}
+
+// Render Assessment Percentage Chart (separate function)
+function renderAssessmentPercentageChart() {
+    const ctxPercentage = document.getElementById('assessment-percentage-chart');
+    if (!ctxPercentage) return;
+    
+    // Destroy existing chart first
+    if (currentAssessmentPercentageChart) {
+        currentAssessmentPercentageChart.destroy();
+        currentAssessmentPercentageChart = null;
+    }
+    
+    // Use allDashboardData if available (from filtering), otherwise use dashboardData
+    const sourceData = allDashboardData || dashboardData;
+    const data = sourceData.supervisor_assessment_by_level;
+    
+    console.log('📊 renderAssessmentPercentageChart - Data source:', allDashboardData ? 'filtered' : 'original');
+    
+    // Apply entity filter (if no entities selected, show all)
+    const selectedEntities = Array.from(assessmentPercentageFilters.entities);
+    const entitiesToShow = selectedEntities.length > 0 ? selectedEntities : ['CSVN', 'CSCN', 'CSTW'];
+    let filteredData = data.filter(d => entitiesToShow.includes(d.entity));
+    
+    // Group by level
+    const levels = [1, 2, 3, 4];
     const allEntities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
+    
+    // Chart 2: Percentage distribution by entity
     const percentageDatasets = levels.map((level, idx) => {
         const levelColors = [
             'rgba(239, 68, 68, 0.8)',    // Level 1 - Red
@@ -2695,9 +2782,6 @@ function renderAssessmentChart() {
             }
         }
     });
-    
-    // Render level statistics
-    renderLevelStatistics(filteredData, levels);
 }
 
 // Render level statistics panel
@@ -2793,6 +2877,22 @@ function hideLevelDefinition() {
     }
 }
 
+// Show Level Definition popup (Percentage tab)
+function showLevelDefinitionPct() {
+    const popup = document.getElementById('level-definition-popup-pct');
+    if (popup) {
+        popup.classList.remove('hidden');
+    }
+}
+
+// Hide Level Definition popup (Percentage tab)
+function hideLevelDefinitionPct() {
+    const popup = document.getElementById('level-definition-popup-pct');
+    if (popup) {
+        popup.classList.add('hidden');
+    }
+}
+
 // Toggle level statistics visibility
 function toggleLevelStats() {
     const content = document.getElementById('level-stats-content');
@@ -2809,6 +2909,178 @@ function toggleLevelStats() {
         content.style.display = 'none';
         icon.className = 'fas fa-eye mr-1';
         text.textContent = 'SHOW';
+    }
+}
+
+// ==================== Supervisor Assessment (%) Filter Functions ====================
+
+function initializeAssessmentPercentageFilters() {
+    // Populate team checkboxes
+    const teamContainerPct = document.getElementById('assessment-pct-team-checkboxes');
+    const positionContainerPct = document.getElementById('assessment-pct-position-checkboxes');
+    
+    if (!teamContainerPct || !positionContainerPct) return;
+    
+    // Get unique teams and positions from dashboard data
+    const teams = new Set();
+    const positions = new Set();
+    
+    if (allDashboardData && allDashboardData.test_status_by_process) {
+        allDashboardData.test_status_by_process.forEach(item => {
+            if (item.team) teams.add(item.team);
+            if (item.position) positions.add(item.position);
+        });
+    }
+    
+    // Populate team checkboxes
+    teamContainerPct.innerHTML = '';
+    Array.from(teams).sort().forEach(team => {
+        const label = document.createElement('label');
+        label.className = 'inline-flex items-center cursor-pointer';
+        label.innerHTML = `
+            <input type="checkbox" value="${team}" checked onchange="updateAssessmentPercentageFilter()" 
+                   class="assessment-pct-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+            <span class="text-sm">${team}</span>
+        `;
+        teamContainerPct.appendChild(label);
+        assessmentPercentageFilters.teams.add(team);
+    });
+    
+    // Populate position checkboxes
+    positionContainerPct.innerHTML = '';
+    Array.from(positions).sort().forEach(position => {
+        const label = document.createElement('label');
+        label.className = 'inline-flex items-center cursor-pointer';
+        label.innerHTML = `
+            <input type="checkbox" value="${position}" checked onchange="updateAssessmentPercentageFilter()" 
+                   class="assessment-pct-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+            <span class="text-sm">${position}</span>
+        `;
+        positionContainerPct.appendChild(label);
+        assessmentPercentageFilters.positions.add(position);
+    });
+}
+
+async function updateAssessmentPercentageFilter() {
+    console.log('updateAssessmentPercentageFilter called');
+    
+    // Update entity filters
+    const entityCheckboxes = document.querySelectorAll('.assessment-pct-entity-checkbox');
+    assessmentPercentageFilters.entities = new Set();
+    entityCheckboxes.forEach(cb => {
+        if (cb.checked) assessmentPercentageFilters.entities.add(cb.value);
+    });
+    
+    // Update team filters
+    const teamCheckboxes = document.querySelectorAll('.assessment-pct-team-checkbox');
+    assessmentPercentageFilters.teams = new Set();
+    teamCheckboxes.forEach(cb => {
+        if (cb.checked) assessmentPercentageFilters.teams.add(cb.value);
+    });
+    
+    // Update position filters
+    const positionCheckboxes = document.querySelectorAll('.assessment-pct-position-checkbox');
+    assessmentPercentageFilters.positions = new Set();
+    positionCheckboxes.forEach(cb => {
+        if (cb.checked) assessmentPercentageFilters.positions.add(cb.value);
+    });
+    
+    console.log('Percentage Filters:', {
+        entities: Array.from(assessmentPercentageFilters.entities),
+        teams: Array.from(assessmentPercentageFilters.teams),
+        positions: Array.from(assessmentPercentageFilters.positions)
+    });
+    
+    // Apply filters and reload data
+    await filterAssessmentPercentageChart();
+}
+
+// Filter assessment percentage chart
+async function filterAssessmentPercentageChart() {
+    console.log('filterAssessmentPercentageChart called');
+    
+    try {
+        // Get full data from initial load
+        if (!allDashboardData || !allDashboardData.supervisor_assessment_by_level) {
+            console.error('No dashboard data available');
+            return;
+        }
+        
+        const entities = Array.from(assessmentPercentageFilters.entities);
+        const teams = Array.from(assessmentPercentageFilters.teams);
+        const positions = Array.from(assessmentPercentageFilters.positions);
+        
+        // Use same filtering logic as absolute chart
+        const selectedEntities = entities.length > 0 ? entities : ['CSVN', 'CSCN', 'CSTW'];
+        
+        // Filter by Entity
+        let filteredLevelData = allDashboardData.supervisor_assessment_by_level.filter(item => {
+            return selectedEntities.includes(item.entity);
+        });
+        
+        // Apply team/position filters if needed
+        const totalTeamCheckboxes = document.querySelectorAll('.assessment-pct-team-checkbox').length;
+        const allTeamsSelected = teams.length === totalTeamCheckboxes;
+        const totalPositionCheckboxes = document.querySelectorAll('.assessment-pct-position-checkbox:not([disabled])').length;
+        const allPositionsSelected = positions.length === totalPositionCheckboxes;
+        
+        const hasTeamFilter = teams.length > 0 && !allTeamsSelected;
+        const hasPositionFilter = positions.length > 0 && !allPositionsSelected;
+        
+        if (hasTeamFilter || hasPositionFilter) {
+            const passThreshold = AppState.getPassThreshold();
+            let teamPositionData = [];
+            
+            for (const entity of selectedEntities) {
+                let url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}`;
+                
+                if (teams.length > 0) {
+                    for (const team of teams) {
+                        let teamUrl = url + `&team=${encodeURIComponent(team)}`;
+                        
+                        if (positions.length > 0) {
+                            for (const position of positions) {
+                                const posUrl = teamUrl + `&position=${encodeURIComponent(position)}`;
+                                const response = await axios.get(posUrl);
+                                teamPositionData.push(...response.data.supervisor_assessment_by_level);
+                            }
+                        } else {
+                            const response = await axios.get(teamUrl);
+                            teamPositionData.push(...response.data.supervisor_assessment_by_level);
+                        }
+                    }
+                } else if (positions.length > 0) {
+                    for (const position of positions) {
+                        const posUrl = url + `&position=${encodeURIComponent(position)}`;
+                        const response = await axios.get(posUrl);
+                        teamPositionData.push(...response.data.supervisor_assessment_by_level);
+                    }
+                }
+            }
+            
+            const mergedData = {};
+            teamPositionData.forEach(item => {
+                const key = `${item.entity}-${item.level}`;
+                if (!mergedData[key]) {
+                    mergedData[key] = { ...item };
+                } else {
+                    mergedData[key].count += item.count;
+                }
+            });
+            
+            filteredLevelData = Object.values(mergedData);
+        }
+        
+        // Update dashboard data for rendering
+        dashboardData = {
+            ...dashboardData,
+            supervisor_assessment_by_level: filteredLevelData
+        };
+        
+        // Re-render chart
+        renderAssessmentPercentageChart();
+    } catch (error) {
+        console.error('Failed to filter assessment percentage chart:', error);
     }
 }
 
