@@ -293,11 +293,77 @@ async function loadWorkers() {
 function getDashboardHTML() {
     return `
         <div class="space-y-6">
-            <div class="mb-6">
+            <div class="mb-6 flex justify-between items-center">
                 <h2 class="text-3xl font-bold text-gray-800">
                     <i class="fas fa-chart-bar mr-2"></i>
                     SKILL LEVEL ASSESSMENT SUMMARY
                 </h2>
+                
+                <!-- Assessment Status Summary Icon -->
+                <div class="relative">
+                    <button 
+                        id="assessment-status-btn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-md transition-all flex items-center gap-2"
+                        onmouseenter="showAssessmentStatusPopup()"
+                        onmouseleave="hideAssessmentStatusPopup()">
+                        <i class="fas fa-info-circle"></i>
+                        <span class="text-sm font-medium">Assessment Status</span>
+                    </button>
+                    
+                    <!-- Popup Table -->
+                    <div 
+                        id="assessment-status-popup"
+                        class="hidden absolute right-0 top-full mt-2 z-50 bg-white rounded-lg shadow-2xl border-2 border-blue-600"
+                        style="min-width: 900px;"
+                        onmouseenter="showAssessmentStatusPopup()"
+                        onmouseleave="hideAssessmentStatusPopup()">
+                        <div class="p-4">
+                            <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                <i class="fas fa-table text-blue-600"></i>
+                                Assessment Status by Entity
+                            </h3>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full border-collapse border border-gray-300 text-sm">
+                                    <thead class="bg-gray-100">
+                                        <tr>
+                                            <th class="border border-gray-300 px-3 py-2 text-left font-semibold">Entity</th>
+                                            <th class="border border-gray-300 px-3 py-2 text-center font-semibold">CSVN</th>
+                                            <th class="border border-gray-300 px-3 py-2 text-center font-semibold">CSCN</th>
+                                            <th class="border border-gray-300 px-3 py-2 text-center font-semibold">CSTW</th>
+                                            <th class="border border-gray-300 px-3 py-2 text-center font-semibold">CSTR</th>
+                                            <th class="border border-gray-300 px-3 py-2 text-center font-semibold">CSPT</th>
+                                            <th class="border border-gray-300 px-3 py-2 text-center font-semibold">CSWO</th>
+                                            <th class="border border-gray-300 px-3 py-2 text-center font-semibold">CSAM</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="assessment-status-tbody">
+                                        <tr>
+                                            <td class="border border-gray-300 px-3 py-2 font-medium bg-blue-50">Written Test</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-test-CSVN">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-test-CSCN">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-test-CSTW">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-test-CSTR">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-test-CSPT">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-test-CSWO">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-test-CSAM">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="border border-gray-300 px-3 py-2 font-medium bg-purple-50">Supervisor Assessment</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-assess-CSVN">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-assess-CSCN">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-assess-CSTW">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-assess-CSTR">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-assess-CSPT">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-assess-CSWO">-</td>
+                                            <td class="border border-gray-300 px-3 py-2 text-center" id="status-assess-CSAM">-</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">* Format: Participants / Total Workers</p>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- 통합 대시보드 탭 -->
@@ -8802,6 +8868,129 @@ async function exportComprehensiveEvaluation() {
     } catch (error) {
         console.error('Excel download failed:', error);
         alert('An error occurred during Excel download.');
+    }
+}
+
+// ============================================
+// Assessment Status Popup Functions
+// ============================================
+
+let assessmentStatusPopupTimer;
+
+function showAssessmentStatusPopup() {
+    clearTimeout(assessmentStatusPopupTimer);
+    const popup = document.getElementById('assessment-status-popup');
+    if (popup) {
+        popup.classList.remove('hidden');
+        // Load data if not already loaded
+        loadAssessmentStatusData();
+    }
+}
+
+function hideAssessmentStatusPopup() {
+    assessmentStatusPopupTimer = setTimeout(() => {
+        const popup = document.getElementById('assessment-status-popup');
+        if (popup) {
+            popup.classList.add('hidden');
+        }
+    }, 200);
+}
+
+async function loadAssessmentStatusData() {
+    const entities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
+    
+    try {
+        // Fetch all workers data
+        const workersResponse = await fetch('/api/workers');
+        const workersData = await workersResponse.json();
+        
+        if (!workersData.success) {
+            console.error('Failed to load workers data');
+            return;
+        }
+        
+        const allWorkers = workersData.workers || [];
+        
+        // Group workers by entity
+        const workersByEntity = {};
+        allWorkers.forEach(worker => {
+            if (!workersByEntity[worker.entity]) {
+                workersByEntity[worker.entity] = [];
+            }
+            workersByEntity[worker.entity].push(worker);
+        });
+        
+        // Fetch test results
+        const testResponse = await fetch('/api/written-test-results');
+        const testData = await testResponse.json();
+        const testResults = testData.results || [];
+        
+        // Fetch assessment results
+        const assessResponse = await fetch('/api/supervisor-assessments');
+        const assessData = await assessResponse.json();
+        const assessResults = assessData.assessments || [];
+        
+        // Count participants by entity
+        entities.forEach(entity => {
+            const totalWorkers = workersByEntity[entity]?.length || 0;
+            
+            // Count Written Test participants
+            const testParticipants = new Set(
+                testResults
+                    .filter(r => allWorkers.find(w => w.id === r.worker_id && w.entity === entity))
+                    .map(r => r.worker_id)
+            ).size;
+            
+            // Count Supervisor Assessment participants
+            const assessParticipants = new Set(
+                assessResults
+                    .filter(a => allWorkers.find(w => w.id === a.worker_id && w.entity === entity))
+                    .map(a => a.worker_id)
+            ).size;
+            
+            // Update table cells
+            const testCell = document.getElementById(`status-test-${entity}`);
+            const assessCell = document.getElementById(`status-assess-${entity}`);
+            
+            if (testCell) {
+                const percentage = totalWorkers > 0 ? ((testParticipants / totalWorkers) * 100).toFixed(1) : 0;
+                testCell.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <span class="font-semibold">${testParticipants} / ${totalWorkers}</span>
+                        <span class="text-xs text-gray-500">(${percentage}%)</span>
+                    </div>
+                `;
+                // Color coding
+                if (percentage >= 80) {
+                    testCell.classList.add('bg-green-50');
+                } else if (percentage >= 50) {
+                    testCell.classList.add('bg-yellow-50');
+                } else if (totalWorkers > 0) {
+                    testCell.classList.add('bg-red-50');
+                }
+            }
+            
+            if (assessCell) {
+                const percentage = totalWorkers > 0 ? ((assessParticipants / totalWorkers) * 100).toFixed(1) : 0;
+                assessCell.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <span class="font-semibold">${assessParticipants} / ${totalWorkers}</span>
+                        <span class="text-xs text-gray-500">(${percentage}%)</span>
+                    </div>
+                `;
+                // Color coding
+                if (percentage >= 80) {
+                    assessCell.classList.add('bg-green-50');
+                } else if (percentage >= 50) {
+                    assessCell.classList.add('bg-yellow-50');
+                } else if (totalWorkers > 0) {
+                    assessCell.classList.add('bg-red-50');
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Failed to load assessment status data:', error);
     }
 }
 
