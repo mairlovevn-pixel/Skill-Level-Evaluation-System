@@ -2253,11 +2253,24 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
   }
   console.log(`[BULK UPLOAD] Loaded ${positionMap.size} positions`)
   
+  // Helper function to normalize question text for matching
+  const normalizeQuestion = (text: string): string => {
+    return text
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ')  // Multiple spaces to single space
+      .replace(/[?？]+$/, '')  // Remove trailing question marks
+      .replace(/무엇인가요\?*$/, '')  // Remove "무엇인가요?" suffix
+      .replace(/무엇입니까\?*$/, '')  // Remove "무엇입니까?" suffix
+      .trim()
+  }
+  
   // Load all quizzes
   const quizzesResult = await db.prepare('SELECT id, process_id, question, correct_answer FROM written_test_quizzes').all()
   const quizMap = new Map<string, { id: number, correct_answer: string }>()
   for (const quiz of quizzesResult.results) {
-    const key = `${quiz.process_id}-${(quiz.question as string).trim()}`
+    const normalizedQuestion = normalizeQuestion(quiz.question as string)
+    const key = `${quiz.process_id}-${normalizedQuestion}`
     quizMap.set(key, { id: quiz.id as number, correct_answer: quiz.correct_answer as string })
   }
   console.log(`[BULK UPLOAD] Loaded ${quizMap.size} quizzes`)
@@ -2296,8 +2309,9 @@ app.post('/api/written-test-results/bulk', errorHandler(async (c) => {
         continue
       }
       
-      // 3. Find quiz from cache
-      const quizKey = `${positionId}-${result.question.trim()}`
+      // 3. Find quiz from cache using normalized question text
+      const normalizedQuestion = normalizeQuestion(result.question)
+      const quizKey = `${positionId}-${normalizedQuestion}`
       const quiz = quizMap.get(quizKey)
       if (!quiz) {
         errors.push(`❌ Quiz not found for position ${result.position}: "${result.question.substring(0, 50)}..."`)
