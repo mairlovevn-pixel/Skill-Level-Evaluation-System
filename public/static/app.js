@@ -18,7 +18,7 @@ const AppState = {
         this.positions = [];
         this.workers = [];
         this.teamProcessMapping = {};
-        this.passThreshold = 70;
+        this.passThreshold = 60;
         this.charts = {
             testStatus: null,
             avgScore: null,
@@ -32,7 +32,7 @@ const AppState = {
     getProcesses() { return this.positions; },
     getWorkers() { return this.workers; },
     getTeamProcessMapping() { return this.teamProcessMapping; },
-    getPassThreshold() { return this.passThreshold || 70; },
+    getPassThreshold() { return this.passThreshold || 60; },
     getChart(name) { return this.charts[name]; },
     
     // Setter 메서드
@@ -44,6 +44,50 @@ const AppState = {
     setPassThreshold(threshold) { this.passThreshold = threshold; },
     setChart(name, chart) { this.charts[name] = chart; }
 };
+
+// Entity Color Mapping - 각 법인별 고유 컬러
+const ENTITY_COLORS = {
+    'CSVN': {
+        rgb: 'rgb(59, 130, 246)',      // Blue
+        rgba: 'rgba(59, 130, 246, 0.8)',
+        light: 'rgba(59, 130, 246, 0.1)'
+    },
+    'CSTW': {
+        rgb: 'rgb(239, 68, 68)',       // Red
+        rgba: 'rgba(239, 68, 68, 0.8)',
+        light: 'rgba(239, 68, 68, 0.1)'
+    },
+    'CSCN': {
+        rgb: 'rgb(16, 185, 129)',      // Green
+        rgba: 'rgba(16, 185, 129, 0.8)',
+        light: 'rgba(16, 185, 129, 0.1)'
+    },
+    'CSTR': {
+        rgb: 'rgb(251, 146, 60)',      // Orange
+        rgba: 'rgba(251, 146, 60, 0.8)',
+        light: 'rgba(251, 146, 60, 0.1)'
+    },
+    'CSPT': {
+        rgb: 'rgb(168, 85, 247)',      // Purple
+        rgba: 'rgba(168, 85, 247, 0.8)',
+        light: 'rgba(168, 85, 247, 0.1)'
+    },
+    'CSWO': {
+        rgb: 'rgb(236, 72, 153)',      // Pink
+        rgba: 'rgba(236, 72, 153, 0.8)',
+        light: 'rgba(236, 72, 153, 0.1)'
+    },
+    'CSAM': {
+        rgb: 'rgb(14, 165, 233)',      // Sky Blue
+        rgba: 'rgba(14, 165, 233, 0.8)',
+        light: 'rgba(14, 165, 233, 0.1)'
+    }
+};
+
+// Helper function to get entity color
+function getEntityColor(entity, type = 'rgba') {
+    return ENTITY_COLORS[entity]?.[type] || 'rgba(107, 114, 128, 0.8)'; // Default gray
+}
 
 // 하위 호환성을 위한 전역 변수 (점진적 마이그레이션용)
 let currentPage = AppState.currentPage;
@@ -376,14 +420,14 @@ function getDashboardHTML() {
                     <button onclick="switchDashboardTab('test-analysis')" id="dashboard-tab-test-analysis" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
                         <i class="fas fa-magnifying-glass-chart mr-2"></i>Written Test Analysis
                     </button>
-                    <button onclick="switchDashboardTab('assessment')" id="dashboard-tab-assessment" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
-                        <i class="fas fa-star mr-2"></i>Supervisor Assessment
-                    </button>
                     <button onclick="switchDashboardTab('assessment-position-analysis')" id="dashboard-tab-assessment-position-analysis" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
                         <i class="fas fa-briefcase mr-2"></i>Position Analysis
                     </button>
                     <button onclick="switchDashboardTab('assessment-entity-comparison')" id="dashboard-tab-assessment-entity-comparison" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
                         <i class="fas fa-building-columns mr-2"></i>Entity Comparison
+                    </button>
+                    <button onclick="switchDashboardTab('assessment')" id="dashboard-tab-assessment" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-star mr-2"></i>Supervisor Assessment
                     </button>
                 </div>
                 
@@ -423,19 +467,34 @@ function getDashboardHTML() {
                     </div>
                 </div>
                 
-                <!-- Pass Score Threshold (Above Chart) -->
-                <div class="mb-4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        <i class="fas fa-trophy mr-1 text-yellow-500"></i>
-                        Pass Score
-                    </label>
-                    <div class="w-48">
-                        <select id="pass-threshold-select" onchange="updatePassThreshold()" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500">
+                <!-- Top Bar: Entity Selector and Pass Score -->
+                <div class="flex items-center justify-between mb-6">
+                    <!-- Entity Dropdown Selector (Left) -->
+                    <div class="flex items-center gap-3">
+                        <label class="text-sm font-semibold text-gray-700">
+                            <i class="fas fa-building mr-2"></i>Select Entity:
+                        </label>
+                        <select id="test-entity-select" onchange="updateTestStatusFilter()" 
+                                class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm font-medium">
+                            <option value="">-- No Entity Selected --</option>
+                            <option value="CSVN">CSVN</option>
+                            <option value="CSCN">CSCN</option>
+                            <option value="CSTW">CSTW</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Pass Score Selector (Right) -->
+                    <div class="flex items-center gap-3">
+                        <label class="text-sm font-semibold text-gray-700">
+                            <i class="fas fa-trophy mr-1 text-yellow-500"></i>
+                            Pass Score:
+                        </label>
+                        <select id="pass-threshold-select" onchange="updatePassThreshold()" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm font-medium">
                             <option value="50">50점</option>
                             <option value="55">55점</option>
-                            <option value="60">60점</option>
+                            <option value="60" selected>60점 (기본)</option>
                             <option value="65">65점</option>
-                            <option value="70" selected>70점 (기본)</option>
+                            <option value="70">70점</option>
                             <option value="75">75점</option>
                             <option value="80">80점</option>
                             <option value="85">85점</option>
@@ -449,41 +508,13 @@ function getDashboardHTML() {
                 <!-- Chart -->
                 <canvas id="test-status-chart" class="mb-6"></canvas>
                 
-                <!-- Filters (Below Chart) -->
-                <div class="mt-6 pt-6 border-t border-gray-200">
-                    <!-- Entity Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
-                        <div class="flex gap-4">
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSVN" checked onchange="updateTestStatusFilter()" class="test-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSVN</span>
-                            </label>
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSCN" checked onchange="updateTestStatusFilter()" class="test-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSCN</span>
-                            </label>
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSTW" checked onchange="updateTestStatusFilter()" class="test-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSTW</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <!-- Team Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
-                        <div class="flex flex-wrap gap-4" id="test-team-checkboxes">
-                            <!-- Will be populated dynamically -->
-                        </div>
-                    </div>
-                    
-                    <!-- Position Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
-                        <div class="flex flex-wrap gap-4" id="test-position-checkboxes">
-                            <!-- Will be populated dynamically -->
-                        </div>
+                <!-- Filters (Team Dropdown with Positions) -->
+                <div id="test-filters" class="mt-6 pt-6 border-t border-gray-200">
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-filter mr-2"></i>Filter by Team & Position
+                    </label>
+                    <div id="test-team-dropdowns" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        <!-- Will be populated dynamically with team dropdowns -->
                     </div>
                 </div>
                 </div>
@@ -541,39 +572,11 @@ function getDashboardHTML() {
                 
                 <!-- Filters (Between Chart and Table) -->
                 <div id="analysis-filters" class="mb-6 pt-6 border-t border-gray-200">
-                    <!-- Entity Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
-                        <div class="flex gap-4">
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSVN" checked onchange="updateAnalysisFilter()" class="analysis-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSVN</span>
-                            </label>
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSCN" checked onchange="updateAnalysisFilter()" class="analysis-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSCN</span>
-                            </label>
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSTW" checked onchange="updateAnalysisFilter()" class="analysis-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSTW</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <!-- Team Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
-                        <div class="flex flex-wrap gap-4" id="analysis-team-checkboxes">
-                            <!-- Will be populated dynamically -->
-                        </div>
-                    </div>
-                    
-                    <!-- Position Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
-                        <div class="flex flex-wrap gap-4" id="analysis-position-checkboxes">
-                            <!-- Will be populated dynamically -->
-                        </div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-filter mr-2"></i>Filter by Entity, Team & Position
+                    </label>
+                    <div id="analysis-all-dropdowns" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        <!-- Will be populated dynamically with entity and team dropdowns -->
                     </div>
                 </div>
                 
@@ -629,41 +632,13 @@ function getDashboardHTML() {
                     </div>
                 </div>
                 
-                <!-- Filters -->
+                <!-- Filters (Dropdown Style) -->
                 <div id="assessment-filters" class="mt-6 pt-6 border-t border-gray-200">
-                    <!-- Entity Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
-                        <div class="flex gap-4">
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSVN" checked onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSVN</span>
-                            </label>
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSCN" checked onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSCN</span>
-                            </label>
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSTW" checked onchange="updateAssessmentFilter()" class="assessment-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSTW</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <!-- Team Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
-                        <div class="flex flex-wrap gap-4" id="assessment-team-checkboxes">
-                            <!-- Will be populated dynamically -->
-                        </div>
-                    </div>
-                    
-                    <!-- Position Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
-                        <div class="flex flex-wrap gap-4" id="assessment-position-checkboxes">
-                            <!-- Will be populated dynamically -->
-                        </div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-filter mr-2"></i>Filter by Entity, Team & Position
+                    </label>
+                    <div id="assessment-all-dropdowns" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        <!-- Will be populated dynamically with entity and team dropdowns -->
                     </div>
                 </div>
                 </div>
@@ -718,22 +693,13 @@ function getDashboardHTML() {
                     </div>
                 </div>
                 
-                <!-- Filters (No Entity Filter) -->
+                <!-- Filters (Team Dropdown with Positions) -->
                 <div id="entity-comparison-filters" class="mt-6 pt-6 border-t border-gray-200">
-                    <!-- Team Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
-                        <div class="flex flex-wrap gap-4" id="entity-comparison-team-checkboxes">
-                            <!-- Will be populated dynamically -->
-                        </div>
-                    </div>
-                    
-                    <!-- Position Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
-                        <div class="flex flex-wrap gap-4" id="entity-comparison-position-checkboxes">
-                            <!-- Will be populated dynamically -->
-                        </div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-filter mr-2"></i>Filter by Team & Position
+                    </label>
+                    <div id="entity-comparison-team-dropdowns" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        <!-- Will be populated dynamically with team dropdowns -->
                     </div>
                 </div>
                 </div>
@@ -862,7 +828,7 @@ let teamProcessMapping = {};
 
 async function loadDashboard() {
     try {
-        const passThreshold = AppState.getPassThreshold() || 70;
+        const passThreshold = AppState.getPassThreshold() || 60;
         console.log(`Loading dashboard with passThreshold: ${passThreshold}`);
         const response = await axios.get(`/api/dashboard/stats?passThreshold=${passThreshold}`);
         
@@ -959,125 +925,333 @@ let positionAnalysisFilters = {
 };
 
 function initializeAssessmentFilters() {
-    // Populate team checkboxes
-    const teamContainer = document.getElementById('assessment-team-checkboxes');
-    const teamContainerPct = document.getElementById('assessment-pct-team-checkboxes');
-    teamContainer.innerHTML = '';
+    // Populate entity and team dropdowns (similar to Analysis tab)
+    const dropdownContainer = document.getElementById('assessment-all-dropdowns');
+    if (!dropdownContainer) return;
     
-    WRITTEN_TEST_TEAM_ORDER.forEach(team => {
-        teamContainer.innerHTML += `
-            <label class="inline-flex items-center cursor-pointer">
-                <input type="checkbox" value="${team}" checked onchange="onAssessmentTeamCheckboxChange('${team}')" class="assessment-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                <span class="text-sm font-semibold">${team}</span>
-            </label>
+    dropdownContainer.innerHTML = '';
+    
+    // Create Entity dropdown
+    const entities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
+    const entityDropdown = document.createElement('div');
+    entityDropdown.className = 'relative border border-blue-400 rounded-lg overflow-visible bg-blue-50';
+    
+    const entityHeader = document.createElement('button');
+    entityHeader.className = 'w-full px-4 py-3 flex items-center justify-between bg-blue-100 hover:bg-blue-200 transition-colors';
+    entityHeader.innerHTML = `
+        <span class="font-semibold text-sm text-blue-900">
+            <i class="fas fa-building mr-2"></i>Entity
+        </span>
+        <i class="fas fa-chevron-down transform transition-transform duration-200" id="chevron-assessment-entity"></i>
+    `;
+    entityHeader.onclick = () => toggleAssessmentEntityDropdown();
+    
+    const entityContainer = document.createElement('div');
+    entityContainer.id = `positions-assessment-entity`;
+    entityContainer.className = 'hidden absolute top-full left-0 right-0 mt-0 px-4 py-3 space-y-2 bg-white max-h-64 overflow-y-auto border border-blue-400 rounded-b-lg shadow-lg z-50';
+    
+    const allEntityLabel = document.createElement('label');
+    allEntityLabel.className = 'flex items-center cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors border-b border-gray-200 mb-2 pb-3';
+    allEntityLabel.innerHTML = `
+        <input type="checkbox" 
+               checked
+               onchange="toggleAllEntitiesInAssessment()" 
+               class="assessment-all-entity-checkbox w-4 h-4 text-green-600 rounded mr-3 flex-shrink-0"
+               id="all-assessment-entity">
+        <span class="text-sm font-bold text-gray-800">
+            <i class="fas fa-check-double mr-1"></i>All Entities
+        </span>
+    `;
+    entityContainer.appendChild(allEntityLabel);
+    
+    entities.forEach(entity => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors';
+        label.innerHTML = `
+            <input type="checkbox" 
+                   value="${entity}" 
+                   checked
+                   onchange="onAssessmentEntityCheckboxChange()" 
+                   class="assessment-entity-checkbox entity-checkbox-assessment w-4 h-4 text-blue-600 rounded mr-3 flex-shrink-0">
+            <span class="text-sm text-gray-700">${entity}</span>
         `;
-        assessmentFilters.teams.add(team);
+        entityContainer.appendChild(label);
+        assessmentFilters.entities.add(entity);
     });
     
-    // Populate position checkboxes with hierarchical grouping
-    const positionContainer = document.getElementById('assessment-position-checkboxes');
-    positionContainer.innerHTML = '';
+    entityDropdown.appendChild(entityHeader);
+    entityDropdown.appendChild(entityContainer);
+    dropdownContainer.appendChild(entityDropdown);
     
+    // Create Team dropdowns
     WRITTEN_TEST_TEAM_ORDER.forEach(team => {
         if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
-            // Create team group
-            const teamGroup = document.createElement('div');
-            teamGroup.className = 'w-full mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200';
-            teamGroup.dataset.team = team;
+            const teamDropdown = document.createElement('div');
+            teamDropdown.className = 'relative border border-gray-300 rounded-lg overflow-visible bg-white';
             
-            // Team header
-            const teamHeader = document.createElement('div');
-            teamHeader.className = 'font-semibold text-sm text-gray-700 mb-2 flex items-center';
+            const teamHeader = document.createElement('button');
+            teamHeader.className = 'w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors';
             teamHeader.innerHTML = `
-                <i class="fas fa-layer-group mr-2 text-blue-500"></i>
-                ${team}
+                <span class="font-semibold text-sm text-gray-700">
+                    <i class="fas fa-layer-group mr-2"></i>${team}
+                </span>
+                <i class="fas fa-chevron-down transform transition-transform duration-200" id="chevron-assessment-${team.replace(/\s+/g, '-')}"></i>
             `;
-            teamGroup.appendChild(teamHeader);
+            teamHeader.onclick = () => toggleAssessmentTeamDropdown(team);
             
-            // Position checkboxes for this team
-            const positionsWrapper = document.createElement('div');
-            positionsWrapper.className = 'flex flex-wrap gap-3 ml-6';
+            const positionsContainer = document.createElement('div');
+            positionsContainer.id = `positions-assessment-${team.replace(/\s+/g, '-')}`;
+            positionsContainer.className = 'hidden absolute top-full left-0 right-0 mt-0 px-4 py-3 space-y-2 bg-white max-h-64 overflow-y-auto border border-gray-300 rounded-b-lg shadow-lg z-50';
+            
+            const allLabel = document.createElement('label');
+            allLabel.className = 'flex items-center cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors border-b border-gray-200 mb-2 pb-3';
+            allLabel.innerHTML = `
+                <input type="checkbox" 
+                       data-team="${team}"
+                       checked
+                       onchange="toggleAllPositionsInAssessment('${team}')" 
+                       class="assessment-all-checkbox w-4 h-4 text-green-600 rounded mr-3 flex-shrink-0"
+                       id="all-assessment-${team.replace(/\s+/g, '-')}">
+                <span class="text-sm font-bold text-gray-800">
+                    <i class="fas fa-check-double mr-1"></i>All Positions
+                </span>
+            `;
+            positionsContainer.appendChild(allLabel);
             
             WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
                 const label = document.createElement('label');
-                label.className = 'inline-flex items-center cursor-pointer';
+                label.className = 'flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors';
                 label.innerHTML = `
                     <input type="checkbox" 
                            value="${position}" 
                            data-team="${team}"
                            checked
-                           onchange="updateAssessmentFilter()" 
-                           class="assessment-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                    <span class="text-xs text-gray-700">${position}</span>
+                           onchange="onAssessmentPositionCheckboxChange('${team}')" 
+                           class="assessment-position-checkbox position-checkbox-assessment-${team.replace(/\s+/g, '-')} w-4 h-4 text-blue-600 rounded mr-3 flex-shrink-0">
+                    <span class="text-sm text-gray-700">${position}</span>
                 `;
-                positionsWrapper.appendChild(label);
+                positionsContainer.appendChild(label);
                 assessmentFilters.positions.add(position);
+                assessmentFilters.teams.add(team);
             });
             
-            teamGroup.appendChild(positionsWrapper);
-            positionContainer.appendChild(teamGroup);
+            teamDropdown.appendChild(teamHeader);
+            teamDropdown.appendChild(positionsContainer);
+            dropdownContainer.appendChild(teamDropdown);
         }
     });
+}
+
+function toggleAssessmentEntityDropdown() {
+    const entityContainer = document.getElementById('positions-assessment-entity');
+    const chevron = document.getElementById('chevron-assessment-entity');
+    
+    if (entityContainer && chevron) {
+        const isHidden = entityContainer.classList.contains('hidden');
+        if (isHidden) {
+            entityContainer.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            entityContainer.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+}
+
+function toggleAllEntitiesInAssessment() {
+    const allCheckbox = document.getElementById('all-assessment-entity');
+    const entityCheckboxes = document.querySelectorAll('.entity-checkbox-assessment');
+    
+    if (allCheckbox && entityCheckboxes) {
+        const isChecked = allCheckbox.checked;
+        entityCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        updateAssessmentFilter();
+    }
+}
+
+function onAssessmentEntityCheckboxChange() {
+    const allCheckbox = document.getElementById('all-assessment-entity');
+    const entityCheckboxes = document.querySelectorAll('.entity-checkbox-assessment');
+    
+    if (allCheckbox && entityCheckboxes) {
+        const allChecked = Array.from(entityCheckboxes).every(cb => cb.checked);
+        const anyChecked = Array.from(entityCheckboxes).some(cb => cb.checked);
+        allCheckbox.checked = allChecked;
+        allCheckbox.indeterminate = !allChecked && anyChecked;
+    }
+    updateAssessmentFilter();
+}
+
+function toggleAssessmentTeamDropdown(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const positionsContainer = document.getElementById(`positions-assessment-${teamId}`);
+    const chevron = document.getElementById(`chevron-assessment-${teamId}`);
+    
+    if (positionsContainer && chevron) {
+        const isHidden = positionsContainer.classList.contains('hidden');
+        if (isHidden) {
+            positionsContainer.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            positionsContainer.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+}
+
+function toggleAllPositionsInAssessment(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const allCheckbox = document.getElementById(`all-assessment-${teamId}`);
+    const positionCheckboxes = document.querySelectorAll(`.position-checkbox-assessment-${teamId}`);
+    
+    if (allCheckbox && positionCheckboxes) {
+        const isChecked = allCheckbox.checked;
+        positionCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        updateAssessmentFilter();
+    }
+}
+
+function onAssessmentPositionCheckboxChange(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const allCheckbox = document.getElementById(`all-assessment-${teamId}`);
+    const positionCheckboxes = document.querySelectorAll(`.position-checkbox-assessment-${teamId}`);
+    
+    if (allCheckbox && positionCheckboxes) {
+        const allChecked = Array.from(positionCheckboxes).every(cb => cb.checked);
+        const anyChecked = Array.from(positionCheckboxes).some(cb => cb.checked);
+        allCheckbox.checked = allChecked;
+        allCheckbox.indeterminate = !allChecked && anyChecked;
+    }
+    updateAssessmentFilter();
 }
 
 // ==================== Written Test Analysis Tab Functions ====================
 
 function initializeAnalysisTab() {
-    // Populate team checkboxes
-    const teamContainer = document.getElementById('analysis-team-checkboxes');
-    teamContainer.innerHTML = '';
-    WRITTEN_TEST_TEAM_ORDER.forEach(team => {
-        teamContainer.innerHTML += `
-            <label class="inline-flex items-center cursor-pointer">
-                <input type="checkbox" value="${team}" checked onchange="onTeamCheckboxChange('${team}')" class="analysis-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                <span class="text-sm font-semibold">${team}</span>
-            </label>
+    // Populate entity and team dropdowns
+    const dropdownContainer = document.getElementById('analysis-all-dropdowns');
+    if (!dropdownContainer) return;
+    
+    dropdownContainer.innerHTML = '';
+    
+    // Create Entity dropdown
+    const entities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
+    const entityDropdown = document.createElement('div');
+    entityDropdown.className = 'relative border border-blue-400 rounded-lg overflow-visible bg-blue-50';
+    
+    // Entity header (clickable to toggle)
+    const entityHeader = document.createElement('button');
+    entityHeader.className = 'w-full px-4 py-3 flex items-center justify-between bg-blue-100 hover:bg-blue-200 transition-colors';
+    entityHeader.innerHTML = `
+        <span class="font-semibold text-sm text-blue-900">
+            <i class="fas fa-building mr-2"></i>Entity
+        </span>
+        <i class="fas fa-chevron-down transform transition-transform duration-200" id="chevron-analysis-entity"></i>
+    `;
+    entityHeader.onclick = () => toggleAnalysisEntityDropdown();
+    
+    // Entity container (hidden by default, absolute positioned)
+    const entityContainer = document.createElement('div');
+    entityContainer.id = `positions-analysis-entity`;
+    entityContainer.className = 'hidden absolute top-full left-0 right-0 mt-0 px-4 py-3 space-y-2 bg-white max-h-64 overflow-y-auto border border-blue-400 rounded-b-lg shadow-lg z-50';
+    
+    // Add "All" checkbox at the top
+    const allEntityLabel = document.createElement('label');
+    allEntityLabel.className = 'flex items-center cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors border-b border-gray-200 mb-2 pb-3';
+    allEntityLabel.innerHTML = `
+        <input type="checkbox" 
+               checked
+               onchange="toggleAllEntitiesInAnalysis()" 
+               class="analysis-all-entity-checkbox w-4 h-4 text-green-600 rounded mr-3 flex-shrink-0"
+               id="all-analysis-entity">
+        <span class="text-sm font-bold text-gray-800">
+            <i class="fas fa-check-double mr-1"></i>All Entities
+        </span>
+    `;
+    entityContainer.appendChild(allEntityLabel);
+    
+    entities.forEach(entity => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors';
+        label.innerHTML = `
+            <input type="checkbox" 
+                   value="${entity}" 
+                   checked
+                   onchange="onAnalysisEntityCheckboxChange()" 
+                   class="analysis-entity-checkbox entity-checkbox-analysis w-4 h-4 text-blue-600 rounded mr-3 flex-shrink-0">
+            <span class="text-sm text-gray-700">${entity}</span>
         `;
-        analysisFilters.teams.add(team);
+        entityContainer.appendChild(label);
+        analysisFilters.entities.add(entity);
     });
     
-    // Populate position checkboxes with hierarchical grouping
-    const positionContainer = document.getElementById('analysis-position-checkboxes');
-    positionContainer.innerHTML = '';
+    entityDropdown.appendChild(entityHeader);
+    entityDropdown.appendChild(entityContainer);
+    dropdownContainer.appendChild(entityDropdown);
     
+    // Create Team dropdowns
     WRITTEN_TEST_TEAM_ORDER.forEach(team => {
         if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
-            // Create team group
-            const teamGroup = document.createElement('div');
-            teamGroup.className = 'w-full mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200';
-            teamGroup.dataset.team = team;
+            // Create team dropdown container
+            const teamDropdown = document.createElement('div');
+            teamDropdown.className = 'relative border border-gray-300 rounded-lg overflow-visible bg-white';
             
-            // Team header
-            const teamHeader = document.createElement('div');
-            teamHeader.className = 'font-semibold text-sm text-gray-700 mb-2 flex items-center';
+            // Team header (clickable to toggle)
+            const teamHeader = document.createElement('button');
+            teamHeader.className = 'w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors';
             teamHeader.innerHTML = `
-                <i class="fas fa-layer-group mr-2 text-blue-500"></i>
-                ${team}
+                <span class="font-semibold text-sm text-gray-700">
+                    <i class="fas fa-layer-group mr-2"></i>${team}
+                </span>
+                <i class="fas fa-chevron-down transform transition-transform duration-200" id="chevron-analysis-${team.replace(/\s+/g, '-')}"></i>
             `;
-            teamGroup.appendChild(teamHeader);
+            teamHeader.onclick = () => toggleAnalysisTeamDropdown(team);
             
-            // Position checkboxes for this team
-            const positionsWrapper = document.createElement('div');
-            positionsWrapper.className = 'flex flex-wrap gap-3 ml-6';
+            // Positions container (hidden by default, absolute positioned)
+            const positionsContainer = document.createElement('div');
+            positionsContainer.id = `positions-analysis-${team.replace(/\s+/g, '-')}`;
+            positionsContainer.className = 'hidden absolute top-full left-0 right-0 mt-0 px-4 py-3 space-y-2 bg-white max-h-64 overflow-y-auto border border-gray-300 rounded-b-lg shadow-lg z-50';
+            
+            // Add "All" checkbox at the top
+            const allLabel = document.createElement('label');
+            allLabel.className = 'flex items-center cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors border-b border-gray-200 mb-2 pb-3';
+            allLabel.innerHTML = `
+                <input type="checkbox" 
+                       data-team="${team}"
+                       checked
+                       onchange="toggleAllPositionsInAnalysis('${team}')" 
+                       class="analysis-all-checkbox w-4 h-4 text-green-600 rounded mr-3 flex-shrink-0"
+                       id="all-analysis-${team.replace(/\s+/g, '-')}">
+                <span class="text-sm font-bold text-gray-800">
+                    <i class="fas fa-check-double mr-1"></i>All Positions
+                </span>
+            `;
+            positionsContainer.appendChild(allLabel);
             
             WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
                 const label = document.createElement('label');
-                label.className = 'inline-flex items-center cursor-pointer';
+                label.className = 'flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors';
                 label.innerHTML = `
                     <input type="checkbox" 
                            value="${position}" 
                            data-team="${team}"
-                           checked 
-                           onchange="updateAnalysisFilter()" 
-                           class="analysis-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                    <span class="text-xs text-gray-700">${position}</span>
+                           checked
+                           onchange="onAnalysisPositionCheckboxChange('${team}')" 
+                           class="analysis-position-checkbox position-checkbox-analysis-${team.replace(/\s+/g, '-')} w-4 h-4 text-blue-600 rounded mr-3 flex-shrink-0">
+                    <span class="text-sm text-gray-700">${position}</span>
                 `;
-                positionsWrapper.appendChild(label);
+                positionsContainer.appendChild(label);
                 analysisFilters.positions.add(position);
+                analysisFilters.teams.add(team);
             });
             
-            teamGroup.appendChild(positionsWrapper);
-            positionContainer.appendChild(teamGroup);
+            teamDropdown.appendChild(teamHeader);
+            teamDropdown.appendChild(positionsContainer);
+            dropdownContainer.appendChild(teamDropdown);
         }
     });
     
@@ -1085,31 +1259,114 @@ function initializeAnalysisTab() {
     switchAnalysisMode('heatmap');
 }
 
-// Team 체크박스 변경 시 하위 Position들 제어
-function onTeamCheckboxChange(team) {
-    const teamCheckbox = document.querySelector(`.analysis-team-checkbox[value="${team}"]`);
-    const isChecked = teamCheckbox.checked;
+function toggleAnalysisEntityDropdown() {
+    const entityContainer = document.getElementById('positions-analysis-entity');
+    const chevron = document.getElementById('chevron-analysis-entity');
     
-    // 해당 팀의 모든 Position 체크박스 찾기
-    const positionCheckboxes = document.querySelectorAll(`.analysis-position-checkbox[data-team="${team}"]`);
-    
-    positionCheckboxes.forEach(checkbox => {
-        if (isChecked) {
-            // Team이 체크되면: Position 활성화하고 체크
-            checkbox.disabled = false;
-            checkbox.checked = true;
-            checkbox.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
-            checkbox.parentElement.classList.add('cursor-pointer');
+    if (entityContainer && chevron) {
+        const isHidden = entityContainer.classList.contains('hidden');
+        
+        if (isHidden) {
+            // Expand
+            entityContainer.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
         } else {
-            // Team이 체크 해제되면: Position 비활성화하고 체크 해제
-            checkbox.disabled = true;
-            checkbox.checked = false;
-            checkbox.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
-            checkbox.parentElement.classList.remove('cursor-pointer');
+            // Collapse
+            entityContainer.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
         }
-    });
+    }
+}
+
+function toggleAllEntitiesInAnalysis() {
+    const allCheckbox = document.getElementById('all-analysis-entity');
+    const entityCheckboxes = document.querySelectorAll('.entity-checkbox-analysis');
     
-    // 필터 업데이트
+    if (allCheckbox && entityCheckboxes) {
+        const isChecked = allCheckbox.checked;
+        
+        // Check or uncheck all entity checkboxes
+        entityCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        
+        // Update filters
+        updateAnalysisFilter();
+    }
+}
+
+function onAnalysisEntityCheckboxChange() {
+    const allCheckbox = document.getElementById('all-analysis-entity');
+    const entityCheckboxes = document.querySelectorAll('.entity-checkbox-analysis');
+    
+    if (allCheckbox && entityCheckboxes) {
+        // Check if all entities are checked
+        const allChecked = Array.from(entityCheckboxes).every(cb => cb.checked);
+        const anyChecked = Array.from(entityCheckboxes).some(cb => cb.checked);
+        
+        // Update "All" checkbox state
+        allCheckbox.checked = allChecked;
+        allCheckbox.indeterminate = !allChecked && anyChecked;
+    }
+    
+    // Update filters
+    updateAnalysisFilter();
+}
+
+function toggleAnalysisTeamDropdown(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const positionsContainer = document.getElementById(`positions-analysis-${teamId}`);
+    const chevron = document.getElementById(`chevron-analysis-${teamId}`);
+    
+    if (positionsContainer && chevron) {
+        const isHidden = positionsContainer.classList.contains('hidden');
+        
+        if (isHidden) {
+            // Expand
+            positionsContainer.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            // Collapse
+            positionsContainer.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+}
+
+function toggleAllPositionsInAnalysis(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const allCheckbox = document.getElementById(`all-analysis-${teamId}`);
+    const positionCheckboxes = document.querySelectorAll(`.position-checkbox-analysis-${teamId}`);
+    
+    if (allCheckbox && positionCheckboxes) {
+        const isChecked = allCheckbox.checked;
+        
+        // Check or uncheck all position checkboxes
+        positionCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        
+        // Update filters
+        updateAnalysisFilter();
+    }
+}
+
+function onAnalysisPositionCheckboxChange(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const allCheckbox = document.getElementById(`all-analysis-${teamId}`);
+    const positionCheckboxes = document.querySelectorAll(`.position-checkbox-analysis-${teamId}`);
+    
+    if (allCheckbox && positionCheckboxes) {
+        // Check if all positions are checked
+        const allChecked = Array.from(positionCheckboxes).every(cb => cb.checked);
+        const anyChecked = Array.from(positionCheckboxes).some(cb => cb.checked);
+        
+        // Update "All" checkbox state
+        allCheckbox.checked = allChecked;
+        allCheckbox.indeterminate = !allChecked && anyChecked;
+    }
+    
+    // Update filters
     updateAnalysisFilter();
 }
 
@@ -1140,18 +1397,15 @@ async function updateAnalysisFilter() {
         if (cb.checked) analysisFilters.entities.add(cb.value);
     });
     
-    // Update team filters
-    const teamCheckboxes = document.querySelectorAll('.analysis-team-checkbox');
-    analysisFilters.teams = new Set();
-    teamCheckboxes.forEach(cb => {
-        if (cb.checked) analysisFilters.teams.add(cb.value);
-    });
-    
-    // Update position filters
+    // Update position filters and collect teams
     const positionCheckboxes = document.querySelectorAll('.analysis-position-checkbox');
+    analysisFilters.teams = new Set();
     analysisFilters.positions = new Set();
     positionCheckboxes.forEach(cb => {
-        if (cb.checked) analysisFilters.positions.add(cb.value);
+        if (cb.checked) {
+            analysisFilters.positions.add(cb.value);
+            analysisFilters.teams.add(cb.dataset.team);
+        }
     });
     
     // Reload data if entity filter changed (to get correct data from API)
@@ -1184,21 +1438,16 @@ function renderHeatmapAnalysis() {
     const entities = Array.from(analysisFilters.entities);
     const positions = Array.from(analysisFilters.positions);
     
-    // Prepare data for line chart
+    // Prepare data for bar chart with entity colors
     const chartData = {
         labels: positions,
-        datasets: entities.map((entity, idx) => {
-            const colors = ['rgb(59, 130, 246)', 'rgb(16, 185, 129)', 'rgb(239, 68, 68)'];
-            const color = colors[idx % colors.length];
-            
+        datasets: entities.map((entity) => {
             return {
                 label: entity,
                 data: positions.map(pos => calculateAverageScore(entity, pos)),
-                borderColor: color,
-                backgroundColor: color.replace('rgb', 'rgba').replace(')', ', 0.1)'),
-                tension: 0.4,
-                pointRadius: 5,
-                pointHoverRadius: 7
+                backgroundColor: getEntityColor(entity, 'rgba'),
+                borderColor: getEntityColor(entity, 'rgb'),
+                borderWidth: 1
             };
         })
     };
@@ -1206,15 +1455,15 @@ function renderHeatmapAnalysis() {
     // Create HTML with line chart and heatmap
     let heatmapHTML = `
         <div class="space-y-6">
-            <!-- Line Chart Section -->
+            <!-- Bar Chart Section -->
             <div class="bg-white rounded-lg p-4 border border-gray-200">
                 <h4 class="text-lg font-semibold mb-3">
-                    <i class="fas fa-chart-line mr-2"></i>
-                    Entity-Position Performance Trends
+                    <i class="fas fa-chart-bar mr-2"></i>
+                    Entity-Position Performance Comparison
                 </h4>
                 <p class="text-sm text-gray-600 mb-4">Compare average scores across positions by entity</p>
                 <div style="position: relative; height: 400px;">
-                    <canvas id="heatmap-line-chart"></canvas>
+                    <canvas id="heatmap-bar-chart"></canvas>
                 </div>
             </div>
             
@@ -1267,15 +1516,17 @@ function renderHeatmapAnalysis() {
     
     container.innerHTML = heatmapHTML;
     
-    // Create line chart
-    const ctx = document.getElementById('heatmap-line-chart');
+    // Create bar chart
+    const ctx = document.getElementById('heatmap-bar-chart');
     if (ctx) {
-        if (window.heatmapLineChart) {
-            window.heatmapLineChart.destroy();
+        if (window.heatmapBarChart) {
+            window.heatmapBarChart.destroy();
         }
         
-        window.heatmapLineChart = new Chart(ctx, {
-            type: 'line',
+        const passThreshold = AppState.getPassThreshold() || 60;
+        
+        window.heatmapBarChart = new Chart(ctx, {
+            type: 'bar',
             data: chartData,
             options: {
                 responsive: true,
@@ -1294,6 +1545,21 @@ function renderHeatmapAnalysis() {
                     },
                     datalabels: {
                         display: false
+                    },
+                    annotation: {
+                        annotations: {
+                            passLine: {
+                                type: 'line',
+                                yMin: passThreshold,
+                                yMax: passThreshold,
+                                borderColor: 'rgb(234, 179, 8)',
+                                borderWidth: 3,
+                                borderDash: [10, 5],
+                                label: {
+                                    display: false  // Hide label, only show line
+                                }
+                            }
+                        }
                     }
                 },
                 scales: {
@@ -1303,6 +1569,35 @@ function renderHeatmapAnalysis() {
                         title: {
                             display: true,
                             text: 'Average Score'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value;
+                            },
+                            color: function(context) {
+                                // Highlight the pass threshold value
+                                if (!context || !context.tick) return '#666';
+                                return context.tick.value === passThreshold ? 'rgb(234, 179, 8)' : '#666';
+                            },
+                            font: function(context) {
+                                // Make pass threshold value bold and larger
+                                if (!context || !context.tick) {
+                                    return {
+                                        weight: 'normal',
+                                        size: 12
+                                    };
+                                }
+                                if (context.tick.value === passThreshold) {
+                                    return {
+                                        weight: 'bold',
+                                        size: 14
+                                    };
+                                }
+                                return {
+                                    weight: 'normal',
+                                    size: 12
+                                };
+                            }
                         }
                     },
                     x: {
@@ -2339,7 +2634,7 @@ async function filterAssessmentChart() {
 
 // Test Status Chart Filters State
 let testStatusFilters = {
-    entities: new Set(['CSVN', 'CSCN', 'CSTW']),
+    entity: '',  // Single entity selection (empty = no filter)
     teams: new Set(),
     positions: new Set()
 };
@@ -2354,7 +2649,6 @@ let assessmentFilters = {
 // Written Test Team-Position Mapping (Fixed Order)
 const WRITTEN_TEST_TEAM_POSITIONS = {
     'BLACK TOWER': [
-        'MATERIAL HANDLING',
         'CUTTING',
         'BEVELING',
         'BENDING',
@@ -2367,55 +2661,16 @@ const WRITTEN_TEST_TEAM_POSITIONS = {
         'UT REPAIR',
         'DOOR FRAME FU',
         'DOOR FRAME WELD',
-        'FLATNESS',
-        'DRILLING & TAPPING'
+        'FLATNESS'
     ],
     'WHITE TOWER': [
         'BLASTING',
         'METALIZING',
-        'PAINTING',
-        'PAINTING REPAIR',
-        'FITTING PAINT RING'
+        'PAINTING'
     ],
     'INTERNAL MOUNTING': [
-        'PRE ASSEMBLY',
         'ASSEMBLY',
-        'IM CABLE',
-        'GT CLEANING',
-        'MATERIAL HANDLER-IM',
-        'PAINT TOUCH UP'
-    ],
-    'QM': [
-        'QC INSPECTOR - BT MT/PT(QBP)',
-        'QC INSPECTOR - BT UT/PAUT(QBU)',
-        'QC INSPECTOR - BT VT(QBV)',
-        'QC INSPECTOR - DELIVERY INSPECTOR(QDI)',
-        'QC INSPECTOR-IM FINAL (QIF)',
-        'QC INSPECTOR-IM INCOMING(QII)',
-        'QC INSPECTOR - WT MATELIZING(QMI)',
-        'QC INSPECTOR - WT WASHING&BLASTING(QWM)',
-        'QC INSPECTOR - WT PAINTING(QWP)',
-        'QC INSPECTOR-BT FITUP&WELDING(QBF)',
-        'QC INSPECTOR-BT DIMENSION(QBD)',
-        'QC INSPECTOR-BT INCOMING TO BENDING',
-        'QC INSPECTOR-BT INCOMING(QBI)'
-    ],
-    'TRANSPORTATION': [
-        'TRANSPORTATION',
-        'STORAGE FIT INSTALLATION',
-        'H-FRAME INSTALLATION'
-    ],
-    'MAINTENANCE': [
-        'ELECTRICIAN/MECHANIC'
-    ],
-    'WAREHOUSE': [
-        'WAREHOUSE-KITSET',
-        'WAREHOUSE BT/WT',
-        'WAREHOUSE-IM'
-    ],
-    'LEAN': [
-        'KAIZEN',
-        'EHS'
+        'IM CABLE'
     ]
 };
 
@@ -2423,118 +2678,166 @@ const WRITTEN_TEST_TEAM_POSITIONS = {
 const WRITTEN_TEST_TEAM_ORDER = ['BLACK TOWER', 'WHITE TOWER', 'INTERNAL MOUNTING'];
 
 async function updateTestStatusFilter() {
-    // Update entity filters
-    const entityCheckboxes = document.querySelectorAll('.test-entity-checkbox');
-    testStatusFilters.entities = new Set();
-    entityCheckboxes.forEach(cb => {
-        if (cb.checked) testStatusFilters.entities.add(cb.value);
-    });
+    // Get selected entity from dropdown (single selection)
+    const entitySelect = document.getElementById('test-entity-select');
+    const selectedEntity = entitySelect ? entitySelect.value : '';
+    testStatusFilters.entity = selectedEntity;
     
-    // Update team filters
-    const teamCheckboxes = document.querySelectorAll('.test-team-checkbox');
-    testStatusFilters.teams = new Set();
-    teamCheckboxes.forEach(cb => {
-        if (cb.checked) testStatusFilters.teams.add(cb.value);
-    });
-    
-    // Update position filters
+    // Update position filters and collect teams
     const positionCheckboxes = document.querySelectorAll('.test-position-checkbox');
+    testStatusFilters.teams = new Set();
     testStatusFilters.positions = new Set();
     positionCheckboxes.forEach(cb => {
-        if (cb.checked) testStatusFilters.positions.add(cb.value);
-    });
-    
-    // Re-render chart
-    renderTestStatusChart();
-}
-
-// Team 체크박스 변경 시 하위 Position들 제어 (Written Test Results)
-function onTestTeamCheckboxChange(team) {
-    const teamCheckbox = document.querySelector(`.test-team-checkbox[value="${team}"]`);
-    const isChecked = teamCheckbox.checked;
-    
-    // 해당 팀의 모든 Position 체크박스 찾기
-    const positionCheckboxes = document.querySelectorAll(`.test-position-checkbox[data-team="${team}"]`);
-    
-    positionCheckboxes.forEach(checkbox => {
-        if (isChecked) {
-            // Team이 체크되면: Position 활성화하고 체크
-            checkbox.disabled = false;
-            checkbox.checked = true;
-            checkbox.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
-            checkbox.parentElement.classList.add('cursor-pointer');
-        } else {
-            // Team이 체크 해제되면: Position 비활성화하고 체크 해제
-            checkbox.disabled = true;
-            checkbox.checked = false;
-            checkbox.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
-            checkbox.parentElement.classList.remove('cursor-pointer');
+        if (cb.checked) {
+            testStatusFilters.positions.add(cb.value);
+            testStatusFilters.teams.add(cb.dataset.team);
         }
     });
     
-    // 필터 업데이트
-    updateTestStatusFilter();
+    // If entity changed, reload data from API
+    const passThreshold = AppState.getPassThreshold() || 60;
+    const entityParam = selectedEntity ? `&entity=${selectedEntity}` : '';
+    
+    try {
+        const response = await axios.get(`/api/dashboard/stats?passThreshold=${passThreshold}${entityParam}`);
+        dashboardData = response.data;
+        
+        // Update statistics (Written Test Results tab)
+        updateDashboardStats();
+        
+        // Re-render chart
+        renderTestStatusChart();
+    } catch (error) {
+        console.error('Error updating test status filter:', error);
+        // Still render chart with existing data
+        renderTestStatusChart();
+    }
 }
 
 function populateTestStatusFilters() {
-    // Populate team checkboxes
-    const teamContainer = document.getElementById('test-team-checkboxes');
-    teamContainer.innerHTML = '';
+    // Populate team dropdowns
+    const dropdownContainer = document.getElementById('test-team-dropdowns');
+    if (!dropdownContainer) return;
     
-    WRITTEN_TEST_TEAM_ORDER.forEach(team => {
-        teamContainer.innerHTML += `
-            <label class="inline-flex items-center cursor-pointer">
-                <input type="checkbox" value="${team}" checked onchange="onTestTeamCheckboxChange('${team}')" class="test-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                <span class="text-sm font-semibold">${team}</span>
-            </label>
-        `;
-        testStatusFilters.teams.add(team);
-    });
-    
-    // Populate position checkboxes with hierarchical grouping
-    const positionContainer = document.getElementById('test-position-checkboxes');
-    positionContainer.innerHTML = '';
+    dropdownContainer.innerHTML = '';
     
     WRITTEN_TEST_TEAM_ORDER.forEach(team => {
         if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
-            // Create team group
-            const teamGroup = document.createElement('div');
-            teamGroup.className = 'w-full mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200';
-            teamGroup.dataset.team = team;
+            // Create team dropdown container
+            const teamDropdown = document.createElement('div');
+            teamDropdown.className = 'relative border border-gray-300 rounded-lg overflow-visible bg-white';
             
-            // Team header
-            const teamHeader = document.createElement('div');
-            teamHeader.className = 'font-semibold text-sm text-gray-700 mb-2 flex items-center';
+            // Team header (clickable to toggle)
+            const teamHeader = document.createElement('button');
+            teamHeader.className = 'w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors';
             teamHeader.innerHTML = `
-                <i class="fas fa-layer-group mr-2 text-blue-500"></i>
-                ${team}
+                <span class="font-semibold text-sm text-gray-700">
+                    <i class="fas fa-layer-group mr-2"></i>${team}
+                </span>
+                <i class="fas fa-chevron-down transform transition-transform duration-200" id="chevron-test-${team.replace(/\s+/g, '-')}"></i>
             `;
-            teamGroup.appendChild(teamHeader);
+            teamHeader.onclick = () => toggleTestTeamDropdown(team);
             
-            // Position checkboxes for this team
-            const positionsWrapper = document.createElement('div');
-            positionsWrapper.className = 'flex flex-wrap gap-3 ml-6';
+            // Positions container (hidden by default, absolute positioned)
+            const positionsContainer = document.createElement('div');
+            positionsContainer.id = `positions-test-${team.replace(/\s+/g, '-')}`;
+            positionsContainer.className = 'hidden absolute top-full left-0 right-0 mt-0 px-4 py-3 space-y-2 bg-white max-h-64 overflow-y-auto border border-gray-300 rounded-b-lg shadow-lg z-50';
+            
+            // Add "All" checkbox at the top
+            const allLabel = document.createElement('label');
+            allLabel.className = 'flex items-center cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors border-b border-gray-200 mb-2 pb-3';
+            allLabel.innerHTML = `
+                <input type="checkbox" 
+                       data-team="${team}"
+                       checked
+                       onchange="toggleAllPositionsInTest('${team}')" 
+                       class="test-all-checkbox w-4 h-4 text-green-600 rounded mr-3 flex-shrink-0"
+                       id="all-test-${team.replace(/\s+/g, '-')}">
+                <span class="text-sm font-bold text-gray-800">
+                    <i class="fas fa-check-double mr-1"></i>All Positions
+                </span>
+            `;
+            positionsContainer.appendChild(allLabel);
             
             WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
                 const label = document.createElement('label');
-                label.className = 'inline-flex items-center cursor-pointer';
+                label.className = 'flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors';
                 label.innerHTML = `
                     <input type="checkbox" 
                            value="${position}" 
                            data-team="${team}"
-                           checked 
-                           onchange="updateTestStatusFilter()" 
-                           class="test-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                    <span class="text-xs text-gray-700">${position}</span>
+                           checked
+                           onchange="onTestPositionCheckboxChange('${team}')" 
+                           class="test-position-checkbox position-checkbox-test-${team.replace(/\s+/g, '-')} w-4 h-4 text-blue-600 rounded mr-3 flex-shrink-0">
+                    <span class="text-sm text-gray-700">${position}</span>
                 `;
-                positionsWrapper.appendChild(label);
+                positionsContainer.appendChild(label);
                 testStatusFilters.positions.add(position);
+                testStatusFilters.teams.add(team);
             });
             
-            teamGroup.appendChild(positionsWrapper);
-            positionContainer.appendChild(teamGroup);
+            teamDropdown.appendChild(teamHeader);
+            teamDropdown.appendChild(positionsContainer);
+            dropdownContainer.appendChild(teamDropdown);
         }
     });
+}
+
+function toggleTestTeamDropdown(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const positionsContainer = document.getElementById(`positions-test-${teamId}`);
+    const chevron = document.getElementById(`chevron-test-${teamId}`);
+    
+    if (positionsContainer && chevron) {
+        const isHidden = positionsContainer.classList.contains('hidden');
+        
+        if (isHidden) {
+            // Expand
+            positionsContainer.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            // Collapse
+            positionsContainer.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+}
+
+function toggleAllPositionsInTest(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const allCheckbox = document.getElementById(`all-test-${teamId}`);
+    const positionCheckboxes = document.querySelectorAll(`.position-checkbox-test-${teamId}`);
+    
+    if (allCheckbox && positionCheckboxes) {
+        const isChecked = allCheckbox.checked;
+        
+        // Check or uncheck all position checkboxes
+        positionCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        
+        // Update filters
+        updateTestStatusFilter();
+    }
+}
+
+function onTestPositionCheckboxChange(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const allCheckbox = document.getElementById(`all-test-${teamId}`);
+    const positionCheckboxes = document.querySelectorAll(`.position-checkbox-test-${teamId}`);
+    
+    if (allCheckbox && positionCheckboxes) {
+        // Check if all positions are checked
+        const allChecked = Array.from(positionCheckboxes).every(cb => cb.checked);
+        const anyChecked = Array.from(positionCheckboxes).some(cb => cb.checked);
+        
+        // Update "All" checkbox state
+        allCheckbox.checked = allChecked;
+        allCheckbox.indeterminate = !allChecked && anyChecked;
+    }
+    
+    // Update filters
+    updateTestStatusFilter();
 }
 
 // Update pass threshold and recalculate all data
@@ -2556,6 +2859,23 @@ async function renderTestStatusChart() {
     // Destroy existing chart
     if (currentTestStatusChart) {
         currentTestStatusChart.destroy();
+    }
+    
+    // If no entity selected, show empty chart
+    if (!testStatusFilters.entity) {
+        console.log('⚠️ No entity selected for Written Test Results');
+        currentTestStatusChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: []
+            },
+            options: {
+                ...CHART_DEFAULTS,
+                scales: CHART_SCALE_DEFAULTS
+            }
+        });
+        return;
     }
     
     // Get filtered data
@@ -10023,15 +10343,20 @@ function renderEntityComparisonPercentageChart() {
     const levels = [1, 2, 3, 4];
     const allEntities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
     
-    // Apply team/position filters
+    // Apply team/position filters - show empty chart if nothing selected
     let filteredWorkers = sourceData.worker_level_details || [];
     const selectedTeams = Array.from(entityComparisonFilters.teams);
     const selectedPositions = Array.from(entityComparisonFilters.positions);
     
-    if (selectedTeams.length > 0 || selectedPositions.length > 0) {
+    // If no positions selected, show empty chart
+    if (selectedPositions.length === 0) {
+        console.log('⚠️ No positions selected for Entity Comparison');
+        filteredWorkers = [];
+    } else {
+        // Filter by selected positions (and optionally teams)
         filteredWorkers = filteredWorkers.filter(worker => {
             if (selectedTeams.length > 0 && !selectedTeams.includes(worker.team)) return false;
-            if (selectedPositions.length > 0 && !selectedPositions.includes(worker.position)) return false;
+            if (!selectedPositions.includes(worker.position)) return false;
             return true;
         });
     }
@@ -10099,10 +10424,15 @@ function renderEntityComparisonCountChart() {
     const selectedTeams = Array.from(entityComparisonFilters.teams);
     const selectedPositions = Array.from(entityComparisonFilters.positions);
     
-    if (selectedTeams.length > 0 || selectedPositions.length > 0) {
+    // If no positions selected, show empty chart
+    if (selectedPositions.length === 0) {
+        console.log('⚠️ No positions selected for Entity Comparison');
+        filteredWorkers = [];
+    } else {
+        // Filter by selected positions (and optionally teams)
         filteredWorkers = filteredWorkers.filter(worker => {
             if (selectedTeams.length > 0 && !selectedTeams.includes(worker.team)) return false;
-            if (selectedPositions.length > 0 && !selectedPositions.includes(worker.position)) return false;
+            if (!selectedPositions.includes(worker.position)) return false;
             return true;
         });
     }
@@ -10156,84 +10486,143 @@ function renderEntityComparisonCountChart() {
 }
 
 function initializeEntityComparisonFilters() {
-    const teamContainer = document.getElementById('entity-comparison-team-checkboxes');
-    const positionContainer = document.getElementById('entity-comparison-position-checkboxes');
-    if (!teamContainer || !positionContainer) return;
+    const dropdownContainer = document.getElementById('entity-comparison-team-dropdowns');
+    if (!dropdownContainer) return;
     
     const allTeams = Object.keys(WRITTEN_TEST_TEAM_POSITIONS);
     
-    teamContainer.innerHTML = '';
-    allTeams.forEach(team => {
-        const label = document.createElement('label');
-        label.className = 'inline-flex items-center cursor-pointer';
-        label.innerHTML = `
-            <input type="checkbox" value="${team}" checked onchange="onEntityComparisonTeamChange('${team}')" 
-                   class="entity-comparison-team-checkbox w-4 h-4 text-blue-600 rounded mr-2">
-            <span class="text-sm font-semibold">${team}</span>
-        `;
-        teamContainer.appendChild(label);
-        entityComparisonFilters.teams.add(team);
-    });
+    dropdownContainer.innerHTML = '';
     
-    positionContainer.innerHTML = '';
     allTeams.forEach(team => {
         if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
-            const teamGroup = document.createElement('div');
-            teamGroup.className = 'w-full mb-4 p-3 bg-gray-50 rounded-lg border';
-            teamGroup.dataset.team = team;
+            // Create team dropdown container
+            const teamDropdown = document.createElement('div');
+            teamDropdown.className = 'relative border border-gray-300 rounded-lg overflow-visible bg-white';
             
-            const teamHeader = document.createElement('div');
-            teamHeader.className = 'font-semibold text-sm text-gray-700 mb-2';
-            teamHeader.innerHTML = `<i class="fas fa-layer-group mr-2"></i>${team}`;
-            teamGroup.appendChild(teamHeader);
+            // Team header (clickable to toggle)
+            const teamHeader = document.createElement('button');
+            teamHeader.className = 'w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors';
+            teamHeader.innerHTML = `
+                <span class="font-semibold text-sm text-gray-700">
+                    <i class="fas fa-layer-group mr-2"></i>${team}
+                </span>
+                <i class="fas fa-chevron-down transform transition-transform duration-200" id="chevron-ec-${team.replace(/\s+/g, '-')}"></i>
+            `;
+            teamHeader.onclick = () => toggleEntityComparisonTeamDropdown(team);
             
-            const positionsWrapper = document.createElement('div');
-            positionsWrapper.className = 'flex flex-wrap gap-3 ml-6';
+            // Positions container (hidden by default, absolute positioned)
+            const positionsContainer = document.createElement('div');
+            positionsContainer.id = `positions-ec-${team.replace(/\s+/g, '-')}`;
+            positionsContainer.className = 'hidden absolute top-full left-0 right-0 mt-0 px-4 py-3 space-y-2 bg-white max-h-64 overflow-y-auto border border-gray-300 rounded-b-lg shadow-lg z-50';
+            
+            // Add "All" checkbox at the top
+            const allLabel = document.createElement('label');
+            allLabel.className = 'flex items-center cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors border-b border-gray-200 mb-2 pb-3';
+            allLabel.innerHTML = `
+                <input type="checkbox" 
+                       data-team="${team}"
+                       onchange="toggleAllPositionsInEntityComparison('${team}')" 
+                       class="entity-comparison-all-checkbox w-4 h-4 text-green-600 rounded mr-3 flex-shrink-0"
+                       id="all-ec-${team.replace(/\s+/g, '-')}">
+                <span class="text-sm font-bold text-gray-800">
+                    <i class="fas fa-check-double mr-1"></i>All Positions
+                </span>
+            `;
+            positionsContainer.appendChild(allLabel);
             
             WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
                 const label = document.createElement('label');
-                label.className = 'inline-flex items-center cursor-pointer';
+                label.className = 'flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors';
                 label.innerHTML = `
-                    <input type="checkbox" value="${position}" data-team="${team}" checked
-                           onchange="updateEntityComparisonFilter()" 
-                           class="entity-comparison-position-checkbox w-4 h-4 text-blue-600 rounded mr-2">
-                    <span class="text-xs">${position}</span>
+                    <input type="checkbox" 
+                           value="${position}" 
+                           data-team="${team}"
+                           onchange="onEntityComparisonPositionCheckboxChange('${team}')" 
+                           class="entity-comparison-position-checkbox position-checkbox-ec-${team.replace(/\s+/g, '-')} w-4 h-4 text-blue-600 rounded mr-3 flex-shrink-0">
+                    <span class="text-sm text-gray-700">${position}</span>
                 `;
-                positionsWrapper.appendChild(label);
-                entityComparisonFilters.positions.add(position);
+                positionsContainer.appendChild(label);
             });
             
-            teamGroup.appendChild(positionsWrapper);
-            positionContainer.appendChild(teamGroup);
+            teamDropdown.appendChild(teamHeader);
+            teamDropdown.appendChild(positionsContainer);
+            dropdownContainer.appendChild(teamDropdown);
         }
     });
+    
+    // Clear filter state
+    entityComparisonFilters.teams.clear();
+    entityComparisonFilters.positions.clear();
 }
 
-function onEntityComparisonTeamChange(team) {
-    const teamCheckbox = document.querySelector(`.entity-comparison-team-checkbox[value="${team}"]`);
-    const isChecked = teamCheckbox.checked;
-    const positionCheckboxes = document.querySelectorAll(`.entity-comparison-position-checkbox[data-team="${team}"]`);
+function toggleEntityComparisonTeamDropdown(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const positionsContainer = document.getElementById(`positions-ec-${teamId}`);
+    const chevron = document.getElementById(`chevron-ec-${teamId}`);
     
-    positionCheckboxes.forEach(checkbox => {
-        checkbox.disabled = !isChecked;
-        checkbox.checked = isChecked;
-        checkbox.parentElement.classList.toggle('opacity-50', !isChecked);
-    });
+    if (positionsContainer && chevron) {
+        const isHidden = positionsContainer.classList.contains('hidden');
+        
+        if (isHidden) {
+            // Expand
+            positionsContainer.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            // Collapse
+            positionsContainer.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+}
+
+function toggleAllPositionsInEntityComparison(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const allCheckbox = document.getElementById(`all-ec-${teamId}`);
+    const positionCheckboxes = document.querySelectorAll(`.position-checkbox-ec-${teamId}`);
     
+    if (allCheckbox && positionCheckboxes) {
+        const isChecked = allCheckbox.checked;
+        
+        // Check or uncheck all position checkboxes
+        positionCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        
+        // Update filters
+        updateEntityComparisonFilter();
+    }
+}
+
+function onEntityComparisonPositionCheckboxChange(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const allCheckbox = document.getElementById(`all-ec-${teamId}`);
+    const positionCheckboxes = document.querySelectorAll(`.position-checkbox-ec-${teamId}`);
+    
+    if (allCheckbox && positionCheckboxes) {
+        // Check if all positions are checked
+        const allChecked = Array.from(positionCheckboxes).every(cb => cb.checked);
+        const anyChecked = Array.from(positionCheckboxes).some(cb => cb.checked);
+        
+        // Update "All" checkbox state
+        allCheckbox.checked = allChecked;
+        allCheckbox.indeterminate = !allChecked && anyChecked;
+    }
+    
+    // Update filters
     updateEntityComparisonFilter();
 }
 
 function updateEntityComparisonFilter() {
-    const teamCheckboxes = document.querySelectorAll('.entity-comparison-team-checkbox');
-    entityComparisonFilters.teams = new Set();
-    teamCheckboxes.forEach(cb => {
-        if (cb.checked) entityComparisonFilters.teams.add(cb.value);
-    });
-    
+    // Collect selected positions and their teams
     const positionCheckboxes = document.querySelectorAll('.entity-comparison-position-checkbox');
+    entityComparisonFilters.teams = new Set();
     entityComparisonFilters.positions = new Set();
+    
     positionCheckboxes.forEach(cb => {
-        if (cb.checked) entityComparisonFilters.positions.add(cb.value);
+        if (cb.checked) {
+            entityComparisonFilters.positions.add(cb.value);
+            entityComparisonFilters.teams.add(cb.dataset.team);
+        }
     });
     
     renderEntityComparisonPercentageChart();

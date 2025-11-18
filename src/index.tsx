@@ -2438,10 +2438,14 @@ app.get('/', (c) => {
         <link href="/static/styles.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
         <script>
-            // Register datalabels plugin globally
+            // Register plugins globally
             if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
                 Chart.register(ChartDataLabels);
+            }
+            if (typeof Chart !== 'undefined' && typeof window.ChartAnnotation !== 'undefined') {
+                Chart.register(window.ChartAnnotation);
             }
         </script>
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
