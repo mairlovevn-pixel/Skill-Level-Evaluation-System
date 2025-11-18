@@ -379,8 +379,11 @@ function getDashboardHTML() {
                     <button onclick="switchDashboardTab('assessment')" id="dashboard-tab-assessment" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
                         <i class="fas fa-star mr-2"></i>Supervisor Assessment
                     </button>
-                    <button onclick="switchDashboardTab('assessment-percentage')" id="dashboard-tab-assessment-percentage" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
-                        <i class="fas fa-percentage mr-2"></i>Supervisor Assessment (%)
+                    <button onclick="switchDashboardTab('assessment-position-analysis')" id="dashboard-tab-assessment-position-analysis" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-briefcase mr-2"></i>Position Analysis
+                    </button>
+                    <button onclick="switchDashboardTab('assessment-entity-comparison')" id="dashboard-tab-assessment-entity-comparison" class="dashboard-tab px-6 py-3 font-semibold text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-building-columns mr-2"></i>Entity Comparison
                     </button>
                 </div>
                 
@@ -665,61 +668,62 @@ function getDashboardHTML() {
                 </div>
                 </div>
                 
-                <!-- Supervisor Assessment (%) 탭 컨텐츠 -->
-                <div id="dashboard-content-assessment-percentage" class="dashboard-content hidden">
+                <!-- Entity Comparison 탭 컨텐츠 -->
+                <div id="dashboard-content-assessment-entity-comparison" class="dashboard-content hidden">
                 
-                <!-- Chart Container -->
-                <div class="mb-6">
-                    <div class="relative">
-                        <!-- Level Definition Button -->
-                        <div class="absolute top-0 right-0 z-10">
-                            <div class="relative">
-                                <button 
-                                    id="level-definition-btn-pct" 
-                                    class="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors shadow-md"
-                                    onmouseenter="showLevelDefinitionPct()"
-                                    onmouseleave="hideLevelDefinitionPct()">
-                                    <i class="fas fa-info-circle mr-1"></i>LEVEL DEFINITION
-                                </button>
-                                <div 
-                                    id="level-definition-popup-pct" 
-                                    class="hidden absolute right-0 top-full mt-2 z-50 bg-white rounded-lg shadow-2xl border-2 border-purple-600"
-                                    onmouseenter="showLevelDefinitionPct()"
-                                    onmouseleave="hideLevelDefinitionPct()"
-                                    style="width: 600px; max-width: 90vw;">
-                                    <img src="/static/level-definition.jpg" alt="Level Definition" class="w-full h-auto rounded-lg">
-                                </div>
+                <!-- Level Definition Button (Top Right) -->
+                <div class="relative mb-6">
+                    <div class="absolute top-0 right-0 z-10">
+                        <div class="relative">
+                            <button 
+                                id="level-definition-btn-entity" 
+                                class="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors shadow-md"
+                                onmouseenter="showLevelDefinitionEntity()"
+                                onmouseleave="hideLevelDefinitionEntity()">
+                                <i class="fas fa-info-circle mr-1"></i>LEVEL DEFINITION
+                            </button>
+                            <div 
+                                id="level-definition-popup-entity" 
+                                class="hidden absolute right-0 top-full mt-2 z-50 bg-white rounded-lg shadow-2xl border-2 border-purple-600"
+                                onmouseenter="showLevelDefinitionEntity()"
+                                onmouseleave="hideLevelDefinitionEntity()"
+                                style="width: 600px; max-width: 90vw;">
+                                <img src="/static/level-definition.jpg" alt="Level Definition" class="w-full h-auto rounded-lg">
                             </div>
                         </div>
-                        <canvas id="assessment-percentage-chart"></canvas>
                     </div>
                 </div>
                 
-                <!-- Filters (Below Chart) -->
-                <div id="assessment-percentage-filters" class="mt-6 pt-6 border-t border-gray-200">
-                    <!-- Entity Filter -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Entity</label>
-                        <div class="flex gap-4">
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSVN" checked onchange="updateAssessmentPercentageFilter()" class="assessment-pct-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSVN</span>
-                            </label>
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSCN" checked onchange="updateAssessmentPercentageFilter()" class="assessment-pct-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSCN</span>
-                            </label>
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" value="CSTW" checked onchange="updateAssessmentPercentageFilter()" class="assessment-pct-entity-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-                                <span class="text-sm">CSTW</span>
-                            </label>
+                <!-- Entity Charts Container (Side by Side) -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-building mr-2"></i>Distribution by Entity
+                    </h2>
+                    <div class="grid grid-cols-2 gap-6">
+                        <!-- Percentage Chart (Left) -->
+                        <div class="relative">
+                            <h3 class="text-base font-semibold text-gray-700 mb-3">
+                                <i class="fas fa-percentage mr-2"></i>Percentage (%)
+                            </h3>
+                            <canvas id="entity-comparison-percentage-chart"></canvas>
+                        </div>
+                        
+                        <!-- Count Chart (Right) -->
+                        <div class="relative">
+                            <h3 class="text-base font-semibold text-gray-700 mb-3">
+                                <i class="fas fa-users mr-2"></i>Headcount
+                            </h3>
+                            <canvas id="entity-comparison-count-chart"></canvas>
                         </div>
                     </div>
-                    
+                </div>
+                
+                <!-- Filters (No Entity Filter) -->
+                <div id="entity-comparison-filters" class="mt-6 pt-6 border-t border-gray-200">
                     <!-- Team Filter -->
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Team</label>
-                        <div class="flex flex-wrap gap-4" id="assessment-pct-team-checkboxes">
+                        <div class="flex flex-wrap gap-4" id="entity-comparison-team-checkboxes">
                             <!-- Will be populated dynamically -->
                         </div>
                     </div>
@@ -727,9 +731,87 @@ function getDashboardHTML() {
                     <!-- Position Filter -->
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Position</label>
-                        <div class="flex flex-wrap gap-4" id="assessment-pct-position-checkboxes">
+                        <div class="flex flex-wrap gap-4" id="entity-comparison-position-checkboxes">
                             <!-- Will be populated dynamically -->
                         </div>
+                    </div>
+                </div>
+                </div>
+                
+                <!-- Position Analysis 탭 컨텐츠 -->
+                <div id="dashboard-content-assessment-position-analysis" class="dashboard-content hidden">
+                
+                <!-- Top Bar: Entity Selector and Level Definition -->
+                <div class="flex items-center justify-between mb-6">
+                    <!-- Entity Dropdown Selector (Left) -->
+                    <div class="flex items-center gap-3">
+                        <label class="text-sm font-semibold text-gray-700">
+                            <i class="fas fa-building mr-2"></i>Select Entity:
+                        </label>
+                        <select id="position-analysis-entity-select" onchange="updatePositionAnalysisFilter()" 
+                                class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm font-medium">
+                            <option value="">-- No Entity Selected --</option>
+                            <option value="CSVN">CSVN</option>
+                            <option value="CSCN">CSCN</option>
+                            <option value="CSTW">CSTW</option>
+                            <option value="CSTR">CSTR</option>
+                            <option value="CSPT">CSPT</option>
+                            <option value="CSWO">CSWO</option>
+                            <option value="CSAM">CSAM</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Level Definition Button (Right) -->
+                    <div class="relative">
+                        <button 
+                            id="level-definition-btn-position" 
+                            class="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors shadow-md"
+                            onmouseenter="showLevelDefinitionPosition()"
+                            onmouseleave="hideLevelDefinitionPosition()">
+                            <i class="fas fa-info-circle mr-1"></i>LEVEL DEFINITION
+                        </button>
+                        <div 
+                            id="level-definition-popup-position" 
+                            class="hidden absolute right-0 top-full mt-2 z-50 bg-white rounded-lg shadow-2xl border-2 border-purple-600"
+                            onmouseenter="showLevelDefinitionPosition()"
+                            onmouseleave="hideLevelDefinitionPosition()"
+                            style="width: 600px; max-width: 90vw;">
+                            <img src="/static/level-definition.jpg" alt="Level Definition" class="w-full h-auto rounded-lg">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Position Charts Container (Side by Side) -->
+                <div class="mb-8">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-briefcase mr-2"></i>Distribution by Position
+                    </h2>
+                    <div class="grid grid-cols-2 gap-6">
+                        <!-- Position Percentage Chart (Left) -->
+                        <div class="relative">
+                            <h3 class="text-base font-semibold text-gray-700 mb-3">
+                                <i class="fas fa-percentage mr-2"></i>Percentage (%)
+                            </h3>
+                            <canvas id="position-analysis-percentage-chart"></canvas>
+                        </div>
+                        
+                        <!-- Position Count Chart (Right) -->
+                        <div class="relative">
+                            <h3 class="text-base font-semibold text-gray-700 mb-3">
+                                <i class="fas fa-users mr-2"></i>Headcount
+                            </h3>
+                            <canvas id="position-analysis-count-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Filters (Team Dropdown with Positions) -->
+                <div id="position-analysis-filters" class="mt-6 pt-6 border-t border-gray-200">
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">
+                        <i class="fas fa-filter mr-2"></i>Filter by Team & Position
+                    </label>
+                    <div id="position-analysis-team-dropdowns" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        <!-- Will be populated dynamically with team dropdowns -->
                     </div>
                 </div>
                 </div>
@@ -772,7 +854,10 @@ let allDashboardData = null;
 let currentTestStatusChart = null;
 let currentAvgScoreChart = null;
 let currentAssessmentChart = null;
-let currentAssessmentPercentageChart = null;
+let currentEntityComparisonPercentageChart = null;  // Entity comparison percentage chart
+let currentEntityComparisonCountChart = null;  // Entity comparison count chart
+let currentPositionAnalysisPercentageChart = null;  // Position analysis percentage chart
+let currentPositionAnalysisCountChart = null;  // Position analysis count chart
 let teamProcessMapping = {};
 
 async function loadDashboard() {
@@ -829,7 +914,8 @@ async function loadDashboard() {
         
         // Assessment 필터 초기화
         initializeAssessmentFilters();
-        initializeAssessmentPercentageFilters();
+        initializeEntityComparisonFilters();  // NEW: Entity comparison filters
+        initializePositionAnalysisFilters();  // NEW: Position analysis filters
         
         // 분석 탭 초기화
         initializeAnalysisTab();
@@ -838,7 +924,10 @@ async function loadDashboard() {
         renderTestStatusChart();
         renderAvgScoreChart();
         renderAssessmentChart();
-        renderAssessmentPercentageChart();
+        renderEntityComparisonPercentageChart();  // NEW: Entity comparison percentage
+        renderEntityComparisonCountChart();  // NEW: Entity comparison count
+        renderPositionAnalysisPercentageChart();  // NEW: Position analysis percentage
+        renderPositionAnalysisCountChart();  // NEW: Position analysis count
     } catch (error) {
         console.error('대시보드 로드 실패:', error);
         alert('대시보드 데이터를 불러오는데 실패했습니다.');
@@ -856,8 +945,15 @@ let analysisFilters = {
 
 // ==================== Supervisor Assessment Filter Functions ====================
 
-let assessmentPercentageFilters = {
-    entities: new Set(['CSVN', 'CSCN', 'CSTW']),
+// Entity Comparison Filters (No entity filter)
+let entityComparisonFilters = {
+    teams: new Set(),
+    positions: new Set()
+};
+
+// Position Analysis Filters (Has single entity, team, position filters)
+let positionAnalysisFilters = {
+    entity: '',  // Single entity selection (not Set)
     teams: new Set(),
     positions: new Set()
 };
@@ -2171,64 +2267,57 @@ async function filterAssessmentChart() {
         
         console.log('✅ After entity filter:', filteredLevelData);
         
-        // STEP 2: Filter by Team and Position (requires API call if filters applied)
-        // Only apply team/position filter if NOT all are selected
+        // STEP 2: Filter by Team and Position (frontend filtering using worker_level_details)
+        // Apply team/position filter if any are selected (not all checked)
         const hasTeamFilter = teams.length > 0 && !allTeamsSelected;
         const hasPositionFilter = positions.length > 0 && !allPositionsSelected;
         
         if (hasTeamFilter || hasPositionFilter) {
-            console.log('🔄 Team/Position filters applied - fetching filtered data from API');
+            console.log('🔄 Team/Position filters applied - filtering on frontend');
             
-            // Build query parameters for team/position filtering
-            const passThreshold = AppState.getPassThreshold();
-            let teamPositionData = [];
-            
-            // Fetch data for each selected entity with team/position filters
-            for (const entity of selectedEntities) {
-                let url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}`;
+            // Use worker_level_details from initial load for frontend filtering
+            if (allDashboardData.worker_level_details && allDashboardData.worker_level_details.length > 0) {
+                const workerDetails = allDashboardData.worker_level_details;
                 
-                // Add team filter if any teams selected
-                if (teams.length > 0) {
-                    // Fetch data for each team separately
-                    for (const team of teams) {
-                        let teamUrl = url + `&team=${encodeURIComponent(team)}`;
-                        
-                        // Add position filter if any positions selected
-                        if (positions.length > 0) {
-                            for (const position of positions) {
-                                const posUrl = teamUrl + `&position=${encodeURIComponent(position)}`;
-                                const response = await axios.get(posUrl);
-                                teamPositionData.push(...response.data.supervisor_assessment_by_level);
-                            }
-                        } else {
-                            // Just team filter, no position
-                            const response = await axios.get(teamUrl);
-                            teamPositionData.push(...response.data.supervisor_assessment_by_level);
-                        }
+                // Filter workers by team and position
+                const filteredWorkers = workerDetails.filter(worker => {
+                    // Entity filter (already applied above)
+                    if (!selectedEntities.includes(worker.entity)) {
+                        return false;
                     }
-                } else if (positions.length > 0) {
-                    // No team filter, but position filter
-                    for (const position of positions) {
-                        const posUrl = url + `&position=${encodeURIComponent(position)}`;
-                        const response = await axios.get(posUrl);
-                        teamPositionData.push(...response.data.supervisor_assessment_by_level);
+                    
+                    // Team filter
+                    if (hasTeamFilter && teams.length > 0 && !teams.includes(worker.team)) {
+                        return false;
                     }
-                }
+                    
+                    // Position filter
+                    if (hasPositionFilter && positions.length > 0 && !positions.includes(worker.position)) {
+                        return false;
+                    }
+                    
+                    return true;
+                });
+                
+                // Aggregate by entity and level
+                const aggregated = {};
+                filteredWorkers.forEach(worker => {
+                    const key = `${worker.entity}-${worker.level}`;
+                    if (!aggregated[key]) {
+                        aggregated[key] = {
+                            entity: worker.entity,
+                            level: worker.level,
+                            count: 0
+                        };
+                    }
+                    aggregated[key].count++;
+                });
+                
+                filteredLevelData = Object.values(aggregated);
+                console.log('✅ After team/position filter (frontend):', filteredLevelData);
+            } else {
+                console.warn('⚠️ worker_level_details not available, filter may not work');
             }
-            
-            // Merge data by entity+level
-            const mergedData = {};
-            teamPositionData.forEach(item => {
-                const key = `${item.entity}-${item.level}`;
-                if (!mergedData[key]) {
-                    mergedData[key] = { ...item };
-                } else {
-                    mergedData[key].count += item.count;
-                }
-            });
-            
-            filteredLevelData = Object.values(mergedData);
-            console.log('✅ After team/position filter:', filteredLevelData);
         }
         
         // Update dashboard data for rendering (create new object to avoid mutating original)
@@ -2265,6 +2354,7 @@ let assessmentFilters = {
 // Written Test Team-Position Mapping (Fixed Order)
 const WRITTEN_TEST_TEAM_POSITIONS = {
     'BLACK TOWER': [
+        'MATERIAL HANDLING',
         'CUTTING',
         'BEVELING',
         'BENDING',
@@ -2277,16 +2367,55 @@ const WRITTEN_TEST_TEAM_POSITIONS = {
         'UT REPAIR',
         'DOOR FRAME FU',
         'DOOR FRAME WELD',
-        'FLATNESS'
+        'FLATNESS',
+        'DRILLING & TAPPING'
     ],
     'WHITE TOWER': [
         'BLASTING',
         'METALIZING',
-        'PAINTING'
+        'PAINTING',
+        'PAINTING REPAIR',
+        'FITTING PAINT RING'
     ],
     'INTERNAL MOUNTING': [
+        'PRE ASSEMBLY',
         'ASSEMBLY',
-        'IM CABLE'
+        'IM CABLE',
+        'GT CLEANING',
+        'MATERIAL HANDLER-IM',
+        'PAINT TOUCH UP'
+    ],
+    'QM': [
+        'QC INSPECTOR - BT MT/PT(QBP)',
+        'QC INSPECTOR - BT UT/PAUT(QBU)',
+        'QC INSPECTOR - BT VT(QBV)',
+        'QC INSPECTOR - DELIVERY INSPECTOR(QDI)',
+        'QC INSPECTOR-IM FINAL (QIF)',
+        'QC INSPECTOR-IM INCOMING(QII)',
+        'QC INSPECTOR - WT MATELIZING(QMI)',
+        'QC INSPECTOR - WT WASHING&BLASTING(QWM)',
+        'QC INSPECTOR - WT PAINTING(QWP)',
+        'QC INSPECTOR-BT FITUP&WELDING(QBF)',
+        'QC INSPECTOR-BT DIMENSION(QBD)',
+        'QC INSPECTOR-BT INCOMING TO BENDING',
+        'QC INSPECTOR-BT INCOMING(QBI)'
+    ],
+    'TRANSPORTATION': [
+        'TRANSPORTATION',
+        'STORAGE FIT INSTALLATION',
+        'H-FRAME INSTALLATION'
+    ],
+    'MAINTENANCE': [
+        'ELECTRICIAN/MECHANIC'
+    ],
+    'WAREHOUSE': [
+        'WAREHOUSE-KITSET',
+        'WAREHOUSE BT/WT',
+        'WAREHOUSE-IM'
+    ],
+    'LEAN': [
+        'KAIZEN',
+        'EHS'
     ]
 };
 
@@ -2782,6 +2911,443 @@ function renderAssessmentPercentageChart() {
     });
 }
 
+// Render Assessment Count Chart (Stacked bar chart by count)
+function renderAssessmentCountChart() {
+    const ctxCount = document.getElementById('assessment-count-chart');
+    if (!ctxCount) return;
+    
+    console.log('📊 renderAssessmentCountChart - Data source:', dashboardData === allDashboardData ? 'original' : 'filtered');
+    
+    // Destroy existing chart first
+    if (currentAssessmentCountChart) {
+        currentAssessmentCountChart.destroy();
+        currentAssessmentCountChart = null;
+    }
+    
+    // Use dashboardData (which may be filtered by filterAssessmentPercentageChart)
+    const sourceData = allDashboardData || dashboardData;
+    const data = sourceData.supervisor_assessment_by_level;
+    
+    if (!data || data.length === 0) {
+        console.warn('⚠️ No supervisor assessment data available for count chart');
+        return;
+    }
+    
+    console.log('📊 Assessment count data:', data);
+    
+    // Apply entity filter (if no entities selected, show all)
+    const selectedEntities = Array.from(assessmentPercentageFilters.entities);
+    const entitiesToShow = selectedEntities.length > 0 ? selectedEntities : ['CSVN', 'CSCN', 'CSTW'];
+    let filteredData = data.filter(d => entitiesToShow.includes(d.entity));
+    
+    // Group by level
+    const levels = [1, 2, 3, 4];
+    const allEntities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
+    
+    // Chart: Count distribution by entity (stacked)
+    const countDatasets = levels.map((level, idx) => {
+        const levelColors = [
+            'rgba(239, 68, 68, 0.8)',    // Level 1 - Red
+            'rgba(251, 146, 60, 0.8)',   // Level 2 - Orange
+            'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
+            'rgba(34, 197, 94, 0.8)'     // Level 4 - Green
+        ];
+        
+        return {
+            label: `Level ${level}`,
+            data: allEntities.map(entity => {
+                // Get count for this level and entity
+                const item = filteredData.find(d => d.entity === entity && d.level === level);
+                return item ? item.count : 0;
+            }),
+            backgroundColor: levelColors[idx],
+            borderColor: levelColors[idx].replace('0.8', '1'),
+            borderWidth: 1
+        };
+    });
+    
+    currentAssessmentCountChart = new Chart(ctxCount, {
+        type: 'bar',
+        data: {
+            labels: allEntities,
+            datasets: countDatasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0,
+                        stepSize: 50
+                    },
+                    title: {
+                        display: true,
+                        text: 'NUMBER OF EMPLOYEES'
+                    },
+                    stacked: true
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Entity'
+                    },
+                    stacked: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                datalabels: {
+                    formatter: (value) => {
+                        return value > 0 ? value : '';  // Only show non-zero values
+                    },
+                    color: '#fff',
+                    font: {
+                        weight: 'bold',
+                        size: 9
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Render Assessment Position Percentage Chart (by position)
+function renderAssessmentPositionPercentageChart() {
+    const ctxPosPercentage = document.getElementById('assessment-position-percentage-chart');
+    if (!ctxPosPercentage) return;
+    
+    console.log('📊 renderAssessmentPositionPercentageChart - Data source:', dashboardData === allDashboardData ? 'original' : 'filtered');
+    
+    // Destroy existing chart first
+    if (currentAssessmentPositionPercentageChart) {
+        currentAssessmentPositionPercentageChart.destroy();
+        currentAssessmentPositionPercentageChart = null;
+    }
+    
+    // Use worker_level_details for position-level aggregation
+    const sourceData = allDashboardData || dashboardData;
+    if (!sourceData.worker_level_details || sourceData.worker_level_details.length === 0) {
+        console.warn('⚠️ No worker_level_details available for position chart');
+        return;
+    }
+    
+    const workerDetails = sourceData.worker_level_details;
+    
+    // Get selected teams from filter
+    const selectedTeams = Array.from(assessmentPercentageFilters.teams);
+    const selectedEntities = Array.from(assessmentPercentageFilters.entities);
+    const selectedPositions = Array.from(assessmentPercentageFilters.positions);
+    
+    // Filter workers by entity, team, and position
+    const filteredWorkers = workerDetails.filter(worker => {
+        // Entity filter
+        if (selectedEntities.length > 0 && !selectedEntities.includes(worker.entity)) {
+            return false;
+        }
+        
+        // Team filter
+        if (selectedTeams.length > 0 && !selectedTeams.includes(worker.team)) {
+            return false;
+        }
+        
+        // Position filter
+        if (selectedPositions.length > 0 && !selectedPositions.includes(worker.position)) {
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // Get positions to display based on selected teams
+    let positionsToShow = [];
+    if (selectedTeams.length > 0) {
+        selectedTeams.forEach(team => {
+            if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+                positionsToShow = [...positionsToShow, ...WRITTEN_TEST_TEAM_POSITIONS[team]];
+            }
+        });
+    } else {
+        // If no team selected, show all positions from major teams
+        ['BLACK TOWER', 'WHITE TOWER', 'INTERNAL MOUNTING'].forEach(team => {
+            if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+                positionsToShow = [...positionsToShow, ...WRITTEN_TEST_TEAM_POSITIONS[team]];
+            }
+        });
+    }
+    
+    // Remove duplicates
+    positionsToShow = [...new Set(positionsToShow)];
+    
+    // If too many positions, show message
+    if (positionsToShow.length > 30) {
+        console.warn('⚠️ Too many positions to display. Please select specific teams.');
+    }
+    
+    // Aggregate data by position and level
+    const positionData = {};
+    filteredWorkers.forEach(worker => {
+        if (!positionsToShow.includes(worker.position)) return;
+        
+        if (!positionData[worker.position]) {
+            positionData[worker.position] = { 1: 0, 2: 0, 3: 0, 4: 0 };
+        }
+        positionData[worker.position][worker.level]++;
+    });
+    
+    // Calculate percentages
+    const levels = [1, 2, 3, 4];
+    const levelColors = [
+        'rgba(239, 68, 68, 0.8)',    // Level 1 - Red
+        'rgba(251, 146, 60, 0.8)',   // Level 2 - Orange
+        'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
+        'rgba(34, 197, 94, 0.8)'     // Level 4 - Green
+    ];
+    
+    const datasets = levels.map((level, idx) => {
+        return {
+            label: `Level ${level}`,
+            data: positionsToShow.map(position => {
+                const total = positionData[position] 
+                    ? Object.values(positionData[position]).reduce((sum, count) => sum + count, 0) 
+                    : 0;
+                const count = positionData[position]?.[level] || 0;
+                return total > 0 ? (count / total) * 100 : 0;
+            }),
+            backgroundColor: levelColors[idx],
+            borderColor: levelColors[idx].replace('0.8', '1'),
+            borderWidth: 1
+        };
+    });
+    
+    currentAssessmentPositionPercentageChart = new Chart(ctxPosPercentage, {
+        type: 'bar',
+        data: {
+            labels: positionsToShow,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'PERCENTAGE (%)'
+                    },
+                    stacked: true
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Position'
+                    },
+                    ticks: {
+                        autoSkip: false,
+                        maxRotation: 90,
+                        minRotation: 45,
+                        font: {
+                            size: 9
+                        }
+                    },
+                    stacked: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                datalabels: {
+                    formatter: (value) => {
+                        return value > 5 ? value.toFixed(1) + '%' : '';
+                    },
+                    color: '#fff',
+                    font: {
+                        weight: 'bold',
+                        size: 8
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Render Assessment Position Count Chart (by position)
+function renderAssessmentPositionCountChart() {
+    const ctxPosCount = document.getElementById('assessment-position-count-chart');
+    if (!ctxPosCount) return;
+    
+    console.log('📊 renderAssessmentPositionCountChart - Data source:', dashboardData === allDashboardData ? 'original' : 'filtered');
+    
+    // Destroy existing chart first
+    if (currentAssessmentPositionCountChart) {
+        currentAssessmentPositionCountChart.destroy();
+        currentAssessmentPositionCountChart = null;
+    }
+    
+    // Use worker_level_details for position-level aggregation
+    const sourceData = allDashboardData || dashboardData;
+    if (!sourceData.worker_level_details || sourceData.worker_level_details.length === 0) {
+        console.warn('⚠️ No worker_level_details available for position chart');
+        return;
+    }
+    
+    const workerDetails = sourceData.worker_level_details;
+    
+    // Get selected teams from filter
+    const selectedTeams = Array.from(assessmentPercentageFilters.teams);
+    const selectedEntities = Array.from(assessmentPercentageFilters.entities);
+    const selectedPositions = Array.from(assessmentPercentageFilters.positions);
+    
+    // Filter workers by entity, team, and position
+    const filteredWorkers = workerDetails.filter(worker => {
+        // Entity filter
+        if (selectedEntities.length > 0 && !selectedEntities.includes(worker.entity)) {
+            return false;
+        }
+        
+        // Team filter
+        if (selectedTeams.length > 0 && !selectedTeams.includes(worker.team)) {
+            return false;
+        }
+        
+        // Position filter
+        if (selectedPositions.length > 0 && !selectedPositions.includes(worker.position)) {
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // Get positions to display based on selected teams
+    let positionsToShow = [];
+    if (selectedTeams.length > 0) {
+        selectedTeams.forEach(team => {
+            if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+                positionsToShow = [...positionsToShow, ...WRITTEN_TEST_TEAM_POSITIONS[team]];
+            }
+        });
+    } else {
+        // If no team selected, show all positions from major teams
+        ['BLACK TOWER', 'WHITE TOWER', 'INTERNAL MOUNTING'].forEach(team => {
+            if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+                positionsToShow = [...positionsToShow, ...WRITTEN_TEST_TEAM_POSITIONS[team]];
+            }
+        });
+    }
+    
+    // Remove duplicates
+    positionsToShow = [...new Set(positionsToShow)];
+    
+    // Aggregate data by position and level
+    const positionData = {};
+    filteredWorkers.forEach(worker => {
+        if (!positionsToShow.includes(worker.position)) return;
+        
+        if (!positionData[worker.position]) {
+            positionData[worker.position] = { 1: 0, 2: 0, 3: 0, 4: 0 };
+        }
+        positionData[worker.position][worker.level]++;
+    });
+    
+    // Create datasets
+    const levels = [1, 2, 3, 4];
+    const levelColors = [
+        'rgba(239, 68, 68, 0.8)',    // Level 1 - Red
+        'rgba(251, 146, 60, 0.8)',   // Level 2 - Orange
+        'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
+        'rgba(34, 197, 94, 0.8)'     // Level 4 - Green
+    ];
+    
+    const datasets = levels.map((level, idx) => {
+        return {
+            label: `Level ${level}`,
+            data: positionsToShow.map(position => {
+                return positionData[position]?.[level] || 0;
+            }),
+            backgroundColor: levelColors[idx],
+            borderColor: levelColors[idx].replace('0.8', '1'),
+            borderWidth: 1
+        };
+    });
+    
+    currentAssessmentPositionCountChart = new Chart(ctxPosCount, {
+        type: 'bar',
+        data: {
+            labels: positionsToShow,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0,
+                        stepSize: 10
+                    },
+                    title: {
+                        display: true,
+                        text: 'NUMBER OF EMPLOYEES'
+                    },
+                    stacked: true
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Position'
+                    },
+                    ticks: {
+                        autoSkip: false,
+                        maxRotation: 90,
+                        minRotation: 45,
+                        font: {
+                            size: 9
+                        }
+                    },
+                    stacked: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                datalabels: {
+                    formatter: (value) => {
+                        return value > 0 ? value : '';
+                    },
+                    color: '#fff',
+                    font: {
+                        weight: 'bold',
+                        size: 8
+                    }
+                }
+            }
+        }
+    });
+}
+
 // Render level statistics panel
 function renderLevelStatistics(data, levels) {
     const statsContent = document.getElementById('level-stats-content');
@@ -2876,16 +3442,31 @@ function hideLevelDefinition() {
 }
 
 // Show Level Definition popup (Percentage tab)
-function showLevelDefinitionPct() {
-    const popup = document.getElementById('level-definition-popup-pct');
+// Level Definition popup functions for Entity Comparison tab
+function showLevelDefinitionEntity() {
+    const popup = document.getElementById('level-definition-popup-entity');
     if (popup) {
         popup.classList.remove('hidden');
     }
 }
 
-// Hide Level Definition popup (Percentage tab)
-function hideLevelDefinitionPct() {
-    const popup = document.getElementById('level-definition-popup-pct');
+function hideLevelDefinitionEntity() {
+    const popup = document.getElementById('level-definition-popup-entity');
+    if (popup) {
+        popup.classList.add('hidden');
+    }
+}
+
+// Level Definition popup functions for Position Analysis tab
+function showLevelDefinitionPosition() {
+    const popup = document.getElementById('level-definition-popup-position');
+    if (popup) {
+        popup.classList.remove('hidden');
+    }
+}
+
+function hideLevelDefinitionPosition() {
+    const popup = document.getElementById('level-definition-popup-position');
     if (popup) {
         popup.classList.add('hidden');
     }
@@ -2919,44 +3500,93 @@ function initializeAssessmentPercentageFilters() {
     
     if (!teamContainerPct || !positionContainerPct) return;
     
-    // Get unique teams and positions from dashboard data
-    const teams = new Set();
-    const positions = new Set();
+    // Use predefined team list
+    const allTeams = Object.keys(WRITTEN_TEST_TEAM_POSITIONS);
     
-    if (allDashboardData && allDashboardData.test_status_by_process) {
-        allDashboardData.test_status_by_process.forEach(item => {
-            if (item.team) teams.add(item.team);
-            if (item.position) positions.add(item.position);
-        });
-    }
-    
-    // Populate team checkboxes
+    // Populate team checkboxes with hierarchical structure
     teamContainerPct.innerHTML = '';
-    Array.from(teams).sort().forEach(team => {
+    allTeams.forEach(team => {
         const label = document.createElement('label');
         label.className = 'inline-flex items-center cursor-pointer';
         label.innerHTML = `
-            <input type="checkbox" value="${team}" checked onchange="updateAssessmentPercentageFilter()" 
+            <input type="checkbox" value="${team}" checked onchange="onAssessmentPctTeamCheckboxChange('${team}')" 
                    class="assessment-pct-team-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-            <span class="text-sm">${team}</span>
+            <span class="text-sm font-semibold">${team}</span>
         `;
         teamContainerPct.appendChild(label);
         assessmentPercentageFilters.teams.add(team);
     });
     
-    // Populate position checkboxes
+    // Populate position checkboxes with team grouping
     positionContainerPct.innerHTML = '';
-    Array.from(positions).sort().forEach(position => {
-        const label = document.createElement('label');
-        label.className = 'inline-flex items-center cursor-pointer';
-        label.innerHTML = `
-            <input type="checkbox" value="${position}" checked onchange="updateAssessmentPercentageFilter()" 
-                   class="assessment-pct-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
-            <span class="text-sm">${position}</span>
-        `;
-        positionContainerPct.appendChild(label);
-        assessmentPercentageFilters.positions.add(position);
+    
+    allTeams.forEach(team => {
+        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+            // Create team group
+            const teamGroup = document.createElement('div');
+            teamGroup.className = 'w-full mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200';
+            teamGroup.dataset.team = team;
+            
+            // Team header
+            const teamHeader = document.createElement('div');
+            teamHeader.className = 'font-semibold text-sm text-gray-700 mb-2 flex items-center';
+            teamHeader.innerHTML = `
+                <i class="fas fa-layer-group mr-2 text-blue-500"></i>
+                ${team}
+            `;
+            teamGroup.appendChild(teamHeader);
+            
+            // Position checkboxes for this team
+            const positionsWrapper = document.createElement('div');
+            positionsWrapper.className = 'flex flex-wrap gap-3 ml-6';
+            
+            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
+                const label = document.createElement('label');
+                label.className = 'inline-flex items-center cursor-pointer';
+                label.innerHTML = `
+                    <input type="checkbox" 
+                           value="${position}" 
+                           data-team="${team}"
+                           checked
+                           onchange="updateAssessmentPercentageFilter()" 
+                           class="assessment-pct-position-checkbox w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 mr-2">
+                    <span class="text-xs text-gray-700">${position}</span>
+                `;
+                positionsWrapper.appendChild(label);
+                assessmentPercentageFilters.positions.add(position);
+            });
+            
+            teamGroup.appendChild(positionsWrapper);
+            positionContainerPct.appendChild(teamGroup);
+        }
     });
+}
+
+// Team checkbox change handler for percentage tab
+function onAssessmentPctTeamCheckboxChange(team) {
+    const teamCheckbox = document.querySelector(`.assessment-pct-team-checkbox[value="${team}"]`);
+    const isChecked = teamCheckbox.checked;
+    
+    // Find all position checkboxes for this team
+    const positionCheckboxes = document.querySelectorAll(`.assessment-pct-position-checkbox[data-team="${team}"]`);
+    
+    positionCheckboxes.forEach(checkbox => {
+        if (isChecked) {
+            // Team checked: Enable position checkboxes
+            checkbox.disabled = false;
+            checkbox.parentElement.classList.remove('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.add('cursor-pointer');
+        } else {
+            // Team unchecked: Disable and uncheck position checkboxes
+            checkbox.disabled = true;
+            checkbox.checked = false;
+            checkbox.parentElement.classList.add('opacity-50', 'cursor-not-allowed');
+            checkbox.parentElement.classList.remove('cursor-pointer');
+        }
+    });
+    
+    // Update filters
+    updateAssessmentPercentageFilter();
 }
 
 async function updateAssessmentPercentageFilter() {
@@ -3016,7 +3646,7 @@ async function filterAssessmentPercentageChart() {
             return selectedEntities.includes(item.entity);
         });
         
-        // Apply team/position filters if needed
+        // Apply team/position filters if needed (frontend filtering)
         const totalTeamCheckboxes = document.querySelectorAll('.assessment-pct-team-checkbox').length;
         const allTeamsSelected = teams.length === totalTeamCheckboxes;
         const totalPositionCheckboxes = document.querySelectorAll('.assessment-pct-position-checkbox:not([disabled])').length;
@@ -3026,47 +3656,51 @@ async function filterAssessmentPercentageChart() {
         const hasPositionFilter = positions.length > 0 && !allPositionsSelected;
         
         if (hasTeamFilter || hasPositionFilter) {
-            const passThreshold = AppState.getPassThreshold();
-            let teamPositionData = [];
+            console.log('🔄 Team/Position filters applied (%) - filtering on frontend');
             
-            for (const entity of selectedEntities) {
-                let url = `/api/dashboard/stats?passThreshold=${passThreshold}&entity=${entity}`;
+            // Use worker_level_details from initial load for frontend filtering
+            if (allDashboardData.worker_level_details && allDashboardData.worker_level_details.length > 0) {
+                const workerDetails = allDashboardData.worker_level_details;
                 
-                if (teams.length > 0) {
-                    for (const team of teams) {
-                        let teamUrl = url + `&team=${encodeURIComponent(team)}`;
-                        
-                        if (positions.length > 0) {
-                            for (const position of positions) {
-                                const posUrl = teamUrl + `&position=${encodeURIComponent(position)}`;
-                                const response = await axios.get(posUrl);
-                                teamPositionData.push(...response.data.supervisor_assessment_by_level);
-                            }
-                        } else {
-                            const response = await axios.get(teamUrl);
-                            teamPositionData.push(...response.data.supervisor_assessment_by_level);
-                        }
+                // Filter workers by team and position
+                const filteredWorkers = workerDetails.filter(worker => {
+                    // Entity filter (already applied above)
+                    if (!selectedEntities.includes(worker.entity)) {
+                        return false;
                     }
-                } else if (positions.length > 0) {
-                    for (const position of positions) {
-                        const posUrl = url + `&position=${encodeURIComponent(position)}`;
-                        const response = await axios.get(posUrl);
-                        teamPositionData.push(...response.data.supervisor_assessment_by_level);
+                    
+                    // Team filter
+                    if (hasTeamFilter && teams.length > 0 && !teams.includes(worker.team)) {
+                        return false;
                     }
-                }
+                    
+                    // Position filter
+                    if (hasPositionFilter && positions.length > 0 && !positions.includes(worker.position)) {
+                        return false;
+                    }
+                    
+                    return true;
+                });
+                
+                // Aggregate by entity and level
+                const aggregated = {};
+                filteredWorkers.forEach(worker => {
+                    const key = `${worker.entity}-${worker.level}`;
+                    if (!aggregated[key]) {
+                        aggregated[key] = {
+                            entity: worker.entity,
+                            level: worker.level,
+                            count: 0
+                        };
+                    }
+                    aggregated[key].count++;
+                });
+                
+                filteredLevelData = Object.values(aggregated);
+                console.log('✅ After team/position filter (%) (frontend):', filteredLevelData);
+            } else {
+                console.warn('⚠️ worker_level_details not available, filter may not work');
             }
-            
-            const mergedData = {};
-            teamPositionData.forEach(item => {
-                const key = `${item.entity}-${item.level}`;
-                if (!mergedData[key]) {
-                    mergedData[key] = { ...item };
-                } else {
-                    mergedData[key].count += item.count;
-                }
-            });
-            
-            filteredLevelData = Object.values(mergedData);
         }
         
         // Update dashboard data for rendering
@@ -3075,8 +3709,11 @@ async function filterAssessmentPercentageChart() {
             supervisor_assessment_by_level: filteredLevelData
         };
         
-        // Re-render chart
+        // Re-render all 4 charts
         renderAssessmentPercentageChart();
+        renderAssessmentCountChart();
+        renderAssessmentPositionPercentageChart();  // NEW: Position percentage chart
+        renderAssessmentPositionCountChart();  // NEW: Position count chart
     } catch (error) {
         console.error('Failed to filter assessment percentage chart:', error);
     }
@@ -9368,3 +10005,573 @@ async function loadAssessmentStatusData() {
     }
 }
 
+
+// ==================== Entity Comparison Tab Functions ====================
+
+function renderEntityComparisonPercentageChart() {
+    const ctx = document.getElementById('entity-comparison-percentage-chart');
+    if (!ctx) return;
+    
+    if (currentEntityComparisonPercentageChart) {
+        currentEntityComparisonPercentageChart.destroy();
+    }
+    
+    const sourceData = allDashboardData || dashboardData;
+    const data = sourceData.supervisor_assessment_by_level;
+    if (!data) return;
+    
+    const levels = [1, 2, 3, 4];
+    const allEntities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
+    
+    // Apply team/position filters
+    let filteredWorkers = sourceData.worker_level_details || [];
+    const selectedTeams = Array.from(entityComparisonFilters.teams);
+    const selectedPositions = Array.from(entityComparisonFilters.positions);
+    
+    if (selectedTeams.length > 0 || selectedPositions.length > 0) {
+        filteredWorkers = filteredWorkers.filter(worker => {
+            if (selectedTeams.length > 0 && !selectedTeams.includes(worker.team)) return false;
+            if (selectedPositions.length > 0 && !selectedPositions.includes(worker.position)) return false;
+            return true;
+        });
+    }
+    
+    // Aggregate by entity and level
+    const aggregated = {};
+    filteredWorkers.forEach(worker => {
+        const key = `${worker.entity}-${worker.level}`;
+        if (!aggregated[key]) {
+            aggregated[key] = { entity: worker.entity, level: worker.level, count: 0 };
+        }
+        aggregated[key].count++;
+    });
+    const filteredData = Object.values(aggregated);
+    
+    const levelColors = [
+        'rgba(239, 68, 68, 0.8)', 'rgba(251, 146, 60, 0.8)',
+        'rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)'
+    ];
+    
+    const datasets = levels.map((level, idx) => ({
+        label: `Level ${level}`,
+        data: allEntities.map(entity => {
+            const entityData = filteredData.filter(d => d.entity === entity);
+            const total = entityData.reduce((sum, d) => sum + d.count, 0);
+            const count = filteredData.find(d => d.entity === entity && d.level === level)?.count || 0;
+            return total > 0 ? (count / total) * 100 : 0;
+        }),
+        backgroundColor: levelColors[idx],
+        borderWidth: 1
+    }));
+    
+    currentEntityComparisonPercentageChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: allEntities, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: { beginAtZero: true, max: 100, stacked: true, ticks: { callback: v => v + '%' } },
+                x: { stacked: true }
+            },
+            plugins: {
+                legend: { display: true, position: 'top' },
+                datalabels: {
+                    formatter: v => v > 5 ? v.toFixed(1) + '%' : '',
+                    color: '#fff',
+                    font: { weight: 'bold', size: 9 }
+                }
+            }
+        }
+    });
+}
+
+function renderEntityComparisonCountChart() {
+    const ctx = document.getElementById('entity-comparison-count-chart');
+    if (!ctx) return;
+    
+    if (currentEntityComparisonCountChart) {
+        currentEntityComparisonCountChart.destroy();
+    }
+    
+    const sourceData = allDashboardData || dashboardData;
+    let filteredWorkers = sourceData.worker_level_details || [];
+    const selectedTeams = Array.from(entityComparisonFilters.teams);
+    const selectedPositions = Array.from(entityComparisonFilters.positions);
+    
+    if (selectedTeams.length > 0 || selectedPositions.length > 0) {
+        filteredWorkers = filteredWorkers.filter(worker => {
+            if (selectedTeams.length > 0 && !selectedTeams.includes(worker.team)) return false;
+            if (selectedPositions.length > 0 && !selectedPositions.includes(worker.position)) return false;
+            return true;
+        });
+    }
+    
+    const aggregated = {};
+    filteredWorkers.forEach(worker => {
+        const key = `${worker.entity}-${worker.level}`;
+        if (!aggregated[key]) {
+            aggregated[key] = { entity: worker.entity, level: worker.level, count: 0 };
+        }
+        aggregated[key].count++;
+    });
+    const filteredData = Object.values(aggregated);
+    
+    const levels = [1, 2, 3, 4];
+    const allEntities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
+    const levelColors = [
+        'rgba(239, 68, 68, 0.8)', 'rgba(251, 146, 60, 0.8)',
+        'rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)'
+    ];
+    
+    const datasets = levels.map((level, idx) => ({
+        label: `Level ${level}`,
+        data: allEntities.map(entity => {
+            return filteredData.find(d => d.entity === entity && d.level === level)?.count || 0;
+        }),
+        backgroundColor: levelColors[idx],
+        borderWidth: 1
+    }));
+    
+    currentEntityComparisonCountChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: allEntities, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: { beginAtZero: true, stacked: true, ticks: { precision: 0 } },
+                x: { stacked: true }
+            },
+            plugins: {
+                legend: { display: true, position: 'top' },
+                datalabels: {
+                    formatter: v => v > 0 ? v : '',
+                    color: '#fff',
+                    font: { weight: 'bold', size: 9 }
+                }
+            }
+        }
+    });
+}
+
+function initializeEntityComparisonFilters() {
+    const teamContainer = document.getElementById('entity-comparison-team-checkboxes');
+    const positionContainer = document.getElementById('entity-comparison-position-checkboxes');
+    if (!teamContainer || !positionContainer) return;
+    
+    const allTeams = Object.keys(WRITTEN_TEST_TEAM_POSITIONS);
+    
+    teamContainer.innerHTML = '';
+    allTeams.forEach(team => {
+        const label = document.createElement('label');
+        label.className = 'inline-flex items-center cursor-pointer';
+        label.innerHTML = `
+            <input type="checkbox" value="${team}" checked onchange="onEntityComparisonTeamChange('${team}')" 
+                   class="entity-comparison-team-checkbox w-4 h-4 text-blue-600 rounded mr-2">
+            <span class="text-sm font-semibold">${team}</span>
+        `;
+        teamContainer.appendChild(label);
+        entityComparisonFilters.teams.add(team);
+    });
+    
+    positionContainer.innerHTML = '';
+    allTeams.forEach(team => {
+        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+            const teamGroup = document.createElement('div');
+            teamGroup.className = 'w-full mb-4 p-3 bg-gray-50 rounded-lg border';
+            teamGroup.dataset.team = team;
+            
+            const teamHeader = document.createElement('div');
+            teamHeader.className = 'font-semibold text-sm text-gray-700 mb-2';
+            teamHeader.innerHTML = `<i class="fas fa-layer-group mr-2"></i>${team}`;
+            teamGroup.appendChild(teamHeader);
+            
+            const positionsWrapper = document.createElement('div');
+            positionsWrapper.className = 'flex flex-wrap gap-3 ml-6';
+            
+            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
+                const label = document.createElement('label');
+                label.className = 'inline-flex items-center cursor-pointer';
+                label.innerHTML = `
+                    <input type="checkbox" value="${position}" data-team="${team}" checked
+                           onchange="updateEntityComparisonFilter()" 
+                           class="entity-comparison-position-checkbox w-4 h-4 text-blue-600 rounded mr-2">
+                    <span class="text-xs">${position}</span>
+                `;
+                positionsWrapper.appendChild(label);
+                entityComparisonFilters.positions.add(position);
+            });
+            
+            teamGroup.appendChild(positionsWrapper);
+            positionContainer.appendChild(teamGroup);
+        }
+    });
+}
+
+function onEntityComparisonTeamChange(team) {
+    const teamCheckbox = document.querySelector(`.entity-comparison-team-checkbox[value="${team}"]`);
+    const isChecked = teamCheckbox.checked;
+    const positionCheckboxes = document.querySelectorAll(`.entity-comparison-position-checkbox[data-team="${team}"]`);
+    
+    positionCheckboxes.forEach(checkbox => {
+        checkbox.disabled = !isChecked;
+        checkbox.checked = isChecked;
+        checkbox.parentElement.classList.toggle('opacity-50', !isChecked);
+    });
+    
+    updateEntityComparisonFilter();
+}
+
+function updateEntityComparisonFilter() {
+    const teamCheckboxes = document.querySelectorAll('.entity-comparison-team-checkbox');
+    entityComparisonFilters.teams = new Set();
+    teamCheckboxes.forEach(cb => {
+        if (cb.checked) entityComparisonFilters.teams.add(cb.value);
+    });
+    
+    const positionCheckboxes = document.querySelectorAll('.entity-comparison-position-checkbox');
+    entityComparisonFilters.positions = new Set();
+    positionCheckboxes.forEach(cb => {
+        if (cb.checked) entityComparisonFilters.positions.add(cb.value);
+    });
+    
+    renderEntityComparisonPercentageChart();
+    renderEntityComparisonCountChart();
+}
+
+// ==================== Position Analysis Tab Functions ====================
+
+function renderPositionAnalysisPercentageChart() {
+    const ctx = document.getElementById('position-analysis-percentage-chart');
+    if (!ctx) return;
+    
+    if (currentPositionAnalysisPercentageChart) {
+        currentPositionAnalysisPercentageChart.destroy();
+    }
+    
+    const sourceData = allDashboardData || dashboardData;
+    let filteredWorkers = sourceData.worker_level_details || [];
+    
+    const selectedEntity = positionAnalysisFilters.entity;
+    const selectedTeams = Array.from(positionAnalysisFilters.teams);
+    const selectedPositions = Array.from(positionAnalysisFilters.positions);
+    
+    // If no entity selected, show empty chart
+    if (!selectedEntity) {
+        console.log('⚠️ No entity selected for Position Analysis');
+        filteredWorkers = [];
+    } else {
+        filteredWorkers = filteredWorkers.filter(worker => {
+            if (worker.entity !== selectedEntity) return false;
+            if (selectedTeams.length > 0 && !selectedTeams.includes(worker.team)) return false;
+            if (selectedPositions.length > 0 && !selectedPositions.includes(worker.position)) return false;
+            return true;
+        });
+    }
+    
+    // Only show positions that are actually selected
+    let positionsToShow = [];
+    if (selectedPositions.length > 0) {
+        // User has explicitly selected positions - show only those
+        positionsToShow = selectedPositions;
+    } else if (selectedTeams.length > 0) {
+        // User selected teams but no specific positions - show all positions from selected teams
+        selectedTeams.forEach(team => {
+            if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+                positionsToShow = [...positionsToShow, ...WRITTEN_TEST_TEAM_POSITIONS[team]];
+            }
+        });
+        positionsToShow = [...new Set(positionsToShow)];
+    }
+    // If nothing is selected, positionsToShow remains empty array
+    
+    const positionData = {};
+    filteredWorkers.forEach(worker => {
+        if (!positionsToShow.includes(worker.position)) return;
+        if (!positionData[worker.position]) {
+            positionData[worker.position] = { 1: 0, 2: 0, 3: 0, 4: 0 };
+        }
+        positionData[worker.position][worker.level]++;
+    });
+    
+    const levels = [1, 2, 3, 4];
+    const levelColors = [
+        'rgba(239, 68, 68, 0.8)', 'rgba(251, 146, 60, 0.8)',
+        'rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)'
+    ];
+    
+    const datasets = levels.map((level, idx) => ({
+        label: `Level ${level}`,
+        data: positionsToShow.map(position => {
+            const total = positionData[position] ? Object.values(positionData[position]).reduce((s, c) => s + c, 0) : 0;
+            const count = positionData[position]?.[level] || 0;
+            return total > 0 ? (count / total) * 100 : 0;
+        }),
+        backgroundColor: levelColors[idx],
+        borderWidth: 1
+    }));
+    
+    currentPositionAnalysisPercentageChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: positionsToShow, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: { beginAtZero: true, max: 100, stacked: true, ticks: { callback: v => v + '%' } },
+                x: { stacked: true, ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 9 } } }
+            },
+            plugins: {
+                legend: { display: true, position: 'top' },
+                datalabels: {
+                    formatter: v => v > 5 ? v.toFixed(1) + '%' : '',
+                    color: '#fff',
+                    font: { weight: 'bold', size: 8 }
+                }
+            }
+        }
+    });
+}
+
+function renderPositionAnalysisCountChart() {
+    const ctx = document.getElementById('position-analysis-count-chart');
+    if (!ctx) return;
+    
+    if (currentPositionAnalysisCountChart) {
+        currentPositionAnalysisCountChart.destroy();
+    }
+    
+    const sourceData = allDashboardData || dashboardData;
+    let filteredWorkers = sourceData.worker_level_details || [];
+    
+    const selectedEntity = positionAnalysisFilters.entity;
+    const selectedTeams = Array.from(positionAnalysisFilters.teams);
+    const selectedPositions = Array.from(positionAnalysisFilters.positions);
+    
+    // If no entity selected, show empty chart
+    if (!selectedEntity) {
+        console.log('⚠️ No entity selected for Position Analysis');
+        filteredWorkers = [];
+    } else {
+        filteredWorkers = filteredWorkers.filter(worker => {
+            if (worker.entity !== selectedEntity) return false;
+            if (selectedTeams.length > 0 && !selectedTeams.includes(worker.team)) return false;
+            if (selectedPositions.length > 0 && !selectedPositions.includes(worker.position)) return false;
+            return true;
+        });
+    }
+    
+    // Only show positions that are actually selected
+    let positionsToShow = [];
+    if (selectedPositions.length > 0) {
+        // User has explicitly selected positions - show only those
+        positionsToShow = selectedPositions;
+    } else if (selectedTeams.length > 0) {
+        // User selected teams but no specific positions - show all positions from selected teams
+        selectedTeams.forEach(team => {
+            if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+                positionsToShow = [...positionsToShow, ...WRITTEN_TEST_TEAM_POSITIONS[team]];
+            }
+        });
+        positionsToShow = [...new Set(positionsToShow)];
+    }
+    // If nothing is selected, positionsToShow remains empty array
+    
+    const positionData = {};
+    filteredWorkers.forEach(worker => {
+        if (!positionsToShow.includes(worker.position)) return;
+        if (!positionData[worker.position]) {
+            positionData[worker.position] = { 1: 0, 2: 0, 3: 0, 4: 0 };
+        }
+        positionData[worker.position][worker.level]++;
+    });
+    
+    const levels = [1, 2, 3, 4];
+    const levelColors = [
+        'rgba(239, 68, 68, 0.8)', 'rgba(251, 146, 60, 0.8)',
+        'rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)'
+    ];
+    
+    const datasets = levels.map((level, idx) => ({
+        label: `Level ${level}`,
+        data: positionsToShow.map(position => positionData[position]?.[level] || 0),
+        backgroundColor: levelColors[idx],
+        borderWidth: 1
+    }));
+    
+    currentPositionAnalysisCountChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: positionsToShow, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: { beginAtZero: true, stacked: true, ticks: { precision: 0 } },
+                x: { stacked: true, ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 9 } } }
+            },
+            plugins: {
+                legend: { display: true, position: 'top' },
+                datalabels: {
+                    formatter: v => v > 0 ? v : '',
+                    color: '#fff',
+                    font: { weight: 'bold', size: 8 }
+                }
+            }
+        }
+    });
+}
+
+function initializePositionAnalysisFilters() {
+    const dropdownContainer = document.getElementById('position-analysis-team-dropdowns');
+    if (!dropdownContainer) return;
+    
+    const allTeams = Object.keys(WRITTEN_TEST_TEAM_POSITIONS);
+    
+    dropdownContainer.innerHTML = '';
+    
+    allTeams.forEach(team => {
+        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+            // Create team dropdown container
+            const teamDropdown = document.createElement('div');
+            teamDropdown.className = 'relative border border-gray-300 rounded-lg overflow-visible bg-white';
+            
+            // Team header (clickable to toggle)
+            const teamHeader = document.createElement('button');
+            teamHeader.className = 'w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors';
+            teamHeader.innerHTML = `
+                <span class="font-semibold text-sm text-gray-700">
+                    <i class="fas fa-layer-group mr-2"></i>${team}
+                </span>
+                <i class="fas fa-chevron-down transform transition-transform duration-200" id="chevron-${team.replace(/\s+/g, '-')}"></i>
+            `;
+            teamHeader.onclick = () => togglePositionAnalysisTeamDropdown(team);
+            
+            // Positions container (hidden by default, absolute positioned)
+            const positionsContainer = document.createElement('div');
+            positionsContainer.id = `positions-${team.replace(/\s+/g, '-')}`;
+            positionsContainer.className = 'hidden absolute top-full left-0 right-0 mt-0 px-4 py-3 space-y-2 bg-white max-h-64 overflow-y-auto border border-gray-300 rounded-b-lg shadow-lg z-50';
+            
+            // Add "All" checkbox at the top
+            const allLabel = document.createElement('label');
+            allLabel.className = 'flex items-center cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors border-b border-gray-200 mb-2 pb-3';
+            allLabel.innerHTML = `
+                <input type="checkbox" 
+                       data-team="${team}"
+                       onchange="toggleAllPositionsInTeam('${team}')" 
+                       class="position-analysis-all-checkbox w-4 h-4 text-green-600 rounded mr-3 flex-shrink-0"
+                       id="all-${team.replace(/\s+/g, '-')}">
+                <span class="text-sm font-bold text-gray-800">
+                    <i class="fas fa-check-double mr-1"></i>All Positions
+                </span>
+            `;
+            positionsContainer.appendChild(allLabel);
+            
+            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
+                const label = document.createElement('label');
+                label.className = 'flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors';
+                label.innerHTML = `
+                    <input type="checkbox" 
+                           value="${position}" 
+                           data-team="${team}"
+                           onchange="onPositionCheckboxChange('${team}')" 
+                           class="position-analysis-position-checkbox position-checkbox-${team.replace(/\s+/g, '-')} w-4 h-4 text-blue-600 rounded mr-3 flex-shrink-0">
+                    <span class="text-sm text-gray-700">${position}</span>
+                `;
+                positionsContainer.appendChild(label);
+            });
+            
+            teamDropdown.appendChild(teamHeader);
+            teamDropdown.appendChild(positionsContainer);
+            dropdownContainer.appendChild(teamDropdown);
+        }
+    });
+    
+    // Clear filter state
+    positionAnalysisFilters.teams.clear();
+    positionAnalysisFilters.positions.clear();
+}
+
+function togglePositionAnalysisTeamDropdown(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const positionsContainer = document.getElementById(`positions-${teamId}`);
+    const chevron = document.getElementById(`chevron-${teamId}`);
+    
+    if (positionsContainer && chevron) {
+        const isHidden = positionsContainer.classList.contains('hidden');
+        
+        if (isHidden) {
+            // Expand
+            positionsContainer.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            // Collapse
+            positionsContainer.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+}
+
+function toggleAllPositionsInTeam(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const allCheckbox = document.getElementById(`all-${teamId}`);
+    const positionCheckboxes = document.querySelectorAll(`.position-checkbox-${teamId}`);
+    
+    if (allCheckbox && positionCheckboxes) {
+        const isChecked = allCheckbox.checked;
+        
+        // Check or uncheck all position checkboxes
+        positionCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        
+        // Update filters
+        updatePositionAnalysisFilter();
+    }
+}
+
+function onPositionCheckboxChange(team) {
+    const teamId = team.replace(/\s+/g, '-');
+    const allCheckbox = document.getElementById(`all-${teamId}`);
+    const positionCheckboxes = document.querySelectorAll(`.position-checkbox-${teamId}`);
+    
+    if (allCheckbox && positionCheckboxes) {
+        // Check if all positions are checked
+        const allChecked = Array.from(positionCheckboxes).every(cb => cb.checked);
+        const anyChecked = Array.from(positionCheckboxes).some(cb => cb.checked);
+        
+        // Update "All" checkbox state
+        allCheckbox.checked = allChecked;
+        allCheckbox.indeterminate = !allChecked && anyChecked;
+    }
+    
+    // Update filters
+    updatePositionAnalysisFilter();
+}
+
+function updatePositionAnalysisFilter() {
+    // Get selected entity from dropdown
+    const entitySelect = document.getElementById('position-analysis-entity-select');
+    positionAnalysisFilters.entity = entitySelect ? entitySelect.value : '';
+    
+    // Collect selected positions and their teams
+    const positionCheckboxes = document.querySelectorAll('.position-analysis-position-checkbox');
+    positionAnalysisFilters.teams = new Set();
+    positionAnalysisFilters.positions = new Set();
+    
+    positionCheckboxes.forEach(cb => {
+        if (cb.checked) {
+            positionAnalysisFilters.positions.add(cb.value);
+            positionAnalysisFilters.teams.add(cb.dataset.team);
+        }
+    });
+    
+    console.log('Position Analysis Filters:', {
+        entity: positionAnalysisFilters.entity,
+        teams: Array.from(positionAnalysisFilters.teams),
+        positions: Array.from(positionAnalysisFilters.positions)
+    });
+    
+    renderPositionAnalysisPercentageChart();
+    renderPositionAnalysisCountChart();
+}

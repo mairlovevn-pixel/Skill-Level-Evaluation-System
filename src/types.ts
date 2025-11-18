@@ -84,4 +84,11 @@ export interface DashboardStats {
     entity: string;
     count: number;
   }>;
+  worker_level_details?: Array<{
+    id: number;
+    entity: string;
+    team: string;
+    position: string;
+    level: number;
+  }>;
 }

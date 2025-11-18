@@ -337,6 +337,31 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
       })
     }
 
+    // Worker details for frontend filtering (only if no team/position filter applied)
+    let worker_level_details: any[] = []
+    if (!team && !position) {
+      // Get all workers with their team, position, and level info
+      let workerDetailsQuery = `
+        SELECT 
+          w.id,
+          w.entity,
+          w.team,
+          w.position,
+          w.current_level as level
+        FROM workers w
+        WHERE 1=1
+      `
+      const workerDetailsParams: any[] = []
+      
+      if (entity) {
+        workerDetailsQuery += ' AND w.entity = ?'
+        workerDetailsParams.push(entity)
+      }
+      
+      const workerDetailsResult = await db.prepare(workerDetailsQuery).bind(...workerDetailsParams).all()
+      worker_level_details = (workerDetailsResult.results || []) as any[]
+    }
+
     const stats: DashboardStats = {
       total_workers,
       written_test_takers,
@@ -344,7 +369,8 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
       written_test_by_process: written_test_by_process as any,
       avg_score_by_process: avg_score_by_process as any,
       supervisor_assessment_by_level: supervisor_assessment_by_level as any,
-      level_tenure_stats: level_tenure_stats as any
+      level_tenure_stats: level_tenure_stats as any,
+      worker_level_details: worker_level_details as any
     }
 
     return c.json(stats)
