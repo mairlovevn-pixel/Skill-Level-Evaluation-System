@@ -304,6 +304,13 @@
 - **상태**: ✅ 활성
 - **마지막 업데이트**: 2025-01-19
 - **최근 변경사항**: 
+  - **🐛 Individual Assessment Report 점수 기준 수정** (2025-01-19)
+    - **문제**: Written Test 결과의 Pass/Fail 표시가 잘못된 기준으로 계산됨
+    - **수정**: 정확한 60점 기준 적용
+      - **통과 (Pass)**: 점수 ≥ 60 (60점 이상)
+      - **미달 (Fail)**: 점수 < 60 (60점 미만)
+    - **수정 위치**: `displayTestResults()` 함수에 명시적 계산 로직 추가
+    - **영향**: Individual Assessment Report 탭의 Written Test 결과 표시
   - **🔧 필터 시스템 분리 및 확장** ⭐⭐⭐⭐⭐ CRITICAL! (2025-01-19)
     - **두 가지 팀-포지션 구조 분리**:
       - **WRITTEN_TEST_TEAM_POSITIONS** (3개 팀, 18개 포지션):
