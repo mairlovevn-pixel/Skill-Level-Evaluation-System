@@ -10759,21 +10759,8 @@ function renderEntityComparisonCountChart() {
                 legend: { display: true, position: 'top' },
                 datalabels: {
                     formatter: (value, context) => {
-                        // Show individual values inside bars
-                        if (value <= 0) return '';
-                        
-                        // For the last dataset (Level 4), show total sum on top
-                        if (context.datasetIndex === context.chart.data.datasets.length - 1) {
-                            // Calculate total for this bar (all levels)
-                            let total = 0;
-                            context.chart.data.datasets.forEach(dataset => {
-                                total += dataset.data[context.dataIndex] || 0;
-                            });
-                            // Show both current value and total
-                            return value > 0 ? `${value}\n━━━\n${total}` : `━━━\n${total}`;
-                        }
-                        
-                        return value;
+                        // Show individual values inside bars only
+                        return value > 0 ? value : '';
                     },
                     color: '#fff',
                     font: { weight: 'bold', size: 9 },
