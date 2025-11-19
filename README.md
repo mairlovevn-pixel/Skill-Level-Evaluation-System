@@ -304,6 +304,19 @@
 - **상태**: ✅ 활성
 - **마지막 업데이트**: 2025-01-19
 - **최근 변경사항**: 
+  - **🎨 Level 색상 체계 변경** (2025-01-19)
+    - **Position Analysis 및 Entity Comparison 차트 색상 업데이트**:
+      - **Level 1**: 🤍 흰색 (White) - `rgba(255, 255, 255, 0.9)` + 회색 테두리 (2px)
+      - **Level 2**: 💛 노란색 (Yellow) - `rgba(234, 179, 8, 0.8)`
+      - **Level 3**: 💙 파란색 (Blue) - `rgba(59, 130, 246, 0.8)`
+      - **Level 4**: ❤️ 빨간색 (Red) - `rgba(239, 68, 68, 0.8)`
+      - **Master (Level 5)**: 🖤 검정색 (Black) - 아직 평가 시작 안 함
+    - **개선 사항**: Level 1 흰색 막대에 두꺼운 회색 테두리 추가로 가시성 향상
+    - **영향 차트**: 
+      - Position Analysis Percentage Chart
+      - Position Analysis Count Chart
+      - Entity Comparison Percentage Chart
+      - Entity Comparison Count Chart
   - **🐛 Individual Assessment Report 점수 기준 수정** (2025-01-19)
     - **문제**: Written Test 결과의 Pass/Fail 표시가 잘못된 기준으로 계산됨
     - **수정**: 정확한 60점 기준 적용
