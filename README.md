@@ -304,6 +304,19 @@
 - **상태**: ✅ 활성
 - **마지막 업데이트**: 2025-01-19
 - **최근 변경사항**: 
+  - **🔧 필터 시스템 전체 확장** ⭐⭐⭐⭐⭐ CRITICAL! (2025-01-19)
+    - **누락된 팀 추가**: QM, TRANSPORTATION, MAINTENANCE, WAREHOUSE, LEAN (5개 팀)
+    - **누락된 포지션 추가**: 기존 팀에도 누락된 포지션들 추가
+    - **전체 팀-포지션 구조** (8개 팀, 50개 포지션):
+      - **BLACK TOWER** (15개): MATERIAL HANDLING, CUTTING, BEVELING, BENDING, LS WELDING, FIT UP, CS WELDING, VTMT, BRACKET FU, BRACKET WELD, UT REPAIR, DOOR FRAME FU, DOOR FRAME WELD, FLATNESS, DRILLING & TAPPING
+      - **WHITE TOWER** (5개): BLASTING, METALIZING, PAINTING, PAINTING REPAIR, FITTING PAINT RING
+      - **INTERNAL MOUNTING** (6개): PRE ASSEMBLY, ASSEMBLY, IM CABLE, GT CLEANING, MATERIAL HANDLER-IM, PAINT TOUCH UP
+      - **QM** (13개): QC INSPECTOR 시리즈 (BT MT/PT, BT UT/PAUT, BT VT, DELIVERY, IM FINAL, IM INCOMING, WT METALIZING, WT WASHING&BLASTING, WT PAINTING, BT FITUP&WELDING, BT DIMENSION, BT INCOMING TO BENDING, BT INCOMING)
+      - **TRANSPORTATION** (3개): TRANSPORTATION, STORAGE FIT INSTALLATION, H-FRAME INSTALLATION
+      - **MAINTENANCE** (1개): ELECTRICIAN/MECHANIC
+      - **WAREHOUSE** (3개): WAREHOUSE-KITSET, WAREHOUSE BT/WT, WAREHOUSE-IM
+      - **LEAN** (2개): KAIZEN, EHS
+    - **영향 범위**: Position Analysis, Entity Comparison, Supervisor Assessment 차트 모두 적용
   - **📊 Entity Comparison Chart 개선** (2025-01-19)
     - **총합 라벨 제거**: Headcount 차트에서 막대 위쪽의 총합 표시 제거
     - **라벨 단순화**: 각 Level별 개별 값만 표시하도록 변경
