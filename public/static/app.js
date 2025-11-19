@@ -2755,6 +2755,7 @@ let assessmentFilters = {
 // Written Test Team-Position Mapping (Fixed Order)
 const WRITTEN_TEST_TEAM_POSITIONS = {
     'BLACK TOWER': [
+        'MATERIAL HANDLING',
         'CUTTING',
         'BEVELING',
         'BENDING',
@@ -2767,21 +2768,60 @@ const WRITTEN_TEST_TEAM_POSITIONS = {
         'UT REPAIR',
         'DOOR FRAME FU',
         'DOOR FRAME WELD',
-        'FLATNESS'
+        'FLATNESS',
+        'DRILLING & TAPPING'
     ],
     'WHITE TOWER': [
         'BLASTING',
         'METALIZING',
-        'PAINTING'
+        'PAINTING',
+        'PAINTING REPAIR',
+        'FITTING PAINT RING'
     ],
     'INTERNAL MOUNTING': [
+        'PRE ASSEMBLY',
         'ASSEMBLY',
-        'IM CABLE'
+        'IM CABLE',
+        'GT CLEANING',
+        'MATERIAL HANDLER-IM',
+        'PAINT TOUCH UP'
+    ],
+    'QM': [
+        'QC INSPECTOR - BT MT/PT(QBP)',
+        'QC INSPECTOR - BT UT/PAUT(QBU)',
+        'QC INSPECTOR - BT VT(QBV)',
+        'QC INSPECTOR - DELIVERY INSPECTOR(QDI)',
+        'QC INSPECTOR-IM FINAL (QIF)',
+        'QC INSPECTOR-IM INCOMING(QII)',
+        'QC INSPECTOR - WT MATELIZING(QMI)',
+        'QC INSPECTOR - WT WASHING&BLASTING(QWM)',
+        'QC INSPECTOR - WT PAINTING(QWP)',
+        'QC INSPECTOR-BT FITUP&WELDING(QBF)',
+        'QC INSPECTOR-BT DIMENSION(QBD)',
+        'QC INSPECTOR-BT INCOMING TO BENDING',
+        'QC INSPECTOR-BT INCOMING(QBI)'
+    ],
+    'TRANSPORTATION': [
+        'TRANSPORTATION',
+        'STORAGE FIT INSTALLATION',
+        'H-FRAME INSTALLATION'
+    ],
+    'MAINTENANCE': [
+        'ELECTRICIAN/MECHANIC'
+    ],
+    'WAREHOUSE': [
+        'WAREHOUSE-KITSET',
+        'WAREHOUSE BT/WT',
+        'WAREHOUSE-IM'
+    ],
+    'LEAN': [
+        'KAIZEN',
+        'EHS'
     ]
 };
 
-// Team order for Written Test
-const WRITTEN_TEST_TEAM_ORDER = ['BLACK TOWER', 'WHITE TOWER', 'INTERNAL MOUNTING'];
+// Team order for display (all teams)
+const WRITTEN_TEST_TEAM_ORDER = ['BLACK TOWER', 'WHITE TOWER', 'INTERNAL MOUNTING', 'QM', 'TRANSPORTATION', 'MAINTENANCE', 'WAREHOUSE', 'LEAN'];
 
 async function updateTestStatusFilter() {
     // Get selected entity from dropdown (single selection)
