@@ -304,14 +304,17 @@
 - **상태**: ✅ 활성
 - **마지막 업데이트**: 2025-01-19
 - **최근 변경사항**: 
-  - **🎨 Level 색상 체계 변경** (2025-01-19)
+  - **🎨 Level 색상 체계 변경 및 Master 범례 추가** (2025-01-19)
     - **Position Analysis 및 Entity Comparison 차트 색상 업데이트**:
       - **Level 1**: 🤍 흰색 (White) - `rgba(255, 255, 255, 0.9)` + 회색 테두리 (2px)
       - **Level 2**: 💛 노란색 (Yellow) - `rgba(234, 179, 8, 0.8)`
       - **Level 3**: 💙 파란색 (Blue) - `rgba(59, 130, 246, 0.8)`
       - **Level 4**: ❤️ 빨간색 (Red) - `rgba(239, 68, 68, 0.8)`
-      - **Master (Level 5)**: 🖤 검정색 (Black) - 아직 평가 시작 안 함
-    - **개선 사항**: Level 1 흰색 막대에 두꺼운 회색 테두리 추가로 가시성 향상
+      - **Master (Level 5)**: 🖤 검정색 (Black) - `rgba(0, 0, 0, 0.8)` ⭐ NEW!
+    - **Master 범례 추가**: 차트 상단 범례에 "Master" 항목 표시 (데이터는 0, 평가 미시작)
+    - **개선 사항**: 
+      - Level 1 흰색 막대에 두꺼운 회색 테두리 추가로 가시성 향상
+      - 5단계 Level 시스템 완성 (Level 1-4 + Master)
     - **영향 차트**: 
       - Position Analysis Percentage Chart
       - Position Analysis Count Chart
