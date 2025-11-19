@@ -1567,7 +1567,7 @@ function renderHeatmapAnalysis() {
                     Entity-Position Performance Comparison
                 </h4>
                 <p class="text-sm text-gray-600 mb-4">Compare average scores across positions by entity</p>
-                <div style="position: relative; height: 400px;">
+                <div style="position: relative;">
                     <canvas id="heatmap-bar-chart"></canvas>
                 </div>
             </div>
@@ -1636,6 +1636,7 @@ function renderHeatmapAnalysis() {
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
+                aspectRatio: 2.5,
                 plugins: {
                     legend: {
                         display: true,
