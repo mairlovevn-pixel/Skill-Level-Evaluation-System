@@ -8843,14 +8843,18 @@ function displayTestResults(testResults) {
         return;
     }
     
-    const html = testResults.map((result, index) => `
+    const html = testResults.map((result, index) => {
+        // Calculate pass/fail based on score (>=60: pass, <60: fail)
+        const passed = result.score >= 60;
+        
+        return `
         <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="showTestAnalysis(${result.id}, '${result.process_name}', ${result.process_id}, ${result.score}, ${result.worker_id})">
             <div class="flex justify-between items-center">
                 <div>
                     <span class="font-semibold">${result.process_name}</span>
                     <span class="ml-4 text-gray-600">Score: ${result.score}</span>
-                    <span class="ml-2 px-2 py-1 rounded text-sm ${result.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                        ${result.passed ? 'Passed' : 'Failed'}
+                    <span class="ml-2 px-2 py-1 rounded text-sm ${passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        ${passed ? 'Passed' : 'Failed'}
                     </span>
                 </div>
                 <button class="text-blue-600 hover:text-blue-800">
@@ -8858,7 +8862,8 @@ function displayTestResults(testResults) {
                 </button>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
     
     container.innerHTML = html;
 }
