@@ -10538,7 +10538,8 @@ function renderEntityComparisonPercentageChart() {
         data: { labels: allEntities, datasets },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
+            aspectRatio: 1.2,
             scales: {
                 y: { beginAtZero: true, max: 100, stacked: true, ticks: { callback: v => v + '%' } },
                 x: { stacked: true }
@@ -10612,7 +10613,8 @@ function renderEntityComparisonCountChart() {
         data: { labels: allEntities, datasets },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
+            aspectRatio: 1.2,
             scales: {
                 y: { beginAtZero: true, stacked: true, ticks: { precision: 0 } },
                 x: { stacked: true }
@@ -10850,7 +10852,8 @@ function renderPositionAnalysisPercentageChart() {
         data: { labels: positionsToShow, datasets },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
+            aspectRatio: 1.2,
             scales: {
                 y: { beginAtZero: true, max: 100, stacked: true, ticks: { callback: v => v + '%' } },
                 x: { stacked: true, ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 9 } } }
@@ -10938,7 +10941,8 @@ function renderPositionAnalysisCountChart() {
         data: { labels: positionsToShow, datasets },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
+            aspectRatio: 1.2,
             scales: {
                 y: { beginAtZero: true, stacked: true, ticks: { precision: 0 } },
                 x: { stacked: true, ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 9 } } }
