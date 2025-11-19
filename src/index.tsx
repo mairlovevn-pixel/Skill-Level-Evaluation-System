@@ -27,7 +27,7 @@ app.use('/static/*', serveStatic({ root: './' }))
 app.get('/api/dashboard/stats', errorHandler(async (c) => {
   const db = c.env.DB
   const entity = c.req.query('entity') // 법인 필터 파라미터
-  const passThreshold = parseInt(c.req.query('passThreshold') || '70')
+  const passThreshold = parseInt(c.req.query('passThreshold') || '60')
   
     // 전체 작업자 수
     let totalWorkersResult
@@ -2405,7 +2405,7 @@ app.get('/api/export/comprehensive-evaluation', async (c) => {
       ? 'WHERE ' + whereConditions.join(' AND ')
       : ''
     
-    // 작업자 데이터 조회 (Written Test 점수 + 최종 Assessment Level 포함)
+    // 작업자 데이터 조회 (Written Test 점수 + Supervisor Assessment Level + Final Level 계산)
     const query = `
       SELECT 
         w.id,
@@ -2415,7 +2415,7 @@ app.get('/api/export/comprehensive-evaluation', async (c) => {
         w.team,
         w.position,
         w.start_to_work_date as start_date,
-        w.current_level as final_level,
+        w.current_level as supervisor_assessment_level,
         (
           SELECT wtr.score
           FROM written_test_results wtr
@@ -2433,13 +2433,22 @@ app.get('/api/export/comprehensive-evaluation', async (c) => {
       ? await stmt.bind(...params).all()
       : await stmt.all()
     
-    // null 처리만 수행 (점수는 이미 정수)
-    const workers = (result.results || []).map((w: any) => ({
-      ...w,
-      written_test_score: w.written_test_score !== null ? w.written_test_score : null,
-      final_level: w.final_level || 1,
-      start_date: w.start_date || ''
-    }))
+    // Final Level 계산:
+    // - Written Test >= 60: Final Level = Supervisor Assessment Level
+    // - Written Test < 60: Final Level = 1
+    const workers = (result.results || []).map((w: any) => {
+      const writtenTestScore = w.written_test_score !== null ? w.written_test_score : 0
+      const supervisorLevel = w.supervisor_assessment_level || 1
+      const finalLevel = writtenTestScore >= 60 ? supervisorLevel : 1
+      
+      return {
+        ...w,
+        written_test_score: w.written_test_score !== null ? w.written_test_score : null,
+        supervisor_assessment_level: supervisorLevel,
+        final_level: finalLevel,
+        start_date: w.start_date || ''
+      }
+    })
     
     return c.json({
       success: true,
@@ -3092,7 +3101,7 @@ app.post('/api/chatbot/query', errorHandler(async (c) => {
           SELECT COUNT(DISTINCT wtr.worker_id) as count 
           FROM written_test_results wtr
           JOIN workers w ON wtr.worker_id = w.id
-          WHERE w.entity = ? AND wtr.score >= 70
+          WHERE w.entity = ? AND wtr.score >= 60
         `).bind(entity).first()
         
         const total = totalQuery?.count || 0
@@ -3103,7 +3112,7 @@ app.post('/api/chatbot/query', errorHandler(async (c) => {
         data = { entity, total, passed, rate: parseFloat(rate) }
       } else {
         totalQuery = await db.prepare('SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results').first()
-        passedQuery = await db.prepare('SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results WHERE score >= 70').first()
+        passedQuery = await db.prepare('SELECT COUNT(DISTINCT worker_id) as count FROM written_test_results WHERE score >= 60').first()
         
         const total = totalQuery?.count || 0
         const passed = passedQuery?.count || 0
@@ -3165,7 +3174,7 @@ app.post('/api/chatbot/query', errorHandler(async (c) => {
         SELECT 
           p.name as process_name,
           COUNT(DISTINCT wtr.worker_id) as takers,
-          COUNT(DISTINCT CASE WHEN wtr.score >= 70 THEN wtr.worker_id END) as passed,
+          COUNT(DISTINCT CASE WHEN wtr.score >= 60 THEN wtr.worker_id END) as passed,
           AVG(wtr.score) as avg_score
         FROM positions p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id
@@ -3221,7 +3230,7 @@ app.post('/api/chatbot/query', errorHandler(async (c) => {
         SELECT 
           p.name as process_name,
           COUNT(DISTINCT wtr.worker_id) as takers,
-          COUNT(DISTINCT CASE WHEN wtr.score >= 70 THEN wtr.worker_id END) as passed,
+          COUNT(DISTINCT CASE WHEN wtr.score >= 60 THEN wtr.worker_id END) as passed,
           AVG(wtr.score) as avg_score
         FROM positions p
         LEFT JOIN written_test_results wtr ON p.id = wtr.process_id

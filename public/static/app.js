@@ -10133,15 +10133,16 @@ function renderExportWorkersList(workers) {
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                         <input type="checkbox" id="export-table-select-all" class="form-checkbox h-4 w-4 text-blue-600 rounded">
                     </th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">NO</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">법인</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">이름</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">사번</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">팀</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">직책</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">입사일</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Written Test</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">최종 레벨</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Entity</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Employee ID</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Team</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Position</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Start Date</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Written Test Score</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Supervisor Assessment Result</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Final Level</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
@@ -10162,8 +10163,13 @@ function renderExportWorkersList(workers) {
                         <td class="px-4 py-2 text-sm text-gray-900">${worker.start_date || '-'}</td>
                         <td class="px-4 py-2 text-sm text-center">
                             ${worker.written_test_score !== null 
-                                ? `<span class="font-semibold text-blue-600">${worker.written_test_score}점</span>` 
-                                : '<span class="text-gray-400">미응시</span>'}
+                                ? `<span class="font-semibold text-blue-600">${worker.written_test_score}</span>` 
+                                : '<span class="text-gray-400">-</span>'}
+                        </td>
+                        <td class="px-4 py-2 text-sm text-center">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getLevelBadgeColor(worker.supervisor_assessment_level || 1)}">
+                                Level ${worker.supervisor_assessment_level || 1}
+                            </span>
                         </td>
                         <td class="px-4 py-2 text-sm text-center">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getLevelBadgeColor(worker.final_level)}">
@@ -10276,18 +10282,28 @@ async function exportComprehensiveEvaluation() {
             return;
         }
         
-        // Create Excel data
-        const excelData = selectedWorkers.map((worker, index) => ({
-            'NO': index + 1,
-            'ENTITY': worker.entity || '',
-            'NAME': worker.name || '',
-            'EMPLOYEE ID': worker.employee_id || '',
-            'TEAM': worker.team || '',
-            'POSITION': worker.position || '',
-            'START TO WORK DATE': worker.start_date || '',
-            'Written Test Score': worker.written_test_score !== null ? worker.written_test_score : '',
-            'Final Assessment Level': worker.final_level || ''
-        }));
+        // Calculate Final Level based on Written Test score
+        const excelData = selectedWorkers.map((worker, index) => {
+            // Final Level logic:
+            // - If Written Test >= 60: Final Level = Supervisor Assessment Result
+            // - If Written Test < 60: Final Level = 1
+            const writtenTestScore = worker.written_test_score !== null ? worker.written_test_score : 0;
+            const supervisorLevel = worker.supervisor_assessment_level || 1;
+            const finalLevel = writtenTestScore >= 60 ? supervisorLevel : 1;
+            
+            return {
+                'No': index + 1,
+                'Entity': worker.entity || '',
+                'Name': worker.name || '',
+                'Employee ID': worker.employee_id || '',
+                'Team': worker.team || '',
+                'Position': worker.position || '',
+                'Start Date': worker.start_date || '',
+                'Written Test Score': worker.written_test_score !== null ? worker.written_test_score : '',
+                'Supervisor Assessment Result': supervisorLevel,
+                'Final Level': finalLevel
+            };
+        });
         
         // Create workbook
         const wb = XLSX.utils.book_new();
@@ -10295,15 +10311,16 @@ async function exportComprehensiveEvaluation() {
         
         // Set column widths
         ws['!cols'] = [
-            { wch: 5 },   // NO
-            { wch: 10 },  // ENTITY
-            { wch: 15 },  // NAME
-            { wch: 15 },  // EMPLOYEE ID
-            { wch: 15 },  // TEAM
-            { wch: 15 },  // POSITION
-            { wch: 18 },  // START TO WORK DATE
-            { wch: 18 },  // Written Test Score
-            { wch: 22 }   // Final Assessment Level
+            { wch: 5 },   // No
+            { wch: 10 },  // Entity
+            { wch: 15 },  // Name
+            { wch: 15 },  // Employee ID
+            { wch: 15 },  // Team
+            { wch: 15 },  // Position
+            { wch: 18 },  // Start Date
+            { wch: 20 },  // Written Test Score
+            { wch: 28 },  // Supervisor Assessment Result
+            { wch: 15 }   // Final Level
         ];
         
         XLSX.utils.book_append_sheet(wb, ws, 'Comprehensive_Evaluation');

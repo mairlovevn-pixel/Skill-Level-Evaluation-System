@@ -304,6 +304,24 @@
 - **상태**: ✅ 활성
 - **마지막 업데이트**: 2025-01-19
 - **최근 변경사항**: 
+  - **🎯 Individual Assessment Report Export 개선** ⭐⭐⭐⭐⭐ (2025-01-19)
+    - **헤더 영문화**: 모든 컬럼 헤더를 한글에서 영어로 변경
+      - NO → No, 법인 → Entity, 이름 → Name, 사번 → Employee ID
+      - 팀 → Team, 직책 → Position, 입사일 → Start Date
+      - Written Test → Written Test Score
+      - 최종 레벨 → Supervisor Assessment Result (새 컬럼: Final Level 추가)
+    - **합격 기준 변경**: Written Test 합격 기준 70점 → **60점**
+    - **Final Level 계산 로직 추가**:
+      - Written Test ≥ 60점: Final Level = Supervisor Assessment Result
+      - Written Test < 60점: Final Level = 1 (Assessment Result와 무관)
+    - **테이블 UI 개선**: 
+      - Supervisor Assessment Result 컬럼 추가 (기존 최종 레벨)
+      - Final Level 컬럼 추가 (새로운 최종 평가)
+      - 3개 컬럼으로 명확한 평가 흐름 표시
+    - **Backend API 수정**: 
+      - `/api/export/comprehensive-evaluation` 엔드포인트에서 Final Level 자동 계산
+      - Dashboard API 합격자 수 계산 기준 60점으로 변경
+    - **Chatbot 응답 업데이트**: 합격률 질의 시 60점 기준 적용 
   - **🐛 Quiz 삭제 및 수정 기능 수정** ⭐⭐⭐⭐⭐ CRITICAL! (2025-01-19)
     - **버그 1**: Quiz 삭제 시 Foreign Key 제약조건으로 500 에러 발생
     - **원인**: `written_test_answers` 테이블이 quiz를 참조하고 있어 CASCADE DELETE 없음
