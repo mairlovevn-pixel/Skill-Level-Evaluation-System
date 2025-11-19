@@ -304,6 +304,18 @@
 - **상태**: ✅ 활성
 - **마지막 업데이트**: 2025-01-19
 - **최근 변경사항**: 
+  - **🎯 Individual Assessment Report 필터 시스템 개선** ⭐⭐⭐⭐⭐ (2025-01-19)
+    - **4단계 Cascading Filter System 구현**:
+      - **Level 1**: Entity (법인) 선택
+      - **Level 2**: Team (팀) 선택 (Entity 선택 후 활성화)
+      - **Level 3**: Position (포지션) 선택 (Team 선택 후 활성화)
+      - **Level 4**: Worker (작업자) 검색 (Position 선택 후 활성화)
+    - **2x2 그리드 레이아웃**: Tailwind CSS로 깔끔한 필터 UI 구현
+    - **Backend API 개선**: `/api/analysis/workers` 엔드포인트가 team 및 position 필터 지원
+    - **사용자 경험 개선**: 
+      - 상위 필터 변경 시 하위 필터 자동 초기화 및 비활성화
+      - 각 필터마다 FontAwesome 아이콘 추가
+      - 직관적인 placeholder 메시지 ("Select entity first", "Select team first" 등)
   - **🎯 Individual Assessment Report Export 개선** ⭐⭐⭐⭐⭐ (2025-01-19)
     - **헤더 영문화**: 모든 컬럼 헤더를 한글에서 영어로 변경
       - NO → No, 법인 → Entity, 이름 → Name, 사번 → Employee ID
