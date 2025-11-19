@@ -10697,7 +10697,7 @@ function renderEntityComparisonPercentageChart() {
     const data = sourceData.supervisor_assessment_by_level;
     if (!data) return;
     
-    const levels = [1, 2, 3, 4];
+    const levels = [1, 2, 3, 4, 5];
     const allEntities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
     
     // Apply team/position filters - show empty chart if nothing selected
@@ -10733,11 +10733,12 @@ function renderEntityComparisonPercentageChart() {
         'rgba(255, 255, 255, 0.9)',  // Level 1 - White
         'rgba(234, 179, 8, 0.8)',    // Level 2 - Yellow
         'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
-        'rgba(239, 68, 68, 0.8)'     // Level 4 - Red
+        'rgba(239, 68, 68, 0.8)',    // Level 4 - Red
+        'rgba(0, 0, 0, 0.8)'          // Master (Level 5) - Black
     ];
     
     const datasets = levels.map((level, idx) => ({
-        label: `Level ${level}`,
+        label: level === 5 ? 'Master' : `Level ${level}`,
         data: allEntities.map(entity => {
             const entityData = filteredData.filter(d => d.entity === entity);
             const total = entityData.reduce((sum, d) => sum + d.count, 0);
@@ -10808,17 +10809,18 @@ function renderEntityComparisonCountChart() {
     });
     const filteredData = Object.values(aggregated);
     
-    const levels = [1, 2, 3, 4];
+    const levels = [1, 2, 3, 4, 5];
     const allEntities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
     const levelColors = [
         'rgba(255, 255, 255, 0.9)',  // Level 1 - White
         'rgba(234, 179, 8, 0.8)',    // Level 2 - Yellow
         'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
-        'rgba(239, 68, 68, 0.8)'     // Level 4 - Red
+        'rgba(239, 68, 68, 0.8)',    // Level 4 - Red
+        'rgba(0, 0, 0, 0.8)'          // Master (Level 5) - Black
     ];
     
     const datasets = levels.map((level, idx) => ({
-        label: `Level ${level}`,
+        label: level === 5 ? 'Master' : `Level ${level}`,
         data: allEntities.map(entity => {
             return filteredData.find(d => d.entity === entity && d.level === level)?.count || 0;
         }),
@@ -11054,16 +11056,17 @@ function renderPositionAnalysisPercentageChart() {
         positionData[worker.position][worker.level]++;
     });
     
-    const levels = [1, 2, 3, 4];
+    const levels = [1, 2, 3, 4, 5];
     const levelColors = [
         'rgba(255, 255, 255, 0.9)',  // Level 1 - White
         'rgba(234, 179, 8, 0.8)',    // Level 2 - Yellow
         'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
-        'rgba(239, 68, 68, 0.8)'     // Level 4 - Red
+        'rgba(239, 68, 68, 0.8)',    // Level 4 - Red
+        'rgba(0, 0, 0, 0.8)'          // Master (Level 5) - Black
     ];
     
     const datasets = levels.map((level, idx) => ({
-        label: `Level ${level}`,
+        label: level === 5 ? 'Master' : `Level ${level}`,
         data: positionsToShow.map(position => {
             const total = positionData[position] ? Object.values(positionData[position]).reduce((s, c) => s + c, 0) : 0;
             const count = positionData[position]?.[level] || 0;
@@ -11150,16 +11153,17 @@ function renderPositionAnalysisCountChart() {
         positionData[worker.position][worker.level]++;
     });
     
-    const levels = [1, 2, 3, 4];
+    const levels = [1, 2, 3, 4, 5];
     const levelColors = [
         'rgba(255, 255, 255, 0.9)',  // Level 1 - White
         'rgba(234, 179, 8, 0.8)',    // Level 2 - Yellow
         'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
-        'rgba(239, 68, 68, 0.8)'     // Level 4 - Red
+        'rgba(239, 68, 68, 0.8)',    // Level 4 - Red
+        'rgba(0, 0, 0, 0.8)'          // Master (Level 5) - Black
     ];
     
     const datasets = levels.map((level, idx) => ({
-        label: `Level ${level}`,
+        label: level === 5 ? 'Master' : `Level ${level}`,
         data: positionsToShow.map(position => positionData[position]?.[level] || 0),
         backgroundColor: levelColors[idx],
         borderColor: idx === 0 ? 'rgba(156, 163, 175, 1)' : levelColors[idx].replace('0.8', '1').replace('0.9', '1'),  // Gray border for Level 1 (white)
