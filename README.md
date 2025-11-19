@@ -316,6 +316,10 @@
       - 상위 필터 변경 시 하위 필터 자동 초기화 및 비활성화
       - 각 필터마다 FontAwesome 아이콘 추가
       - 직관적인 placeholder 메시지 ("Select entity first", "Select team first" 등)
+    - **🐛 버그 수정**: 
+      - `allDashboardWorkers is not defined` 오류 해결: API를 통한 동적 필터 데이터 로드로 변경
+      - `favicon.ico 404` 오류 해결: SVG favicon 추가 및 serveStatic 라우트 설정
+      - 모든 필터 함수를 `async/await` 패턴으로 변경하여 API 호출 처리
   - **🎯 Individual Assessment Report Export 개선** ⭐⭐⭐⭐⭐ (2025-01-19)
     - **헤더 영문화**: 모든 컬럼 헤더를 한글에서 영어로 변경
       - NO → No, 법인 → Entity, 이름 → Name, 사번 → Employee ID
