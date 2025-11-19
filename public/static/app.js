@@ -10731,10 +10731,17 @@ function renderEntityComparisonPercentageChart() {
     
     const levelColors = [
         'rgba(255, 255, 255, 0.9)',  // Level 1 - White
-        'rgba(255, 255, 0, 0.8)',    // Level 2 - Yellow (pure)
-        'rgba(0, 0, 255, 0.8)',      // Level 3 - Blue (pure)
-        'rgba(255, 0, 0, 0.8)',      // Level 4 - Red (pure)
+        'rgba(255, 235, 100, 0.8)',  // Level 2 - Soft Yellow (pastel)
+        'rgba(100, 150, 255, 0.8)',  // Level 3 - Soft Blue (pastel)
+        'rgba(255, 100, 100, 0.8)',  // Level 4 - Soft Red (pastel)
         'rgba(0, 0, 0, 0.8)'          // Master (Level 5) - Black
+    ];
+    const levelBorderColors = [
+        'rgba(100, 100, 100, 1)',    // Level 1 - Gray border
+        'rgba(200, 180, 0, 1)',      // Level 2 - Darker yellow border
+        'rgba(50, 100, 200, 1)',     // Level 3 - Darker blue border
+        'rgba(200, 50, 50, 1)',      // Level 4 - Darker red border
+        'rgba(0, 0, 0, 1)'            // Master - Black border
     ];
     
     const datasets = levels.map((level, idx) => ({
@@ -10746,7 +10753,7 @@ function renderEntityComparisonPercentageChart() {
             return total > 0 ? (count / total) * 100 : 0;
         }),
         backgroundColor: levelColors[idx],
-        borderColor: idx === 0 ? 'rgba(0, 0, 0, 1)' : levelColors[idx],  // Black border for Level 1 (white)
+        borderColor: levelBorderColors[idx],
         borderWidth: 1
     }));
     
@@ -10766,8 +10773,8 @@ function renderEntityComparisonPercentageChart() {
                 datalabels: {
                     formatter: v => v > 5 ? v.toFixed(1) + '%' : '',
                     color: (context) => {
-                        // Level 1 (white) uses black text, others use white text
-                        return context.datasetIndex === 0 ? '#000' : '#fff';
+                        // Level 1 (white) and Level 2 (yellow) use black text, others use white text
+                        return (context.datasetIndex === 0 || context.datasetIndex === 1) ? '#000' : '#fff';
                     },
                     font: { weight: 'bold', size: 9 }
                 }
@@ -10816,10 +10823,17 @@ function renderEntityComparisonCountChart() {
     const allEntities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
     const levelColors = [
         'rgba(255, 255, 255, 0.9)',  // Level 1 - White
-        'rgba(255, 255, 0, 0.8)',    // Level 2 - Yellow (pure)
-        'rgba(0, 0, 255, 0.8)',      // Level 3 - Blue (pure)
-        'rgba(255, 0, 0, 0.8)',      // Level 4 - Red (pure)
+        'rgba(255, 235, 100, 0.8)',  // Level 2 - Soft Yellow (pastel)
+        'rgba(100, 150, 255, 0.8)',  // Level 3 - Soft Blue (pastel)
+        'rgba(255, 100, 100, 0.8)',  // Level 4 - Soft Red (pastel)
         'rgba(0, 0, 0, 0.8)'          // Master (Level 5) - Black
+    ];
+    const levelBorderColors = [
+        'rgba(100, 100, 100, 1)',    // Level 1 - Gray border
+        'rgba(200, 180, 0, 1)',      // Level 2 - Darker yellow border
+        'rgba(50, 100, 200, 1)',     // Level 3 - Darker blue border
+        'rgba(200, 50, 50, 1)',      // Level 4 - Darker red border
+        'rgba(0, 0, 0, 1)'            // Master - Black border
     ];
     
     const datasets = levels.map((level, idx) => ({
@@ -10828,7 +10842,7 @@ function renderEntityComparisonCountChart() {
             return filteredData.find(d => d.entity === entity && d.level === level)?.count || 0;
         }),
         backgroundColor: levelColors[idx],
-        borderColor: idx === 0 ? 'rgba(0, 0, 0, 1)' : levelColors[idx],  // Black border for Level 1 (white)
+        borderColor: levelBorderColors[idx],
         borderWidth: 1
     }));
     
@@ -10851,8 +10865,8 @@ function renderEntityComparisonCountChart() {
                         return value > 0 ? value : '';
                     },
                     color: (context) => {
-                        // Level 1 (white) uses black text, others use white text
-                        return context.datasetIndex === 0 ? '#000' : '#fff';
+                        // Level 1 (white) and Level 2 (yellow) use black text, others use white text
+                        return (context.datasetIndex === 0 || context.datasetIndex === 1) ? '#000' : '#fff';
                     },
                     font: { weight: 'bold', size: 9 },
                     align: 'center',
@@ -11064,11 +11078,18 @@ function renderPositionAnalysisPercentageChart() {
     
     const levels = [1, 2, 3, 4, 5];
     const levelColors = [
-        'rgba(255, 255, 255, 1)',    // Level 1 - White
-        'rgba(255, 255, 0, 1)',      // Level 2 - Pure Yellow
-        'rgba(0, 0, 255, 1)',        // Level 3 - Pure Blue
-        'rgba(255, 0, 0, 1)',        // Level 4 - Pure Red
-        'rgba(0, 0, 0, 1)'           // Master (Level 5) - Black
+        'rgba(255, 255, 255, 0.9)',  // Level 1 - White
+        'rgba(255, 235, 100, 0.8)',  // Level 2 - Soft Yellow (pastel)
+        'rgba(100, 150, 255, 0.8)',  // Level 3 - Soft Blue (pastel)
+        'rgba(255, 100, 100, 0.8)',  // Level 4 - Soft Red (pastel)
+        'rgba(0, 0, 0, 0.8)'          // Master (Level 5) - Black
+    ];
+    const levelBorderColors = [
+        'rgba(100, 100, 100, 1)',    // Level 1 - Gray border
+        'rgba(200, 180, 0, 1)',      // Level 2 - Darker yellow border
+        'rgba(50, 100, 200, 1)',     // Level 3 - Darker blue border
+        'rgba(200, 50, 50, 1)',      // Level 4 - Darker red border
+        'rgba(0, 0, 0, 1)'            // Master - Black border
     ];
     
     const datasets = levels.map((level, idx) => ({
@@ -11079,7 +11100,7 @@ function renderPositionAnalysisPercentageChart() {
             return total > 0 ? (count / total) * 100 : 0;
         }),
         backgroundColor: levelColors[idx],
-        borderColor: idx === 0 ? 'rgba(0, 0, 0, 1)' : levelColors[idx],  // Black border for Level 1 (white)
+        borderColor: levelBorderColors[idx],
         borderWidth: 1
     }));
     
@@ -11099,8 +11120,8 @@ function renderPositionAnalysisPercentageChart() {
                 datalabels: {
                     formatter: v => v > 5 ? v.toFixed(1) + '%' : '',
                     color: (context) => {
-                        // Level 1 (white) uses black text, others use white text
-                        return context.datasetIndex === 0 ? '#000' : '#fff';
+                        // Level 1 (white) and Level 2 (yellow) use black text, others use white text
+                        return (context.datasetIndex === 0 || context.datasetIndex === 1) ? '#000' : '#fff';
                     },
                     font: { weight: 'bold', size: 8 }
                 }
@@ -11164,18 +11185,25 @@ function renderPositionAnalysisCountChart() {
     
     const levels = [1, 2, 3, 4, 5];
     const levelColors = [
-        'rgba(255, 255, 255, 1)',    // Level 1 - White
-        'rgba(255, 255, 0, 1)',      // Level 2 - Pure Yellow
-        'rgba(0, 0, 255, 1)',        // Level 3 - Pure Blue
-        'rgba(255, 0, 0, 1)',        // Level 4 - Pure Red
-        'rgba(0, 0, 0, 1)'           // Master (Level 5) - Black
+        'rgba(255, 255, 255, 0.9)',  // Level 1 - White
+        'rgba(255, 235, 100, 0.8)',  // Level 2 - Soft Yellow (pastel)
+        'rgba(100, 150, 255, 0.8)',  // Level 3 - Soft Blue (pastel)
+        'rgba(255, 100, 100, 0.8)',  // Level 4 - Soft Red (pastel)
+        'rgba(0, 0, 0, 0.8)'          // Master (Level 5) - Black
+    ];
+    const levelBorderColors = [
+        'rgba(100, 100, 100, 1)',    // Level 1 - Gray border
+        'rgba(200, 180, 0, 1)',      // Level 2 - Darker yellow border
+        'rgba(50, 100, 200, 1)',     // Level 3 - Darker blue border
+        'rgba(200, 50, 50, 1)',      // Level 4 - Darker red border
+        'rgba(0, 0, 0, 1)'            // Master - Black border
     ];
     
     const datasets = levels.map((level, idx) => ({
         label: level === 5 ? 'Master' : `Level ${level}`,
         data: positionsToShow.map(position => positionData[position]?.[level] || 0),
         backgroundColor: levelColors[idx],
-        borderColor: idx === 0 ? 'rgba(0, 0, 0, 1)' : levelColors[idx],  // Black border for Level 1 (white)
+        borderColor: levelBorderColors[idx],
         borderWidth: 1
     }));
     
@@ -11195,8 +11223,8 @@ function renderPositionAnalysisCountChart() {
                 datalabels: {
                     formatter: v => v > 0 ? v : '',
                     color: (context) => {
-                        // Level 1 (white) uses black text, others use white text
-                        return context.datasetIndex === 0 ? '#000' : '#fff';
+                        // Level 1 (white) and Level 2 (yellow) use black text, others use white text
+                        return (context.datasetIndex === 0 || context.datasetIndex === 1) ? '#000' : '#fff';
                     },
                     font: { weight: 'bold', size: 8 }
                 }
