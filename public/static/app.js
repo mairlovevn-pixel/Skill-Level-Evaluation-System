@@ -10731,9 +10731,9 @@ function renderEntityComparisonPercentageChart() {
     
     const levelColors = [
         'rgba(255, 255, 255, 0.9)',  // Level 1 - White
-        'rgba(234, 179, 8, 0.8)',    // Level 2 - Yellow
-        'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
-        'rgba(239, 68, 68, 0.8)',    // Level 4 - Red
+        'rgba(255, 255, 0, 0.8)',    // Level 2 - Yellow (pure)
+        'rgba(0, 0, 255, 0.8)',      // Level 3 - Blue (pure)
+        'rgba(255, 0, 0, 0.8)',      // Level 4 - Red (pure)
         'rgba(0, 0, 0, 0.8)'          // Master (Level 5) - Black
     ];
     
@@ -10816,9 +10816,9 @@ function renderEntityComparisonCountChart() {
     const allEntities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
     const levelColors = [
         'rgba(255, 255, 255, 0.9)',  // Level 1 - White
-        'rgba(234, 179, 8, 0.8)',    // Level 2 - Yellow
-        'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
-        'rgba(239, 68, 68, 0.8)',    // Level 4 - Red
+        'rgba(255, 255, 0, 0.8)',    // Level 2 - Yellow (pure)
+        'rgba(0, 0, 255, 0.8)',      // Level 3 - Blue (pure)
+        'rgba(255, 0, 0, 0.8)',      // Level 4 - Red (pure)
         'rgba(0, 0, 0, 0.8)'          // Master (Level 5) - Black
     ];
     
