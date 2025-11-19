@@ -611,6 +611,24 @@ app.put('/api/quizzes/:id', errorHandler(async (c) => {
   const quizId = c.req.param('id')
   const quiz: WrittenTestQuiz = await c.req.json()
   
+  // Validate quiz data
+  if (!quiz.question || !quiz.option_a || !quiz.option_b || !quiz.correct_answer) {
+    return c.json({ error: 'Missing required fields: question, option_a, option_b, correct_answer' }, 400)
+  }
+  
+  if (!['A', 'B', 'C', 'D'].includes(quiz.correct_answer)) {
+    return c.json({ error: `Invalid correct_answer: ${quiz.correct_answer}. Must be A, B, C, or D` }, 400)
+  }
+  
+  // Check if quiz exists
+  const existing = await db.prepare('SELECT id FROM written_test_quizzes WHERE id = ?')
+    .bind(quizId)
+    .first()
+  
+  if (!existing) {
+    return c.json({ error: `Quiz ID ${quizId} not found` }, 404)
+  }
+  
   await db.prepare(`
     UPDATE written_test_quizzes 
     SET process_id = ?, 

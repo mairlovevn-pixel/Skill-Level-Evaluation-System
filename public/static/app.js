@@ -4729,6 +4729,7 @@ async function saveQuizEdit(event, quizId) {
             correct_answer: document.getElementById('edit-correct-answer').value
         };
         
+        console.log('📝 Saving quiz edit:', { quizId, updatedQuiz });
         await axios.put(`/api/quizzes/${quizId}`, updatedQuiz);
         alert('문제가 수정되었습니다.');
         closeEditModal();
@@ -4736,7 +4737,8 @@ async function saveQuizEdit(event, quizId) {
         await loadQuizStatus();
     } catch (error) {
         console.error('Quiz 수정 실패:', error);
-        alert('문제 수정에 실패했습니다.');
+        const errorMessage = error.response?.data?.error || error.message || '알 수 없는 오류';
+        alert(`문제 수정에 실패했습니다.\n오류: ${errorMessage}`);
     }
 }
 
