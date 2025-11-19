@@ -10282,14 +10282,34 @@ async function exportComprehensiveEvaluation() {
             return;
         }
         
-        // Calculate Final Level based on Written Test score
+        // Positions that require both Written Test + Supervisor Assessment
+        const bothTestPositions = new Set([
+            'CUTTING', 'BEVELING', 'BENDING', 'LS WELDING', 'FIT UP', 'CS WELDING', 
+            'VTMT', 'BRACKET FU', 'BRACKET WELD', 'UT REPAIR', 'DOOR FRAME FU', 
+            'DOOR FRAME WELD', 'FLATNESS', 'BLASTING', 'METALIZING', 'PAINTING', 
+            'ASSEMBLY', 'IM CABLE'
+        ]);
+        
+        // Calculate Final Level based on position and Written Test score
         const excelData = selectedWorkers.map((worker, index) => {
             // Final Level logic:
-            // - If Written Test >= 60: Final Level = Supervisor Assessment Result
-            // - If Written Test < 60: Final Level = 1
+            // 1. Positions with both tests (Written Test + Supervisor Assessment):
+            //    - If Written Test >= 60: Final Level = Supervisor Assessment Result
+            //    - If Written Test < 60: Final Level = 1
+            // 2. Positions with Assessment only:
+            //    - Final Level = Supervisor Assessment Result (regardless of Written Test)
             const writtenTestScore = worker.written_test_score !== null ? worker.written_test_score : 0;
             const supervisorLevel = worker.supervisor_assessment_level || 1;
-            const finalLevel = writtenTestScore >= 60 ? supervisorLevel : 1;
+            const position = worker.position || '';
+            
+            let finalLevel;
+            if (bothTestPositions.has(position)) {
+                // Both tests required: apply 60-point threshold
+                finalLevel = writtenTestScore >= 60 ? supervisorLevel : 1;
+            } else {
+                // Assessment only: use supervisor level directly
+                finalLevel = supervisorLevel;
+            }
             
             return {
                 'No': index + 1,

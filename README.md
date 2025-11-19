@@ -311,15 +311,18 @@
       - Written Test → Written Test Score
       - 최종 레벨 → Supervisor Assessment Result (새 컬럼: Final Level 추가)
     - **합격 기준 변경**: Written Test 합격 기준 70점 → **60점**
-    - **Final Level 계산 로직 추가**:
-      - Written Test ≥ 60점: Final Level = Supervisor Assessment Result
-      - Written Test < 60점: Final Level = 1 (Assessment Result와 무관)
+    - **Final Level 계산 로직 (포지션별 차별화)** ⭐ NEW!:
+      - **둘 다 치는 포지션** (18개: CUTTING, BEVELING, BENDING, LS WELDING, FIT UP, CS WELDING, VTMT, BRACKET FU, BRACKET WELD, UT REPAIR, DOOR FRAME FU, DOOR FRAME WELD, FLATNESS, BLASTING, METALIZING, PAINTING, ASSEMBLY, IM CABLE):
+        - Written Test ≥ 60점: Final Level = Supervisor Assessment Result
+        - Written Test < 60점: Final Level = 1
+      - **Assessment만 치는 포지션** (32개: MATERIAL HANDLING, DRILLING & TAPPING, PAINTING REPAIR, FITTING PAINT RING, GT CLEANING, MATERIAL HANDLER-IM, PAINT TOUCH UP, QC INSPECTOR 시리즈, TRANSPORTATION 시리즈, MAINTENANCE, WAREHOUSE 시리즈, LEAN 시리즈 등):
+        - Final Level = Supervisor Assessment Result (Written Test 무관)
     - **테이블 UI 개선**: 
       - Supervisor Assessment Result 컬럼 추가 (기존 최종 레벨)
       - Final Level 컬럼 추가 (새로운 최종 평가)
       - 3개 컬럼으로 명확한 평가 흐름 표시
     - **Backend API 수정**: 
-      - `/api/export/comprehensive-evaluation` 엔드포인트에서 Final Level 자동 계산
+      - `/api/export/comprehensive-evaluation` 엔드포인트에서 포지션별 Final Level 자동 계산
       - Dashboard API 합격자 수 계산 기준 60점으로 변경
     - **Chatbot 응답 업데이트**: 합격률 질의 시 60점 기준 적용 
   - **🐛 Quiz 삭제 및 수정 기능 수정** ⭐⭐⭐⭐⭐ CRITICAL! (2025-01-19)

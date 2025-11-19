@@ -2433,13 +2433,34 @@ app.get('/api/export/comprehensive-evaluation', async (c) => {
       ? await stmt.bind(...params).all()
       : await stmt.all()
     
-    // Final Level 계산:
-    // - Written Test >= 60: Final Level = Supervisor Assessment Level
-    // - Written Test < 60: Final Level = 1
+    // Positions that require both Written Test + Supervisor Assessment
+    const bothTestPositions = new Set([
+      'CUTTING', 'BEVELING', 'BENDING', 'LS WELDING', 'FIT UP', 'CS WELDING', 
+      'VTMT', 'BRACKET FU', 'BRACKET WELD', 'UT REPAIR', 'DOOR FRAME FU', 
+      'DOOR FRAME WELD', 'FLATNESS', 'BLASTING', 'METALIZING', 'PAINTING', 
+      'ASSEMBLY', 'IM CABLE'
+    ])
+    
+    // Final Level 계산 로직:
+    // 1. 둘 다 치는 포지션 (Written Test + Supervisor Assessment):
+    //    - Written Test >= 60: Final Level = Supervisor Assessment Level
+    //    - Written Test < 60: Final Level = 1
+    // 2. Assessment만 치는 포지션:
+    //    - Final Level = Supervisor Assessment Level (Written Test 무관)
     const workers = (result.results || []).map((w: any) => {
       const writtenTestScore = w.written_test_score !== null ? w.written_test_score : 0
       const supervisorLevel = w.supervisor_assessment_level || 1
-      const finalLevel = writtenTestScore >= 60 ? supervisorLevel : 1
+      const position = w.position || ''
+      
+      let finalLevel: number
+      
+      if (bothTestPositions.has(position)) {
+        // 둘 다 치는 포지션: Written Test 60점 기준 적용
+        finalLevel = writtenTestScore >= 60 ? supervisorLevel : 1
+      } else {
+        // Assessment만 치는 포지션: Supervisor Assessment Result = Final Level
+        finalLevel = supervisorLevel
+      }
       
       return {
         ...w,
