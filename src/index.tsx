@@ -148,16 +148,23 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     avgScoreResult = await db.prepare(avgScoreQuery).bind(...avgScoreParams).all()
     const avg_score_by_process = avgScoreResult.results || []
 
-    // Level별 법인 현황 - current_level 컬럼 사용 (성능 최적화)
-    // current_level은 업로드 시 자동으로 계산되어 저장됨
+    // Level별 법인 현황 - Final Level 계산 (포지션별 차별화)
+    // Written Test 점수를 포함하여 포지션별로 Final Level을 재계산
     let levelQuery = `
       SELECT 
         w.id,
         w.entity,
         w.team,
         w.position,
-        w.current_level as final_level,
-        w.start_to_work_date as start_date
+        w.current_level as supervisor_assessment_level,
+        w.start_to_work_date as start_date,
+        (
+          SELECT wtr.score
+          FROM written_test_results wtr
+          WHERE wtr.worker_id = w.id
+          ORDER BY wtr.test_date DESC
+          LIMIT 1
+        ) as written_test_score
       FROM workers w
       WHERE 1=1
     `
@@ -203,6 +210,14 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     const totalFilteredResult = await db.prepare(totalFilteredQuery).bind(...totalParams).first()
     const totalFiltered = (totalFilteredResult?.count as number) || 0
     
+    // Positions that require both Written Test + Supervisor Assessment
+    const bothTestPositions = new Set([
+      'CUTTING', 'BEVELING', 'BENDING', 'LS WELDING', 'FIT UP', 'CS WELDING', 
+      'VTMT', 'BRACKET FU', 'BRACKET WELD', 'UT REPAIR', 'DOOR FRAME FU', 
+      'DOOR FRAME WELD', 'FLATNESS', 'BLASTING', 'METALIZING', 'PAINTING', 
+      'ASSEMBLY', 'IM CABLE'
+    ])
+    
     // Step 3: 법인별, Level별 집계 (근속년수 포함)
     const levelCounts: Record<string, Record<number, number>> = {}
     const levelTenures: Record<number, { total: number, count: number, byEntity: Record<string, { total: number, count: number }> }> = {
@@ -213,14 +228,25 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     }
     const assessedWorkerIds = new Set<number>()
     
-    // 평가받은 작업자 집계
+    // 평가받은 작업자 집계 (Final Level 계산 포함)
     for (const worker of workerLevels) {
       const workerEntity = (worker as any).entity
       const workerTeam = (worker as any).team
       const workerPosition = (worker as any).position
       const workerId = (worker as any).id
-      const finalLevel = (worker as any).final_level || 1
+      const supervisorLevel = (worker as any).supervisor_assessment_level || 1
+      const writtenTestScore = (worker as any).written_test_score !== null ? (worker as any).written_test_score : 0
       const startDate = (worker as any).start_date
+      
+      // Final Level 계산:
+      // 1. 둘 다 치는 포지션: Written Test >= 60 ? supervisorLevel : 1
+      // 2. Assessment만 치는 포지션: supervisorLevel
+      let finalLevel: number
+      if (bothTestPositions.has(workerPosition)) {
+        finalLevel = writtenTestScore >= 60 ? supervisorLevel : 1
+      } else {
+        finalLevel = supervisorLevel
+      }
       
       assessedWorkerIds.add(workerId)
       
@@ -338,28 +364,30 @@ app.get('/api/dashboard/stats', errorHandler(async (c) => {
     }
 
     // Worker details for frontend filtering (only if no team/position filter applied)
+    // Reuse already calculated workerLevels data with Final Level
     let worker_level_details: any[] = []
     if (!team && !position) {
-      // Get all workers with their team, position, and level info
-      let workerDetailsQuery = `
-        SELECT 
-          w.id,
-          w.entity,
-          w.team,
-          w.position,
-          w.current_level as level
-        FROM workers w
-        WHERE 1=1
-      `
-      const workerDetailsParams: any[] = []
-      
-      if (entity) {
-        workerDetailsQuery += ' AND w.entity = ?'
-        workerDetailsParams.push(entity)
-      }
-      
-      const workerDetailsResult = await db.prepare(workerDetailsQuery).bind(...workerDetailsParams).all()
-      worker_level_details = (workerDetailsResult.results || []) as any[]
+      worker_level_details = workerLevels.map((worker: any) => {
+        const workerPosition = worker.position
+        const supervisorLevel = worker.supervisor_assessment_level || 1
+        const writtenTestScore = worker.written_test_score !== null ? worker.written_test_score : 0
+        
+        // Calculate Final Level
+        let finalLevel: number
+        if (bothTestPositions.has(workerPosition)) {
+          finalLevel = writtenTestScore >= 60 ? supervisorLevel : 1
+        } else {
+          finalLevel = supervisorLevel
+        }
+        
+        return {
+          id: worker.id,
+          entity: worker.entity,
+          team: worker.team,
+          position: worker.position,
+          level: finalLevel
+        }
+      })
     }
 
     const stats: DashboardStats = {

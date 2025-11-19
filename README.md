@@ -323,6 +323,11 @@
       - 3개 컬럼으로 명확한 평가 흐름 표시
     - **Backend API 수정**: 
       - `/api/export/comprehensive-evaluation` 엔드포인트에서 포지션별 Final Level 자동 계산
+      - **Dashboard API (`/api/dashboard/stats`)** ⭐ CRITICAL!:
+        - 기존: `workers.current_level` 직접 사용 (Supervisor Assessment Result만 반영)
+        - 개선: Written Test 점수를 조회하여 포지션별 Final Level 재계산
+        - 영향: Position Analysis, Entity Comparison, Supervisor Assessment 차트 모두 Final Level 기준으로 표시
+        - 약 80명의 60점 미만 작업자가 Level 1로 재분류되어 차트에 반영됨
       - Dashboard API 합격자 수 계산 기준 60점으로 변경
     - **Chatbot 응답 업데이트**: 합격률 질의 시 60점 기준 적용 
   - **🐛 Quiz 삭제 및 수정 기능 수정** ⭐⭐⭐⭐⭐ CRITICAL! (2025-01-19)
