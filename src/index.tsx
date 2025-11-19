@@ -1043,16 +1043,32 @@ app.post('/api/test-results/bulk', errorHandler(async (c) => {
 
 // ==================== Analysis APIs ====================
 
-// 법인별 작업자 목록 조회
+// 법인별 작업자 목록 조회 (Team 및 Position 필터 포함)
 app.get('/api/analysis/workers', errorHandler(async (c) => {
   const db = c.env.DB
   const entity = c.req.query('entity')
+  const team = c.req.query('team')
+  const position = c.req.query('position')
   
   if (!entity) {
     return c.json({ error: 'Entity parameter is required' }, 400)
   }
   
-  const result = await db.prepare(`
+  // Build dynamic query based on filters
+  let whereConditions = ['w.entity = ?']
+  const params: string[] = [entity]
+  
+  if (team) {
+    whereConditions.push('w.team = ?')
+    params.push(team)
+  }
+  
+  if (position) {
+    whereConditions.push('w.position = ?')
+    params.push(position)
+  }
+  
+  const query = `
     SELECT 
       w.id,
       w.employee_id,
@@ -1065,10 +1081,12 @@ app.get('/api/analysis/workers', errorHandler(async (c) => {
     FROM workers w
     LEFT JOIN written_test_results wtr ON w.id = wtr.worker_id
     LEFT JOIN supervisor_assessments sa ON w.id = sa.worker_id
-    WHERE w.entity = ?
+    WHERE ${whereConditions.join(' AND ')}
     GROUP BY w.id
     ORDER BY w.name
-  `).bind(entity).all()
+  `
+  
+  const result = await db.prepare(query).bind(...params).all()
   
   return c.json(result.results)
 }))

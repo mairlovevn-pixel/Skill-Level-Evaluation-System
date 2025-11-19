@@ -8175,17 +8175,36 @@ async function showAnalysisPage() {
                 Individual Assessment Report
             </h2>
             
-            <!-- Entity and Worker Selection -->
+            <!-- 2x2 Filter Grid: Entity / Team / Position / Worker -->
             <div class="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Row 1: Entity & Team -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-building mr-1"></i>Select Entity
                     </label>
-                    <select id="analysis-entity-select" class="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none">
+                    <select id="analysis-entity-select" onchange="onAnalysisEntityChange()" class="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none">
                         <option value="">Please select an entity</option>
                         <option value="CSVN">CSVN</option>
                         <option value="CSCN">CSCN</option>
                         <option value="CSTW">CSTW</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-users mr-1"></i>Select Team
+                    </label>
+                    <select id="analysis-team-select" onchange="onAnalysisTeamChange()" class="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none" disabled>
+                        <option value="">Select entity first</option>
+                    </select>
+                </div>
+                
+                <!-- Row 2: Position & Worker -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-briefcase mr-1"></i>Select Position
+                    </label>
+                    <select id="analysis-position-select" onchange="onAnalysisPositionChange()" class="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none" disabled>
+                        <option value="">Select team first</option>
                     </select>
                 </div>
                 <div>
@@ -8196,7 +8215,7 @@ async function showAnalysisPage() {
                         <input 
                             type="text" 
                             id="analysis-worker-search" 
-                            placeholder="Please select entity first" 
+                            placeholder="Select position first" 
                             class="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none" 
                             disabled
                             autocomplete="off"
@@ -8408,7 +8427,7 @@ async function showAnalysisPage() {
     allWorkers = [];
     
     // 이벤트 리스너 등록
-    document.getElementById('analysis-entity-select').addEventListener('change', loadAnalysisWorkers);
+    // Analysis page filters are handled by onAnalysisEntityChange(), onAnalysisTeamChange(), onAnalysisPositionChange()
     
     // 작업자 검색 기능 (아래로 열리는 드롭다운)
     const searchInput = document.getElementById('analysis-worker-search');
@@ -8543,38 +8562,130 @@ function closeAssessmentAnalysis() {
     }
 }
 
+// Analysis page filter handlers
+function onAnalysisEntityChange() {
+    const entity = document.getElementById('analysis-entity-select').value;
+    const teamSelect = document.getElementById('analysis-team-select');
+    const positionSelect = document.getElementById('analysis-position-select');
+    const searchInput = document.getElementById('analysis-worker-search');
+    
+    // Reset downstream filters
+    teamSelect.innerHTML = '<option value="">Select entity first</option>';
+    positionSelect.innerHTML = '<option value="">Select team first</option>';
+    searchInput.value = '';
+    searchInput.placeholder = 'Select position first';
+    searchInput.disabled = true;
+    document.getElementById('analysis-results').classList.add('hidden');
+    
+    if (!entity) {
+        teamSelect.disabled = true;
+        positionSelect.disabled = true;
+        return;
+    }
+    
+    // Load teams for selected entity
+    teamSelect.disabled = false;
+    teamSelect.innerHTML = '<option value="">All Teams</option>';
+    
+    const teams = new Set();
+    allDashboardWorkers.forEach(w => {
+        if (w.entity === entity && w.team) {
+            teams.add(w.team);
+        }
+    });
+    
+    Array.from(teams).sort().forEach(team => {
+        const option = document.createElement('option');
+        option.value = team;
+        option.textContent = team;
+        teamSelect.appendChild(option);
+    });
+}
+
+function onAnalysisTeamChange() {
+    const entity = document.getElementById('analysis-entity-select').value;
+    const team = document.getElementById('analysis-team-select').value;
+    const positionSelect = document.getElementById('analysis-position-select');
+    const searchInput = document.getElementById('analysis-worker-search');
+    
+    // Reset downstream filters
+    positionSelect.innerHTML = '<option value="">Select team first</option>';
+    searchInput.value = '';
+    searchInput.placeholder = 'Select position first';
+    searchInput.disabled = true;
+    document.getElementById('analysis-results').classList.add('hidden');
+    
+    if (!team) {
+        positionSelect.disabled = true;
+        return;
+    }
+    
+    // Load positions for selected entity + team
+    positionSelect.disabled = false;
+    positionSelect.innerHTML = '<option value="">All Positions</option>';
+    
+    const positions = new Set();
+    allDashboardWorkers.forEach(w => {
+        if (w.entity === entity && w.team === team && w.position) {
+            positions.add(w.position);
+        }
+    });
+    
+    Array.from(positions).sort().forEach(position => {
+        const option = document.createElement('option');
+        option.value = position;
+        option.textContent = position;
+        positionSelect.appendChild(option);
+    });
+}
+
+function onAnalysisPositionChange() {
+    const position = document.getElementById('analysis-position-select').value;
+    
+    if (!position) {
+        document.getElementById('analysis-worker-search').disabled = true;
+        document.getElementById('analysis-worker-search').placeholder = 'Select position first';
+        return;
+    }
+    
+    // Load workers with current filters
+    loadAnalysisWorkers();
+}
+
 async function loadAnalysisWorkers() {
     const entity = document.getElementById('analysis-entity-select').value;
+    const team = document.getElementById('analysis-team-select').value;
+    const position = document.getElementById('analysis-position-select').value;
     const dropdown = document.getElementById('analysis-worker-dropdown');
     const searchInput = document.getElementById('analysis-worker-search');
     
-    if (!entity) {
+    if (!entity || !team || !position) {
         allWorkers = [];
         dropdown.innerHTML = '';
         dropdown.classList.add('hidden');
         searchInput.value = '';
-        searchInput.placeholder = '법인을 먼저 선택하세요';
         searchInput.disabled = true;
         document.getElementById('analysis-results').classList.add('hidden');
         return;
     }
     
     try {
-        const response = await axios.get(`/api/analysis/workers?entity=${entity}`);
+        const params = new URLSearchParams({ entity, team, position });
+        const response = await axios.get(`/api/analysis/workers?${params}`);
         allWorkers = response.data;
         
-        console.log('Loaded workers:', allWorkers.length, 'workers');
+        console.log('Loaded workers:', allWorkers.length, 'workers for', entity, team, position);
         
         searchInput.disabled = false;
         searchInput.value = '';
-        searchInput.placeholder = '사번 또는 이름으로 검색하세요 (예: 4136 또는 Dương)';
+        searchInput.placeholder = 'Search by ID or Name (e.g., 4136 or Dương)';
         dropdown.classList.add('hidden');
         document.getElementById('analysis-results').classList.add('hidden');
         
         console.log('Worker search enabled with', allWorkers.length, 'workers');
     } catch (error) {
-        console.error('작업자 목록 로드 실패:', error);
-        alert('작업자 목록을 불러오는데 실패했습니다.');
+        console.error('Failed to load workers:', error);
+        alert('Failed to load worker list.');
     }
 }
 
