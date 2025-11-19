@@ -1635,7 +1635,7 @@ function renderHeatmapAnalysis() {
             data: chartData,
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
+                maintainAspectRatio: true,
                 plugins: {
                     legend: {
                         display: true,
@@ -9324,7 +9324,7 @@ function drawAssessmentChart(assessments) {
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            aspectRatio: 1.2,
+            aspectRatio: 1.5,
             scales: {
                 r: {
                     beginAtZero: true,
@@ -10538,8 +10538,8 @@ function renderEntityComparisonPercentageChart() {
         data: { labels: allEntities, datasets },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
-            aspectRatio: 1.2,
+            maintainAspectRatio: true,
+            aspectRatio: 1.5,
             scales: {
                 y: { beginAtZero: true, max: 100, stacked: true, ticks: { callback: v => v + '%' } },
                 x: { stacked: true }
@@ -10613,8 +10613,8 @@ function renderEntityComparisonCountChart() {
         data: { labels: allEntities, datasets },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
-            aspectRatio: 1.2,
+            maintainAspectRatio: true,
+            aspectRatio: 1.5,
             scales: {
                 y: { beginAtZero: true, stacked: true, ticks: { precision: 0 } },
                 x: { stacked: true }
@@ -10852,8 +10852,8 @@ function renderPositionAnalysisPercentageChart() {
         data: { labels: positionsToShow, datasets },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
-            aspectRatio: 1.2,
+            maintainAspectRatio: true,
+            aspectRatio: 1.5,
             scales: {
                 y: { beginAtZero: true, max: 100, stacked: true, ticks: { callback: v => v + '%' } },
                 x: { stacked: true, ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 9 } } }
@@ -10941,8 +10941,8 @@ function renderPositionAnalysisCountChart() {
         data: { labels: positionsToShow, datasets },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
-            aspectRatio: 1.2,
+            maintainAspectRatio: true,
+            aspectRatio: 1.5,
             scales: {
                 y: { beginAtZero: true, stacked: true, ticks: { precision: 0 } },
                 x: { stacked: true, ticks: { autoSkip: false, maxRotation: 90, minRotation: 45, font: { size: 9 } } }
