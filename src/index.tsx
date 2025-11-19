@@ -20,6 +20,7 @@ app.use('/api/*', cors())
 
 // 정적 파일 제공
 app.use('/static/*', serveStatic({ root: './' }))
+app.use('/favicon.svg', serveStatic({ path: './favicon.svg' }))
 
 // ==================== API Routes ====================
 
