@@ -10730,8 +10730,10 @@ function renderEntityComparisonPercentageChart() {
     const filteredData = Object.values(aggregated);
     
     const levelColors = [
-        'rgba(239, 68, 68, 0.8)', 'rgba(251, 146, 60, 0.8)',
-        'rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)'
+        'rgba(255, 255, 255, 0.9)',  // Level 1 - White
+        'rgba(234, 179, 8, 0.8)',    // Level 2 - Yellow
+        'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
+        'rgba(239, 68, 68, 0.8)'     // Level 4 - Red
     ];
     
     const datasets = levels.map((level, idx) => ({
@@ -10743,7 +10745,8 @@ function renderEntityComparisonPercentageChart() {
             return total > 0 ? (count / total) * 100 : 0;
         }),
         backgroundColor: levelColors[idx],
-        borderWidth: 1
+        borderColor: idx === 0 ? 'rgba(156, 163, 175, 1)' : levelColors[idx].replace('0.8', '1').replace('0.9', '1'),  // Gray border for Level 1 (white)
+        borderWidth: idx === 0 ? 2 : 1  // Thicker border for Level 1 (white)
     }));
     
     currentEntityComparisonPercentageChart = new Chart(ctx, {
@@ -10808,8 +10811,10 @@ function renderEntityComparisonCountChart() {
     const levels = [1, 2, 3, 4];
     const allEntities = ['CSVN', 'CSCN', 'CSTW', 'CSTR', 'CSPT', 'CSWO', 'CSAM'];
     const levelColors = [
-        'rgba(239, 68, 68, 0.8)', 'rgba(251, 146, 60, 0.8)',
-        'rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)'
+        'rgba(255, 255, 255, 0.9)',  // Level 1 - White
+        'rgba(234, 179, 8, 0.8)',    // Level 2 - Yellow
+        'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
+        'rgba(239, 68, 68, 0.8)'     // Level 4 - Red
     ];
     
     const datasets = levels.map((level, idx) => ({
@@ -10818,7 +10823,8 @@ function renderEntityComparisonCountChart() {
             return filteredData.find(d => d.entity === entity && d.level === level)?.count || 0;
         }),
         backgroundColor: levelColors[idx],
-        borderWidth: 1
+        borderColor: idx === 0 ? 'rgba(156, 163, 175, 1)' : levelColors[idx].replace('0.8', '1').replace('0.9', '1'),  // Gray border for Level 1 (white)
+        borderWidth: idx === 0 ? 2 : 1  // Thicker border for Level 1 (white)
     }));
     
     currentEntityComparisonCountChart = new Chart(ctx, {
@@ -11050,8 +11056,10 @@ function renderPositionAnalysisPercentageChart() {
     
     const levels = [1, 2, 3, 4];
     const levelColors = [
-        'rgba(239, 68, 68, 0.8)', 'rgba(251, 146, 60, 0.8)',
-        'rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)'
+        'rgba(255, 255, 255, 0.9)',  // Level 1 - White
+        'rgba(234, 179, 8, 0.8)',    // Level 2 - Yellow
+        'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
+        'rgba(239, 68, 68, 0.8)'     // Level 4 - Red
     ];
     
     const datasets = levels.map((level, idx) => ({
@@ -11062,7 +11070,8 @@ function renderPositionAnalysisPercentageChart() {
             return total > 0 ? (count / total) * 100 : 0;
         }),
         backgroundColor: levelColors[idx],
-        borderWidth: 1
+        borderColor: idx === 0 ? 'rgba(156, 163, 175, 1)' : levelColors[idx].replace('0.8', '1').replace('0.9', '1'),  // Gray border for Level 1 (white)
+        borderWidth: idx === 0 ? 2 : 1  // Thicker border for Level 1 (white)
     }));
     
     currentPositionAnalysisPercentageChart = new Chart(ctx, {
@@ -11143,15 +11152,18 @@ function renderPositionAnalysisCountChart() {
     
     const levels = [1, 2, 3, 4];
     const levelColors = [
-        'rgba(239, 68, 68, 0.8)', 'rgba(251, 146, 60, 0.8)',
-        'rgba(59, 130, 246, 0.8)', 'rgba(34, 197, 94, 0.8)'
+        'rgba(255, 255, 255, 0.9)',  // Level 1 - White
+        'rgba(234, 179, 8, 0.8)',    // Level 2 - Yellow
+        'rgba(59, 130, 246, 0.8)',   // Level 3 - Blue
+        'rgba(239, 68, 68, 0.8)'     // Level 4 - Red
     ];
     
     const datasets = levels.map((level, idx) => ({
         label: `Level ${level}`,
         data: positionsToShow.map(position => positionData[position]?.[level] || 0),
         backgroundColor: levelColors[idx],
-        borderWidth: 1
+        borderColor: idx === 0 ? 'rgba(156, 163, 175, 1)' : levelColors[idx].replace('0.8', '1').replace('0.9', '1'),  // Gray border for Level 1 (white)
+        borderWidth: idx === 0 ? 2 : 1  // Thicker border for Level 1 (white)
     }));
     
     currentPositionAnalysisCountChart = new Chart(ctx, {
