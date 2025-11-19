@@ -304,17 +304,21 @@
 - **상태**: ✅ 활성
 - **마지막 업데이트**: 2025-01-19
 - **최근 변경사항**: 
-  - **🎨 Level 색상 체계 변경 및 Master 범례 추가** (2025-01-19)
-    - **Position Analysis 및 Entity Comparison 차트 색상 업데이트**:
-      - **Level 1**: 🤍 흰색 (White) - `rgba(255, 255, 255, 0.9)` + 회색 테두리 (2px)
-      - **Level 2**: 💛 노란색 (Yellow) - `rgba(234, 179, 8, 0.8)`
-      - **Level 3**: 💙 파란색 (Blue) - `rgba(59, 130, 246, 0.8)`
-      - **Level 4**: ❤️ 빨간색 (Red) - `rgba(239, 68, 68, 0.8)`
-      - **Master (Level 5)**: 🖤 검정색 (Black) - `rgba(0, 0, 0, 0.8)` ⭐ NEW!
+  - **🎨 Level 색상 체계 개선 - 선명도 및 가시성 향상** ⭐⭐⭐⭐⭐ (2025-01-19)
+    - **순수 색상으로 변경 (더 선명하게)**:
+      - **Level 1**: 🤍 흰색 (White) - `rgb(255, 255, 255)` + 검은 테두리 (1px)
+      - **Level 2**: 💛 순수 노란색 (Pure Yellow) - `rgb(255, 255, 0)`
+      - **Level 3**: 💙 순수 파란색 (Pure Blue) - `rgb(0, 0, 255)`
+      - **Level 4**: ❤️ 순수 빨간색 (Pure Red) - `rgb(255, 0, 0)`
+      - **Master (Level 5)**: 🖤 검정색 (Black) - `rgb(0, 0, 0)`
+    - **Level 1 (흰색) 가시성 개선**:
+      - 테두리: 회색 → **완전 검은색** `rgba(0, 0, 0, 1)`
+      - 테두리 두께: 2px → **1px** (더 얇고 깔끔하게)
+      - 내부 텍스트: 흰색 → **검은색** (숫자/퍼센트가 보이지 않던 문제 해결)
+    - **동적 텍스트 색상**:
+      - Level 1 (흰색 배경): 검은색 텍스트 `#000`
+      - Level 2-4, Master: 흰색 텍스트 `#fff`
     - **Master 범례 추가**: 차트 상단 범례에 "Master" 항목 표시 (데이터는 0, 평가 미시작)
-    - **개선 사항**: 
-      - Level 1 흰색 막대에 두꺼운 회색 테두리 추가로 가시성 향상
-      - 5단계 Level 시스템 완성 (Level 1-4 + Master)
     - **영향 차트**: 
       - Position Analysis Percentage Chart
       - Position Analysis Count Chart
