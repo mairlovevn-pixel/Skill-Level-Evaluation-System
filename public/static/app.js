@@ -2753,7 +2753,39 @@ let assessmentFilters = {
 };
 
 // Written Test Team-Position Mapping (Fixed Order)
+// Written Test Team-Position Mapping (Only positions that take Written Test - 18 positions)
 const WRITTEN_TEST_TEAM_POSITIONS = {
+    'BLACK TOWER': [
+        'CUTTING',
+        'BEVELING',
+        'BENDING',
+        'LS WELDING',
+        'FIT UP',
+        'CS WELDING',
+        'VTMT',
+        'BRACKET FU',
+        'BRACKET WELD',
+        'UT REPAIR',
+        'DOOR FRAME FU',
+        'DOOR FRAME WELD',
+        'FLATNESS'
+    ],
+    'WHITE TOWER': [
+        'BLASTING',
+        'METALIZING',
+        'PAINTING'
+    ],
+    'INTERNAL MOUNTING': [
+        'ASSEMBLY',
+        'IM CABLE'
+    ]
+};
+
+// Team order for Written Test (3 teams only)
+const WRITTEN_TEST_TEAM_ORDER = ['BLACK TOWER', 'WHITE TOWER', 'INTERNAL MOUNTING'];
+
+// All Team-Position Mapping (All positions that receive level evaluation - 50 positions)
+const ALL_TEAM_POSITIONS = {
     'BLACK TOWER': [
         'MATERIAL HANDLING',
         'CUTTING',
@@ -2820,8 +2852,8 @@ const WRITTEN_TEST_TEAM_POSITIONS = {
     ]
 };
 
-// Team order for display (all teams)
-const WRITTEN_TEST_TEAM_ORDER = ['BLACK TOWER', 'WHITE TOWER', 'INTERNAL MOUNTING', 'QM', 'TRANSPORTATION', 'MAINTENANCE', 'WAREHOUSE', 'LEAN'];
+// Team order for all evaluations (8 teams)
+const ALL_TEAM_ORDER = ['BLACK TOWER', 'WHITE TOWER', 'INTERNAL MOUNTING', 'QM', 'TRANSPORTATION', 'MAINTENANCE', 'WAREHOUSE', 'LEAN'];
 
 async function updateTestStatusFilter() {
     // Get selected entity from dropdown (single selection)
@@ -3967,7 +3999,7 @@ function initializeAssessmentPercentageFilters() {
     if (!teamContainerPct || !positionContainerPct) return;
     
     // Use predefined team list
-    const allTeams = Object.keys(WRITTEN_TEST_TEAM_POSITIONS);
+    const allTeams = ALL_TEAM_ORDER;
     
     // Populate team checkboxes with hierarchical structure
     teamContainerPct.innerHTML = '';
@@ -3987,7 +4019,7 @@ function initializeAssessmentPercentageFilters() {
     positionContainerPct.innerHTML = '';
     
     allTeams.forEach(team => {
-        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+        if (ALL_TEAM_POSITIONS[team]) {
             // Create team group
             const teamGroup = document.createElement('div');
             teamGroup.className = 'w-full mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200';
@@ -4006,7 +4038,7 @@ function initializeAssessmentPercentageFilters() {
             const positionsWrapper = document.createElement('div');
             positionsWrapper.className = 'flex flex-wrap gap-3 ml-6';
             
-            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
+            ALL_TEAM_POSITIONS[team].forEach(position => {
                 const label = document.createElement('label');
                 label.className = 'inline-flex items-center cursor-pointer';
                 label.innerHTML = `
@@ -10816,12 +10848,12 @@ function initializeEntityComparisonFilters() {
     const dropdownContainer = document.getElementById('entity-comparison-team-dropdowns');
     if (!dropdownContainer) return;
     
-    const allTeams = Object.keys(WRITTEN_TEST_TEAM_POSITIONS);
+    const allTeams = ALL_TEAM_ORDER;
     
     dropdownContainer.innerHTML = '';
     
     allTeams.forEach(team => {
-        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+        if (ALL_TEAM_POSITIONS[team]) {
             // Create team dropdown container
             const teamDropdown = document.createElement('div');
             teamDropdown.className = 'relative border border-gray-300 rounded-lg overflow-visible bg-white';
@@ -10857,7 +10889,7 @@ function initializeEntityComparisonFilters() {
             `;
             positionsContainer.appendChild(allLabel);
             
-            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
+            ALL_TEAM_POSITIONS[team].forEach(position => {
                 const label = document.createElement('label');
                 label.className = 'flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors';
                 label.innerHTML = `
@@ -11144,12 +11176,12 @@ function initializePositionAnalysisFilters() {
     const dropdownContainer = document.getElementById('position-analysis-team-dropdowns');
     if (!dropdownContainer) return;
     
-    const allTeams = Object.keys(WRITTEN_TEST_TEAM_POSITIONS);
+    const allTeams = ALL_TEAM_ORDER;
     
     dropdownContainer.innerHTML = '';
     
     allTeams.forEach(team => {
-        if (WRITTEN_TEST_TEAM_POSITIONS[team]) {
+        if (ALL_TEAM_POSITIONS[team]) {
             // Create team dropdown container
             const teamDropdown = document.createElement('div');
             teamDropdown.className = 'relative border border-gray-300 rounded-lg overflow-visible bg-white';
@@ -11185,7 +11217,7 @@ function initializePositionAnalysisFilters() {
             `;
             positionsContainer.appendChild(allLabel);
             
-            WRITTEN_TEST_TEAM_POSITIONS[team].forEach(position => {
+            ALL_TEAM_POSITIONS[team].forEach(position => {
                 const label = document.createElement('label');
                 label.className = 'flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors';
                 label.innerHTML = `
