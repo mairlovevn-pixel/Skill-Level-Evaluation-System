@@ -650,6 +650,12 @@ app.delete('/api/quizzes/:id', errorHandler(async (c) => {
   const db = c.env.DB
   const quizId = c.req.param('id')
   
+  // 1. 먼저 해당 퀴즈를 참조하는 모든 답변 삭제
+  await db.prepare('DELETE FROM written_test_answers WHERE quiz_id = ?')
+    .bind(quizId)
+    .run()
+  
+  // 2. 그 다음 퀴즈 삭제
   await db.prepare('DELETE FROM written_test_quizzes WHERE id = ?')
     .bind(quizId)
     .run()
@@ -662,7 +668,15 @@ app.delete('/api/quizzes/position/:processId', errorHandler(async (c) => {
   const db = c.env.DB
   const processId = c.req.param('processId')
   
-  // 해당 프로세스의 모든 quiz 삭제
+  // 1. 먼저 해당 프로세스 퀴즈를 참조하는 모든 답변 삭제
+  await db.prepare(`
+    DELETE FROM written_test_answers 
+    WHERE quiz_id IN (
+      SELECT id FROM written_test_quizzes WHERE process_id = ?
+    )
+  `).bind(processId).run()
+  
+  // 2. 그 다음 해당 프로세스의 모든 quiz 삭제
   const result = await db.prepare('DELETE FROM written_test_quizzes WHERE process_id = ?')
     .bind(processId)
     .run()
