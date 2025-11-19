@@ -8563,7 +8563,7 @@ function closeAssessmentAnalysis() {
 }
 
 // Analysis page filter handlers
-function onAnalysisEntityChange() {
+async function onAnalysisEntityChange() {
     const entity = document.getElementById('analysis-entity-select').value;
     const teamSelect = document.getElementById('analysis-team-select');
     const positionSelect = document.getElementById('analysis-position-select');
@@ -8583,26 +8583,38 @@ function onAnalysisEntityChange() {
         return;
     }
     
-    // Load teams for selected entity
-    teamSelect.disabled = false;
-    teamSelect.innerHTML = '<option value="">All Teams</option>';
-    
-    const teams = new Set();
-    allDashboardWorkers.forEach(w => {
-        if (w.entity === entity && w.team) {
-            teams.add(w.team);
-        }
-    });
-    
-    Array.from(teams).sort().forEach(team => {
-        const option = document.createElement('option');
-        option.value = team;
-        option.textContent = team;
-        teamSelect.appendChild(option);
-    });
+    // Load teams from API for selected entity
+    try {
+        teamSelect.disabled = true;
+        teamSelect.innerHTML = '<option value="">Loading teams...</option>';
+        
+        const response = await axios.get(`/api/analysis/workers?entity=${entity}`);
+        const workers = response.data;
+        
+        const teams = new Set();
+        workers.forEach(w => {
+            if (w.team) {
+                teams.add(w.team);
+            }
+        });
+        
+        teamSelect.disabled = false;
+        teamSelect.innerHTML = '<option value="">All Teams</option>';
+        
+        Array.from(teams).sort().forEach(team => {
+            const option = document.createElement('option');
+            option.value = team;
+            option.textContent = team;
+            teamSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Failed to load teams:', error);
+        teamSelect.innerHTML = '<option value="">Error loading teams</option>';
+        alert('Failed to load team list.');
+    }
 }
 
-function onAnalysisTeamChange() {
+async function onAnalysisTeamChange() {
     const entity = document.getElementById('analysis-entity-select').value;
     const team = document.getElementById('analysis-team-select').value;
     const positionSelect = document.getElementById('analysis-position-select');
@@ -8620,23 +8632,35 @@ function onAnalysisTeamChange() {
         return;
     }
     
-    // Load positions for selected entity + team
-    positionSelect.disabled = false;
-    positionSelect.innerHTML = '<option value="">All Positions</option>';
-    
-    const positions = new Set();
-    allDashboardWorkers.forEach(w => {
-        if (w.entity === entity && w.team === team && w.position) {
-            positions.add(w.position);
-        }
-    });
-    
-    Array.from(positions).sort().forEach(position => {
-        const option = document.createElement('option');
-        option.value = position;
-        option.textContent = position;
-        positionSelect.appendChild(option);
-    });
+    // Load positions from API for selected entity + team
+    try {
+        positionSelect.disabled = true;
+        positionSelect.innerHTML = '<option value="">Loading positions...</option>';
+        
+        const response = await axios.get(`/api/analysis/workers?entity=${entity}&team=${encodeURIComponent(team)}`);
+        const workers = response.data;
+        
+        const positions = new Set();
+        workers.forEach(w => {
+            if (w.position) {
+                positions.add(w.position);
+            }
+        });
+        
+        positionSelect.disabled = false;
+        positionSelect.innerHTML = '<option value="">All Positions</option>';
+        
+        Array.from(positions).sort().forEach(position => {
+            const option = document.createElement('option');
+            option.value = position;
+            option.textContent = position;
+            positionSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Failed to load positions:', error);
+        positionSelect.innerHTML = '<option value="">Error loading positions</option>';
+        alert('Failed to load position list.');
+    }
 }
 
 function onAnalysisPositionChange() {
